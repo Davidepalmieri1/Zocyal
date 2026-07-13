@@ -20,17 +20,33 @@ export default function Home() {
 
 
 
+
       <Link
 
-        href="/evento/test"
+        href="/evento"
 
-        className="mt-10 rounded-full bg-pink-500 px-10 py-4 text-black font-bold text-lg hover:scale-105 transition"
+        className="
+        mt-10
+        rounded-full
+        bg-pink-500
+        px-10
+        py-4
+        text-black
+        font-bold
+        text-lg
+        hover:scale-105
+        transition
+        shadow-lg
+        shadow-pink-500/30
+        "
 
       >
 
-        ENTRA NELLA SERATA
+        🔥 ENTRA NELLA SERATA
 
       </Link>
+
+
 
 
 
@@ -39,27 +55,41 @@ export default function Home() {
       <div className="mt-16 grid gap-5 text-left max-w-sm w-full">
 
 
+
         <div className="rounded-xl border border-pink-500/30 p-5">
+
           🎉 Conosci nuove persone
+
         </div>
 
 
+
         <div className="rounded-xl border border-pink-500/30 p-5">
+
           🎮 Partecipa alle missioni
+
         </div>
 
 
+
         <div className="rounded-xl border border-pink-500/30 p-5">
+
           ❤️ Trova connessioni compatibili
+
         </div>
+
 
 
         <div className="rounded-xl border border-pink-500/30 p-5">
+
           🏆 Vinci premi
+
         </div>
+
 
 
       </div>
+
 
 
     </main>
