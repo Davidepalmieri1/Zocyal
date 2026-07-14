@@ -349,10 +349,21 @@ icon="💬"
 
 
 
+<h1 className="text-red-500 text-4xl">
+QR TEST ATTIVO
+</h1>
 
 <div className="mt-10">
 
-<EventQR code={code}/>
+<EventQR
+
+code={code}
+
+name={evento?.name || "Evento"}
+
+venue={evento?.venue || ""}
+
+/>
 
 </div>
 
