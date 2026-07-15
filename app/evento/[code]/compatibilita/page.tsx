@@ -445,7 +445,7 @@ export default function CompatibilitaPage() {
       likesRef.current = (likesResult.data || []) as LikeRecord[]
       userMatchesRef.current = (matchesResult.data || []) as MatchRecord[]
 
-      await caricaBloccoProfili(participantId, eventCode, 0, true)
+      await caricaBloccoProfili(participantId!, eventCode, 0, true)
     }
 
     inizializzaPagina()
