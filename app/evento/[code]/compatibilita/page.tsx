@@ -145,21 +145,16 @@ export default function CompatibilitaPage() {
       const indiceFinale = indiceIniziale + PROFILI_PER_PAGINA - 1
 
       const { data: altriPartecipanti, error: partecipantiError } =
-  await supabase
-    .from("participants")
-    .select("id, nickname, age, avatar_url")
-    .neq("id", participantId)
-    .eq("event_code", eventCode)
-    .eq("completed_test", true)
-    .range(indiceIniziale, indiceFinale)
+        await supabase
+          .from("participants")
+          .select("id, nickname, age, avatar_url")
+          .neq("id", participantId)
+          .eq("event_code", eventCode)
+          .eq("completed_test", true)
+          .range(indiceIniziale, indiceFinale)
 
       if (partecipantiError) {
-        console.error("Errore caricamento partecipanti:", {
-  message: partecipantiError.message,
-  details: partecipantiError.details,
-  hint: partecipantiError.hint,
-  code: partecipantiError.code,
-})
+        console.error("Errore caricamento partecipanti:", partecipantiError)
         setErrore("Non siamo riusciti a caricare le affinità.")
         return
       }
@@ -417,6 +412,8 @@ export default function CompatibilitaPage() {
       return
     }
 
+    const participantIdSicuro = participantId
+
     async function inizializzaPagina() {
       setLoading(true)
       setErrore("")
@@ -428,19 +425,19 @@ export default function CompatibilitaPage() {
         supabase
           .from("answers")
           .select("*")
-          .eq("participant_id", participantId)
+          .eq("participant_id", participantIdSicuro)
           .maybeSingle(),
         supabase
           .from("likes")
           .select("id, from_participant, to_participant")
           .or(
-            `from_participant.eq.${participantId},to_participant.eq.${participantId}`
+            `from_participant.eq.${participantIdSicuro},to_participant.eq.${participantIdSicuro}`
           ),
         supabase
           .from("matches")
           .select("id, user_one, user_two")
           .or(
-            `user_one.eq.${participantId},user_two.eq.${participantId}`
+            `user_one.eq.${participantIdSicuro},user_two.eq.${participantIdSicuro}`
           ),
       ])
 
@@ -461,7 +458,7 @@ export default function CompatibilitaPage() {
           event: "INSERT",
           schema: "public",
           table: "likes",
-          filter: `to_participant=eq.${participantId}`,
+          filter: `to_participant=eq.${participantIdSicuro}`,
         },
         (payload) => {
           const nuovoLike = payload.new as LikeRecord
@@ -502,8 +499,8 @@ export default function CompatibilitaPage() {
           const nuovoMatch = payload.new as MatchRecord
 
           if (
-            nuovoMatch.user_one !== participantId &&
-            nuovoMatch.user_two !== participantId
+            nuovoMatch.user_one !== participantIdSicuro &&
+            nuovoMatch.user_two !== participantIdSicuro
           ) {
             return
           }
@@ -520,7 +517,7 @@ export default function CompatibilitaPage() {
           }
 
           const altroUtente =
-            nuovoMatch.user_one === participantId
+            nuovoMatch.user_one === participantIdSicuro
               ? nuovoMatch.user_two
               : nuovoMatch.user_one
 
