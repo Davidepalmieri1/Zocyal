@@ -18,6 +18,7 @@ type Messaggio = {
   sender_id: string
   message: string
   created_at: string
+  read_at: string | null
 }
 
 type Persona = {
@@ -87,6 +88,12 @@ export default function ChatPage() {
   const [persona, setPersona] = useState<Persona | null>(null)
   const [typing, setTyping] = useState(false)
   const [errore, setErrore] = useState("")
+  const [online, setOnline] = useState(true)
+  const [chatBloccata, setChatBloccata] = useState(false)
+  const [sicurezzaAperta, setSicurezzaAperta] = useState(false)
+  const [motivoSegnalazione, setMotivoSegnalazione] = useState("")
+  const [dettagliSegnalazione, setDettagliSegnalazione] = useState("")
+  const [invioSicurezza, setInvioSicurezza] = useState(false)
   const [mioId, setMioId] = useState<string | null>(null)
   const [profiloControllato, setProfiloControllato] =
     useState(false)
@@ -144,6 +151,30 @@ export default function ChatPage() {
 
     if (!participantId) {
       setLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    setOnline(navigator.onLine)
+
+    function handleOffline() {
+      setOnline(false)
+      setErrore(
+        "Connessione assente. Il messaggio resta scritto e potrai riprovare quando torna Internet."
+      )
+    }
+
+    function handleOnline() {
+      setOnline(true)
+      setErrore("")
+    }
+
+    window.addEventListener("offline", handleOffline)
+    window.addEventListener("online", handleOnline)
+
+    return () => {
+      window.removeEventListener("offline", handleOffline)
+      window.removeEventListener("online", handleOnline)
     }
   }, [])
 
@@ -323,6 +354,28 @@ export default function ChatPage() {
     riproduciSuonoNotifica()
   }
 
+  async function segnaMessaggiComeLetti() {
+    if (!matchId || !mioId) {
+      return
+    }
+
+    const { error } = await supabase
+      .from("messages")
+      .update({
+        read_at: new Date().toISOString(),
+      })
+      .eq("match_id", matchId)
+      .neq("sender_id", mioId)
+      .is("read_at", null)
+
+    if (error) {
+      console.error(
+        "Errore aggiornamento messaggi letti:",
+        error
+      )
+    }
+  }
+
   useEffect(() => {
     if (!matchId || !mioId) {
       return
@@ -355,13 +408,14 @@ export default function ChatPage() {
       }
 
       setMessages((messaggi || []) as Messaggio[])
+      await segnaMessaggiComeLetti()
 
       const {
         data: match,
         error: matchError,
       } = await supabase
         .from("matches")
-        .select("id, user_one, user_two")
+        .select("id, user_one, user_two, status")
         .eq("id", matchId)
         .maybeSingle()
 
@@ -383,6 +437,10 @@ export default function ChatPage() {
         setErrore("Questa chat non esiste più.")
         setLoading(false)
         return
+      }
+
+      if (match.status === "blocked") {
+        setChatBloccata(true)
       }
 
       const appartieneAllaChat =
@@ -461,7 +519,34 @@ export default function ChatPage() {
 
           if (nuovoMessaggio.sender_id !== mioId) {
             mostraNotificaMessaggio(nuovoMessaggio)
+
+            if (!document.hidden) {
+              segnaMessaggiComeLetti()
+            }
           }
+        }
+      )
+
+
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "messages",
+          filter: `match_id=eq.${matchId}`,
+        },
+        (payload) => {
+          const messaggioAggiornato =
+            payload.new as Messaggio
+
+          setMessages((attuali) =>
+            attuali.map((messaggio) =>
+              messaggio.id === messaggioAggiornato.id
+                ? messaggioAggiornato
+                : messaggio
+            )
+          )
         }
       )
 
@@ -493,6 +578,107 @@ export default function ChatPage() {
 
       channelRef.current = null
       supabase.removeChannel(channel)
+    }
+  }, [matchId, mioId])
+
+  async function gestisciSicurezza(
+    segnala: boolean
+  ) {
+    if (!mioId || !persona?.id || invioSicurezza) {
+      return
+    }
+
+    if (segnala && !motivoSegnalazione) {
+      setErrore("Seleziona il motivo della segnalazione.")
+      return
+    }
+
+    setInvioSicurezza(true)
+    setErrore("")
+
+    const { error: blockError } = await supabase
+      .from("participant_blocks")
+      .upsert(
+        {
+          match_id: matchId,
+          blocked_by: mioId,
+          blocked_participant: persona.id,
+          reason: segnala
+            ? motivoSegnalazione
+            : "Blocco senza segnalazione",
+        },
+        {
+          onConflict: "match_id,blocked_by",
+        }
+      )
+
+    if (blockError) {
+      console.error("Errore blocco utente:", blockError)
+      setErrore("Non siamo riusciti a bloccare questa persona.")
+      setInvioSicurezza(false)
+      return
+    }
+
+    if (segnala) {
+      const { error: reportError } = await supabase
+        .from("reports")
+        .insert({
+          match_id: matchId,
+          reported_by: mioId,
+          reported_participant: persona.id,
+          reason: motivoSegnalazione,
+          details: dettagliSegnalazione.trim() || null,
+        })
+
+      if (reportError) {
+        console.error("Errore segnalazione:", reportError)
+        setErrore(
+          "La persona è stata bloccata, ma la segnalazione non è stata salvata."
+        )
+      }
+    }
+
+    const { error: matchUpdateError } = await supabase
+      .from("matches")
+      .update({
+        status: "blocked",
+      })
+      .eq("id", matchId)
+
+    if (matchUpdateError) {
+      console.error(
+        "Errore chiusura chat:",
+        matchUpdateError
+      )
+      setErrore(
+        "Il blocco è stato salvato, ma la chat potrebbe richiedere un aggiornamento."
+      )
+    }
+
+    setChatBloccata(true)
+    setSicurezzaAperta(false)
+    setInvioSicurezza(false)
+    setText("")
+  }
+
+
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (!document.hidden) {
+        segnaMessaggiComeLetti()
+      }
+    }
+
+    document.addEventListener(
+      "visibilitychange",
+      handleVisibilityChange
+    )
+
+    return () => {
+      document.removeEventListener(
+        "visibilitychange",
+        handleVisibilityChange
+      )
     }
   }, [matchId, mioId])
 
@@ -539,7 +725,15 @@ export default function ChatPage() {
 
     const messaggioPulito = text.trim()
 
-    if (!messaggioPulito || !mioId || sending) {
+    if (!messaggioPulito || !mioId || sending || chatBloccata) {
+      return
+    }
+
+    if (!navigator.onLine) {
+      setOnline(false)
+      setErrore(
+        "Connessione assente. Il messaggio non è stato cancellato: riprova appena torna Internet."
+      )
       return
     }
 
@@ -563,7 +757,7 @@ export default function ChatPage() {
       )
 
       setErrore(
-        "Non siamo riusciti a inviare il messaggio."
+        "Messaggio non inviato. Il testo è ancora qui: controlla la connessione e premi di nuovo invia."
       )
 
       setSending(false)
@@ -697,6 +891,16 @@ export default function ChatPage() {
 
           <button
             type="button"
+            onClick={() => setSicurezzaAperta(true)}
+            aria-label="Apri sicurezza"
+            title="Sicurezza"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-xl text-gray-300 transition hover:border-red-400/40 hover:bg-red-500/10 hover:text-white"
+          >
+            🛡️
+          </button>
+
+          <button
+            type="button"
             onClick={cambiaStatoNotifiche}
             aria-label={
               notificheAttive
@@ -729,6 +933,16 @@ export default function ChatPage() {
 
       <section className="relative z-10 flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
+          {chatBloccata && (
+            <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center">
+              <p className="font-black text-red-300">
+                🛡️ Conversazione bloccata
+              </p>
+              <p className="mt-2 text-sm leading-6 text-gray-300">
+                Nessuno dei due partecipanti può più inviare messaggi in questa chat.
+              </p>
+            </div>
+          )}
           <div className="mb-4 text-center">
             <span className="inline-flex rounded-full border border-white/10 bg-white/[0.05] px-4 py-2 text-[11px] font-bold uppercase tracking-[0.18em] text-gray-400 backdrop-blur">
               Nuovo match
@@ -797,25 +1011,44 @@ export default function ChatPage() {
                   </p>
 
                   <span
-                    className={`mt-1.5 block text-right text-[10px] ${
+                    className={`mt-1.5 flex items-center justify-end gap-1 text-[10px] ${
                       mioMessaggio
                         ? "text-white/70"
                         : "text-gray-500"
                     }`}
                   >
-                    {new Date(
-                      msg.created_at
-                    ).toLocaleTimeString("it-IT", {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
+                    <span>
+                      {new Date(
+                        msg.created_at
+                      ).toLocaleTimeString("it-IT", {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </span>
+
+                    {mioMessaggio && (
+                      <span
+                        className={
+                          msg.read_at
+                            ? "font-black text-pink-200"
+                            : "font-black text-white/60"
+                        }
+                        title={
+                          msg.read_at
+                            ? "Visualizzato"
+                            : "Inviato"
+                        }
+                      >
+                        {msg.read_at ? "✓✓" : "✓"}
+                      </span>
+                    )}
                   </span>
                 </div>
               </div>
             )
           })}
 
-          {typing && (
+          {typing && !chatBloccata && (
             <div className="flex justify-start">
               <div className="flex items-center gap-1 rounded-3xl rounded-bl-md border border-white/10 bg-white/[0.08] px-5 py-4">
                 <span className="h-2 w-2 animate-bounce rounded-full bg-gray-400 [animation-delay:-0.3s]" />
@@ -831,6 +1064,12 @@ export default function ChatPage() {
 
       <footer className="relative z-20 border-t border-white/10 bg-black/80 px-4 py-4 backdrop-blur-2xl">
         <div className="mx-auto w-full max-w-3xl">
+          {!online && (
+            <p className="mb-3 rounded-2xl border border-orange-400/30 bg-orange-400/10 px-4 py-3 text-center text-xs font-bold leading-5 text-orange-200">
+              🔴 Sei offline. Il testo resta salvato nel campo e potrai inviarlo quando torna Internet.
+            </p>
+          )}
+
           {errore && (
             <p className="mb-3 rounded-2xl border border-red-500/30 bg-red-500/10 px-4 py-3 text-center text-xs leading-5 text-red-300">
               {errore}
@@ -888,18 +1127,32 @@ export default function ChatPage() {
                 stoScrivendo()
               }}
               onKeyDown={gestisciTasto}
-              placeholder="Scrivi un messaggio..."
+              disabled={chatBloccata}
+              placeholder={
+                chatBloccata
+                  ? "Conversazione bloccata"
+                  : online
+                    ? "Scrivi un messaggio..."
+                    : "Connessione assente..."
+              }
               className="min-w-0 flex-1 rounded-full border border-white/10 bg-white/[0.07] px-5 py-4 text-sm font-medium text-white outline-none transition placeholder:text-gray-500 focus:border-pink-400/50 focus:bg-white/[0.1] focus:ring-4 focus:ring-pink-500/10"
             />
 
             <button
               type="submit"
-              disabled={!text.trim() || sending}
+              disabled={
+                !text.trim() ||
+                sending ||
+                !online ||
+                chatBloccata
+              }
               aria-label="Invia messaggio"
               className="flex h-13 w-13 shrink-0 items-center justify-center rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 text-xl font-black text-white shadow-[0_0_30px_rgba(236,72,153,0.25)] transition hover:scale-105 active:scale-95 disabled:cursor-not-allowed disabled:opacity-40"
             >
               {sending ? (
                 <span className="h-5 w-5 animate-spin rounded-full border-2 border-white/30 border-t-white" />
+              ) : !online ? (
+                <span>🔒</span>
               ) : (
                 <span className="-rotate-12">
                   ➤
@@ -909,6 +1162,85 @@ export default function ChatPage() {
           </form>
         </div>
       </footer>
+
+      {sicurezzaAperta && (
+        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
+                  Sicurezza
+                </p>
+                <h2 className="mt-2 text-2xl font-black">
+                  Proteggi la conversazione
+                </h2>
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setSicurezzaAperta(false)}
+                className="flex h-10 w-10 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-xl"
+              >
+                ×
+              </button>
+            </div>
+
+            <p className="mt-3 text-sm leading-6 text-gray-400">
+              Il blocco chiude subito la chat per entrambi. I messaggi restano salvati per eventuali controlli.
+            </p>
+
+            <label className="mt-5 block text-sm font-bold text-gray-300">
+              Motivo della segnalazione
+            </label>
+
+            <select
+              value={motivoSegnalazione}
+              onChange={(event) => {
+                setMotivoSegnalazione(event.target.value)
+                setErrore("")
+              }}
+              className="mt-2 w-full rounded-2xl border border-white/10 bg-white px-4 py-4 font-semibold text-black outline-none"
+            >
+              <option value="">Seleziona un motivo</option>
+              <option value="Messaggi offensivi">Messaggi offensivi</option>
+              <option value="Comportamento insistente">Comportamento insistente</option>
+              <option value="Molestie">Molestie</option>
+              <option value="Profilo falso">Profilo falso</option>
+              <option value="Altro">Altro</option>
+            </select>
+
+            <textarea
+              value={dettagliSegnalazione}
+              onChange={(event) =>
+                setDettagliSegnalazione(event.target.value)
+              }
+              placeholder="Aggiungi dettagli, facoltativo"
+              maxLength={500}
+              className="mt-3 min-h-28 w-full resize-none rounded-2xl border border-white/10 bg-white/[0.07] px-4 py-4 text-sm text-white outline-none placeholder:text-gray-500"
+            />
+
+            <button
+              type="button"
+              onClick={() => gestisciSicurezza(true)}
+              disabled={invioSicurezza}
+              className="mt-5 w-full rounded-full bg-red-600 px-6 py-4 font-black text-white transition hover:bg-red-500 disabled:opacity-60"
+            >
+              {invioSicurezza
+                ? "SALVATAGGIO..."
+                : "SEGNALA E BLOCCA"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => gestisciSicurezza(false)}
+              disabled={invioSicurezza}
+              className="mt-3 w-full rounded-full border border-white/10 bg-white/[0.05] px-6 py-4 font-black text-gray-200 transition hover:bg-white/[0.09] disabled:opacity-60"
+            >
+              BLOCCA SENZA SEGNALARE
+            </button>
+          </div>
+        </div>
+      )}
     </main>
   )
 }

@@ -1,5 +1,6 @@
 import Link from "next/link"
 import Logo from "@/app/components/Logo"
+import ExistingProfileActions from "@/app/components/ExistingProfileActions"
 import { supabase } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
@@ -30,7 +31,6 @@ export default async function EventoPage({
     return (
       <main className="relative min-h-screen overflow-hidden bg-black px-6 text-white">
         <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-
         <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
 
         <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center text-center">
@@ -41,8 +41,7 @@ export default async function EventoPage({
           </h1>
 
           <p className="mt-3 leading-7 text-gray-400">
-            Il codice inserito non esiste oppure l&apos;evento non è più
-            disponibile.
+            Il codice inserito non esiste oppure l&apos;evento non è più disponibile.
           </p>
 
           <Link
@@ -59,7 +58,6 @@ export default async function EventoPage({
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-6 text-white">
       <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-
       <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
 
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center text-center">
@@ -90,12 +88,7 @@ export default async function EventoPage({
             </p>
           </div>
 
-          <Link
-            href={`/evento/${event.code}/profilo`}
-            className="mt-8 block w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-8 py-4 text-lg font-black text-white shadow-[0_0_40px_rgba(236,72,153,0.25)] transition hover:scale-[1.02]"
-          >
-            CREA IL TUO PROFILO
-          </Link>
+          <ExistingProfileActions eventCode={event.code} />
         </div>
 
         <p className="mt-6 text-sm text-gray-500">

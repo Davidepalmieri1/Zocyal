@@ -283,6 +283,70 @@ export default function ExperienceSidebar() {
                   Cambia esperienza in qualsiasi momento.
                 </p>
 
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAperto(false)
+                    router.push(`/evento/${eventCode}/mio-profilo`)
+                  }}
+                  className={`mt-6 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition ${
+                    pathname.includes("/mio-profilo")
+                      ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10"
+                      : "border-white/10 bg-white/[0.04] hover:border-pink-400/30 hover:bg-white/[0.07]"
+                  }`}
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pink-500/10 text-2xl">
+                    👤
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-white">
+                      Il mio profilo
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-gray-400">
+                      Mostra foto, nome e codice personale durante la serata.
+                    </p>
+                  </div>
+
+                  <span className="text-xl text-white/30">
+                    ›
+                  </span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAperto(false)
+                    router.push(`/evento/${eventCode}/miei-match`)
+                  }}
+                  className={`mt-3 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition ${
+                    pathname.includes("/miei-match") ||
+                    pathname.includes("/chat")
+                      ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10"
+                      : "border-white/10 bg-white/[0.04] hover:border-pink-400/30 hover:bg-white/[0.07]"
+                  }`}
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pink-500/10 text-2xl">
+                    💬
+                  </div>
+
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-white">
+                      Le mie chat
+                    </p>
+
+                    <p className="mt-1 text-xs leading-5 text-gray-400">
+                      Vedi match, ultimi messaggi e conversazioni della serata.
+                    </p>
+                  </div>
+
+                  <span className="text-xl text-white/30">
+                    ›
+                  </span>
+                </button>
+
                 <div className="mt-8 flex flex-col gap-4">
                   {vociMenu.map((voce, index) => {
                     const attiva = attivitaAttuale === voce.id

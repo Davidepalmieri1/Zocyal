@@ -29,9 +29,7 @@ export default function ProfiloPage() {
   function selezionaFoto(file: File | null) {
     setErrore("")
 
-    if (!file) {
-      return
-    }
+    if (!file) return
 
     if (!file.type.startsWith("image/")) {
       setErrore("Seleziona un’immagine valida.")
@@ -130,7 +128,7 @@ export default function ProfiloPage() {
         goal,
         avatar_url: avatarUrl,
       })
-      .select("id")
+      .select("id, recovery_code")
       .single()
 
     if (error) {
@@ -140,16 +138,27 @@ export default function ProfiloPage() {
       return
     }
 
+    if (!participant.recovery_code) {
+      setErrore(
+        "Il profilo è stato creato, ma manca il codice di recupero."
+      )
+      setLoading(false)
+      return
+    }
+
     localStorage.setItem("participant_id", participant.id)
     localStorage.setItem("event_code", eventCode)
+    localStorage.setItem(
+      "recovery_code",
+      participant.recovery_code
+    )
 
-    router.push(`/evento/${eventCode}/questionario`)
+    router.push(`/evento/${eventCode}/codice-accesso`)
   }
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-6 py-10 text-white">
       <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-
       <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
 
       <div className="relative mx-auto w-full max-w-md">
