@@ -76,6 +76,7 @@ export default function DashboardEventoPage() {
 
   const [evento, setEvento] = useState<Evento | null>(null)
   const [partecipanti, setPartecipanti] = useState<Partecipante[]>([])
+  const [totPartecipanti, setTotPartecipanti] = useState(0)
   const [totMatch, setTotMatch] = useState(0)
   const [totMessaggi, setTotMessaggi] = useState(0)
   const [totSegnalazioni, setTotSegnalazioni] = useState(0)
@@ -112,22 +113,33 @@ export default function DashboardEventoPage() {
 
     setEvento(eventData as Evento)
 
-    const { data: users, error: usersError } = await supabase
-      .from("participants")
-      .select("id, nickname, age, goal, avatar_url")
-      .eq("event_code", code)
+    const [idsResult, usersResult] = await Promise.all([
+      supabase
+        .from("participants")
+        .select("id", { count: "exact" })
+        .eq("event_code", code),
+      supabase
+        .from("participants")
+        .select("id, nickname, age, goal, avatar_url")
+        .eq("event_code", code)
+        .limit(50),
+    ])
 
-    if (usersError) {
-      console.error("Errore caricamento partecipanti:", usersError)
+    if (idsResult.error || usersResult.error) {
+      console.error(
+        "Errore caricamento partecipanti:",
+        idsResult.error || usersResult.error
+      )
       setErrore("Impossibile caricare i partecipanti.")
       setLoading(false)
       return
     }
 
-    const listaUtenti = (users || []) as Partecipante[]
+    const listaUtenti = (usersResult.data || []) as Partecipante[]
     setPartecipanti(listaUtenti)
+    setTotPartecipanti(idsResult.count || 0)
 
-    const userIds = listaUtenti.map((user) => user.id)
+    const userIds = (idsResult.data || []).map((user) => user.id)
 
     if (userIds.length === 0) {
       setTotMatch(0)
@@ -157,12 +169,12 @@ export default function DashboardEventoPage() {
       const [messagesResult, reportsResult] = await Promise.all([
         supabase
           .from("messages")
-          .select("id")
+          .select("id", { count: "exact", head: true })
           .in("match_id", matchIds),
 
         supabase
           .from("reports")
-          .select("id")
+          .select("id", { count: "exact", head: true })
           .in("match_id", matchIds)
           .eq("status", "open"),
       ])
@@ -181,8 +193,8 @@ export default function DashboardEventoPage() {
         )
       }
 
-      setTotMessaggi(messagesResult.data?.length || 0)
-      setTotSegnalazioni(reportsResult.data?.length || 0)
+      setTotMessaggi(messagesResult.count || 0)
+      setTotSegnalazioni(reportsResult.count || 0)
     } else {
       setTotMessaggi(0)
       setTotSegnalazioni(0)
@@ -209,6 +221,7 @@ export default function DashboardEventoPage() {
         (payload) => {
           const nuovoPartecipante = payload.new as Partecipante
 
+          setTotPartecipanti((old) => old + 1)
           setPartecipanti((old) => {
             const esiste = old.some(
               (partecipante) =>
@@ -217,7 +230,7 @@ export default function DashboardEventoPage() {
 
             return esiste
               ? old
-              : [...old, nuovoPartecipante]
+              : [nuovoPartecipante, ...old].slice(0, 50)
           })
 
           aggiungiAttivita({
@@ -407,7 +420,7 @@ export default function DashboardEventoPage() {
           <section className="mt-6 grid gap-5 md:grid-cols-2 xl:grid-cols-4">
             <DashboardStatCard
               title="Partecipanti"
-              value={partecipanti.length}
+              value={totPartecipanti}
               icon="👥"
               description="Persone entrate nell’evento."
             />
@@ -486,7 +499,7 @@ export default function DashboardEventoPage() {
                 </h2>
 
                 <p className="mt-2 text-sm text-gray-400">
-                  {partecipanti.length} profili registrati.
+                  {totPartecipanti} profili registrati. Mostriamo gli ultimi 50.
                 </p>
               </div>
 
