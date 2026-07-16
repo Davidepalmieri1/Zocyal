@@ -2,6 +2,11 @@ This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-
 
 ## Getting Started
 
+Copy `.env.example` to `.env.local` and fill in the Supabase values. Set a long,
+unique `ADMIN_PASSWORD` and a random `ADMIN_SESSION_SECRET` of at least 32
+characters. In production, configure the same variables in the hosting provider
+instead of committing secrets to Git.
+
 First, run the development server:
 
 ```bash

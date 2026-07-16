@@ -21,7 +21,7 @@ return(
 <Sidebar />
 
 
-<main className="flex-1 p-8">
+<main className="min-w-0 flex-1 px-4 pb-8 pt-20 sm:px-6 lg:p-8">
 
 
 <h1 className="text-4xl font-bold text-pink-500">

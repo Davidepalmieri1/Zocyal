@@ -224,7 +224,11 @@ export default function ExperienceSidebar() {
         aria-label="Apri menu attività"
         whileTap={{ scale: 0.92 }}
         whileHover={{ scale: 1.06 }}
-        className="fixed bottom-6 right-6 z-40 flex h-14 w-14 items-center justify-center rounded-full border border-pink-400/30 bg-gradient-to-br from-fuchsia-600 via-pink-500 to-orange-400 text-2xl text-white shadow-[0_0_40px_rgba(236,72,153,0.35)]"
+        className={`fixed right-4 z-40 flex items-center justify-center rounded-full border border-pink-400/30 bg-gradient-to-br from-fuchsia-600 via-pink-500 to-orange-400 text-white shadow-[0_0_40px_rgba(236,72,153,0.35)] transition-[bottom,width,height] sm:right-6 ${
+          pathname.includes("/chat/")
+            ? "bottom-24 h-12 w-12 text-xl sm:bottom-28"
+            : "bottom-6 h-14 w-14 text-2xl"
+        }`}
       >
         ☰
       </motion.button>

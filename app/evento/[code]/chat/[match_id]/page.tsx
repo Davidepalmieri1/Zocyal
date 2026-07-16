@@ -596,63 +596,37 @@ export default function ChatPage() {
     setInvioSicurezza(true)
     setErrore("")
 
-    const { error: blockError } = await supabase
-      .from("participant_blocks")
-      .upsert(
-        {
-          match_id: matchId,
-          blocked_by: mioId,
-          blocked_participant: persona.id,
-          reason: segnala
-            ? motivoSegnalazione
-            : "Blocco senza segnalazione",
-        },
-        {
-          onConflict: "match_id,blocked_by",
-        }
-      )
+    const recoveryCode = localStorage.getItem("recovery_code")
 
-    if (blockError) {
-      console.error("Errore blocco utente:", blockError)
-      setErrore("Non siamo riusciti a bloccare questa persona.")
+    if (!recoveryCode) {
+      setErrore(
+        "Codice di sicurezza del profilo non disponibile. Recupera nuovamente il profilo."
+      )
       setInvioSicurezza(false)
       return
     }
 
-    if (segnala) {
-      const { error: reportError } = await supabase
-        .from("reports")
-        .insert({
-          match_id: matchId,
-          reported_by: mioId,
-          reported_participant: persona.id,
-          reason: motivoSegnalazione,
-          details: dettagliSegnalazione.trim() || null,
-        })
-
-      if (reportError) {
-        console.error("Errore segnalazione:", reportError)
-        setErrore(
-          "La persona è stata bloccata, ma la segnalazione non è stata salvata."
-        )
+    const { error: safetyError } = await supabase.rpc(
+      "block_and_report",
+      {
+        p_match_id: matchId,
+        p_participant_id: mioId,
+        p_recovery_code: recoveryCode,
+        p_reason: segnala
+          ? motivoSegnalazione
+          : "Blocco senza segnalazione",
+        p_details: dettagliSegnalazione.trim() || null,
+        p_create_report: segnala,
       }
-    }
+    )
 
-    const { error: matchUpdateError } = await supabase
-      .from("matches")
-      .update({
-        status: "blocked",
-      })
-      .eq("id", matchId)
-
-    if (matchUpdateError) {
-      console.error(
-        "Errore chiusura chat:",
-        matchUpdateError
-      )
+    if (safetyError) {
+      console.error("Errore sicurezza utente:", safetyError)
       setErrore(
-        "Il blocco è stato salvato, ma la chat potrebbe richiedere un aggiornamento."
+        "Non siamo riusciti a completare il blocco. Riprova o recupera il profilo con il tuo codice."
       )
+      setInvioSicurezza(false)
+      return
     }
 
     setChatBloccata(true)

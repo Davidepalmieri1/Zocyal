@@ -3,6 +3,7 @@
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useParams, usePathname } from "next/navigation"
+import { useState } from "react"
 import Logo from "@/app/components/Logo"
 
 type MenuItem = {
@@ -60,11 +61,108 @@ const menu: MenuItem[] = [
 export default function Sidebar() {
   const params = useParams<{ code: string }>()
   const pathname = usePathname()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   const code = params.code
 
+  function itemLink(item: MenuItem) {
+    return item.path === "dashboard"
+      ? `/admin/dashboard/${code}`
+      : `/admin/${item.path}/${code}`
+  }
+
+  function isActive(item: MenuItem) {
+    return item.path === "dashboard"
+      ? pathname === `/admin/dashboard/${code}`
+      : pathname.includes(`/admin/${item.path}/`)
+  }
+
   return (
-    <motion.aside
+    <>
+      <button
+        type="button"
+        aria-label="Apri menu amministratore"
+        aria-expanded={mobileOpen}
+        aria-controls="admin-mobile-menu"
+        onClick={() => setMobileOpen(true)}
+        className="fixed left-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-zinc-950/95 text-2xl text-white shadow-xl backdrop-blur lg:hidden"
+      >
+        ☰
+      </button>
+
+      {mobileOpen && (
+        <div className="fixed inset-0 z-50 lg:hidden">
+          <button
+            type="button"
+            aria-label="Chiudi menu amministratore"
+            onClick={() => setMobileOpen(false)}
+            className="absolute inset-0 bg-black/75 backdrop-blur-sm"
+          />
+
+          <motion.aside
+            id="admin-mobile-menu"
+            initial={{ x: -320 }}
+            animate={{ x: 0 }}
+            className="relative flex h-full w-[min(86vw,320px)] flex-col overflow-y-auto border-r border-white/10 bg-zinc-950 p-5 text-white shadow-2xl"
+          >
+            <div className="flex items-start justify-between gap-4">
+              <div>
+                <Logo size="small" />
+                <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-pink-400">
+                  Evento {code}
+                </p>
+              </div>
+              <div className="flex gap-2">
+                <form action="/admin/api/logout" method="post">
+                  <button
+                    type="submit"
+                    className="h-10 rounded-xl border border-pink-400/30 bg-pink-500/10 px-3 text-xs font-black text-pink-200"
+                  >
+                    ESCI
+                  </button>
+                </form>
+                <button
+                  type="button"
+                  aria-label="Chiudi menu"
+                  onClick={() => setMobileOpen(false)}
+                  className="flex h-10 w-10 items-center justify-center rounded-xl border border-white/10 bg-white/[0.05] text-xl"
+                >
+                  ×
+                </button>
+              </div>
+            </div>
+
+            <nav className="mt-7 flex flex-1 flex-col gap-2">
+              {menu.map((item) => {
+                const active = isActive(item)
+                return (
+                  <Link
+                    key={item.name}
+                    href={itemLink(item)}
+                    onClick={() => setMobileOpen(false)}
+                    className={`flex items-center gap-3 rounded-2xl border px-4 py-3 ${
+                      active
+                        ? "border-pink-400/40 bg-pink-500/15 text-pink-200"
+                        : "border-white/5 bg-white/[0.03] text-white"
+                    }`}
+                  >
+                    <span className="text-xl">{item.icon}</span>
+                    <span className="font-black">{item.name}</span>
+                  </Link>
+                )
+              })}
+            </nav>
+
+            <form action="/admin/api/logout" method="post" className="mt-6">
+              <button className="w-full rounded-full border border-white/10 bg-white/[0.05] px-4 py-3 text-sm font-black">
+                ESCI DALL&apos;AREA ADMIN
+              </button>
+            </form>
+          </motion.aside>
+        </div>
+      )}
+
+      <motion.aside
       initial={{
         x: -60,
         opacity: 0,
@@ -83,7 +181,17 @@ export default function Sidebar() {
       <div className="pointer-events-none absolute bottom-[-120px] right-[-120px] h-72 w-72 rounded-full bg-orange-500/10 blur-[100px]" />
 
       <div className="relative rounded-3xl border border-white/10 bg-white/[0.04] p-5 backdrop-blur-xl">
-        <Logo size="small" />
+        <div className="flex items-start justify-between gap-3">
+          <Logo size="small" />
+          <form action="/admin/api/logout" method="post">
+            <button
+              type="submit"
+              className="rounded-full border border-pink-400/30 bg-pink-500/10 px-3 py-2 text-[10px] font-black text-pink-200 transition hover:bg-pink-500/20"
+            >
+              ESCI
+            </button>
+          </form>
+        </div>
 
         <div className="mt-5">
           <p className="text-[10px] font-black uppercase tracking-[0.2em] text-pink-400">
@@ -98,15 +206,8 @@ export default function Sidebar() {
 
       <nav className="relative mt-5 flex flex-1 flex-col gap-2">
         {menu.map((item, index) => {
-          const link =
-            item.path === "dashboard"
-              ? `/admin/dashboard/${code}`
-              : `/admin/${item.path}/${code}`
-
-          const active =
-            item.path === "dashboard"
-              ? pathname === `/admin/dashboard/${code}`
-              : pathname.includes(`/admin/${item.path}/`)
+          const link = itemLink(item)
+          const active = isActive(item)
 
           return (
             <motion.div
@@ -184,7 +285,14 @@ export default function Sidebar() {
         <p className="mt-1 text-[11px] text-gray-500">
           Centro di controllo premium
         </p>
+
+        <form action="/admin/api/logout" method="post" className="mt-4">
+          <button className="w-full rounded-full border border-white/10 bg-white/[0.05] px-3 py-2 text-[11px] font-black text-gray-300 transition hover:border-pink-400/40 hover:text-white">
+            ESCI
+          </button>
+        </form>
       </div>
-    </motion.aside>
+      </motion.aside>
+    </>
   )
 }

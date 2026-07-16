@@ -357,7 +357,7 @@ export default function DashboardEventoPage() {
     <div className="flex min-h-screen bg-black text-white">
       <Sidebar />
 
-      <main className="relative min-w-0 flex-1 overflow-hidden px-5 py-6 lg:px-8 lg:py-8">
+      <main className="relative min-w-0 flex-1 overflow-hidden px-5 pb-6 pt-20 lg:px-8 lg:py-8">
         <div className="pointer-events-none absolute left-[35%] top-[-220px] h-[520px] w-[520px] rounded-full bg-fuchsia-600/15 blur-[140px]" />
         <div className="pointer-events-none absolute bottom-[-220px] right-[-120px] h-[420px] w-[420px] rounded-full bg-orange-500/10 blur-[130px]" />
 
