@@ -8,7 +8,7 @@ import { fetchAdminData } from "@/app/admin/data-client"
 type Mission = { id:string; title:string; description:string; points:number; verification_mode:"automatic"|"manual"; active:boolean }
 type Reward = { id:string; name:string; description:string; points_cost:number; quantity_total:number; reward_type:"threshold"|"podium_position"; threshold_points:number|null; podium_position:number|null; active:boolean }
 type Person = { id:string; nickname:string|null }
-type Leader = { nickname:string; avatar_url:string|null; points_earned:number; position:number }
+type Leader = { nickname:string; avatar_url:string|null; points_earned:number; rank_position:number }
 type Redemption = { id:string; status:string; redeemed_at:string; points_spent:number; reward:{name:string}|null; participant:{nickname:string|null}|null }
 type Data = { missions:Mission[]; rewards:Reward[]; participants:Person[]; leaderboard:Leader[]; redemptions:Redemption[] }
 
@@ -50,7 +50,7 @@ export default function RewardsAdminPage() {
 
   async function toggle(resource:"mission"|"reward", id:string, active:boolean){ setBusy(true); try{await mutate({resource,id,event_code:code,active},"PATCH");await load()}catch(e){setError(e instanceof Error?e.message:"Errore inatteso.")}finally{setBusy(false)} }
 
-  const podium=[1,2,3].map(place=>({place, reward:data?.rewards.find(r=>r.reward_type==="podium_position"&&r.podium_position===place), leader:data?.leaderboard.find(l=>Number(l.position)===place)}))
+  const podium=[1,2,3].map(place=>({place, reward:data?.rewards.find(r=>r.reward_type==="podium_position"&&r.podium_position===place), leader:data?.leaderboard.find(l=>Number(l.rank_position)===place)}))
 
   return <div className="flex min-h-screen bg-black text-white"><Sidebar/><main className="min-w-0 flex-1 px-4 pb-16 pt-20 lg:p-8"><div className="mx-auto max-w-6xl">
     <p className="text-xs font-black uppercase tracking-[.2em] text-pink-400">Centro engagement</p><h1 className="mt-2 text-4xl font-black">Missioni, premi e riscatti</h1><p className="mt-3 text-zinc-400">Evento: {code}</p>

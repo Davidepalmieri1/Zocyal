@@ -213,7 +213,7 @@ returns table (
   nickname text,
   avatar_url text,
   points bigint,
-  position bigint,
+  rank_position bigint,
   score_reached_at timestamptz
 )
 language sql
@@ -242,7 +242,7 @@ as $$
     s.points,
     row_number() over (
       order by s.points desc, s.score_reached_at asc, s.participant_id asc
-    ) as position,
+    ) as rank_position,
     s.score_reached_at
   from scores s;
 $$;
@@ -252,7 +252,7 @@ returns table (
   nickname text,
   avatar_url text,
   points bigint,
-  position bigint,
+  rank_position bigint,
   score_reached_at timestamptz
 )
 language plpgsql
@@ -272,11 +272,11 @@ begin
     l.nickname,
     l.avatar_url,
     l.points,
-    l.position,
+    l.rank_position,
     l.score_reached_at
   from public.mr_event_leaderboard(v_event) l
-  where l.position <= 3
-  order by l.position;
+  where l.rank_position <= 3
+  order by l.rank_position;
 end;
 $$;
 
@@ -606,7 +606,7 @@ begin
      and v_earned < v_reward.threshold_points then
     raise exception 'Reward threshold not reached';
   elsif v_reward.reward_type = 'podium_position' then
-    select l.position into v_position
+    select l.rank_position into v_position
     from public.mr_event_leaderboard(v_event) l
     where l.participant_id = v_participant;
 

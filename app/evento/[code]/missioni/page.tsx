@@ -139,7 +139,7 @@ function normalizeDashboard(data: unknown): MissionDashboard {
       nickname: text(entry.nickname, "Partecipante"),
       avatarUrl: text(entry.avatar_url, "") || null,
       points: number(entry.points ?? entry.total_points),
-      position: number(entry.position ?? entry.rank) || index + 1,
+      position: number(entry.rank_position ?? entry.position ?? entry.rank) || index + 1,
     }
   })
 
