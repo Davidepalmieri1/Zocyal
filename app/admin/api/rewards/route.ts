@@ -116,8 +116,36 @@ export async function PATCH(request: Request) {
   const table = body?.resource === "mission" ? "missions" : body?.resource === "reward" ? "rewards" : ""
   const id = cleanText(body?.id, 36)
   const code = eventCode(body?.event_code)
-  if (!table || !UUID.test(id) || !code || typeof body?.active !== "boolean") return reply({ error: "Dati non validi." }, 400)
-  const { data, error } = await getSupabaseAdmin().from(table).update({ active: body.active } as never).eq("id", id).eq("event_code", code).select("*").maybeSingle()
+  if (!table || !UUID.test(id) || !code) return reply({ error: "Dati non validi." }, 400)
+  const supabase = getSupabaseAdmin()
+  let changes: Record<string, unknown>
+
+  if (table === "rewards" && body?.action === "assign_podium") {
+    const position = number(body.podium_position, 1, 3)
+    if (position === null) return reply({ error: "Posizione non valida." }, 400)
+
+    const { error: conflictError } = await supabase
+      .from("rewards")
+      .update({ active: false } as never)
+      .eq("event_code", code)
+      .eq("reward_type", "podium_position")
+      .eq("podium_position", position)
+      .neq("id", id)
+    if (conflictError) return reply({ error: "Assegnazione non riuscita." }, 500)
+
+    changes = {
+      reward_type: "podium_position",
+      podium_position: position,
+      threshold_points: null,
+      starts_at: new Date().toISOString(),
+      active: true,
+    }
+  } else {
+    if (typeof body?.active !== "boolean") return reply({ error: "Dati non validi." }, 400)
+    changes = { active: body.active }
+  }
+
+  const { data, error } = await supabase.from(table).update(changes as never).eq("id", id).eq("event_code", code).select("*").maybeSingle()
   if (error) return reply({ error: "Aggiornamento non riuscito." }, 500)
   return data ? reply({ item: data }) : reply({ error: "Elemento non trovato." }, 404)
 }
