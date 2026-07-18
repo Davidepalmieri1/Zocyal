@@ -70,8 +70,11 @@ export async function GET(request: Request) {
     return json({ error: "Richiesta non valida." }, 400)
   }
 
+  let stage = "configurazione"
+
   try {
     const supabase = getSupabaseAdmin()
+    stage = "evento"
     const { data: event, error: eventError } = await supabase
       .from("events")
       .select("name, venue, code")
@@ -81,6 +84,7 @@ export async function GET(request: Request) {
     if (eventError) throw eventError
     if (!event) return json({ error: "Evento non trovato." }, 404)
 
+    stage = "partecipanti"
     const { data: participants, error: participantsError } = await supabase
       .from("participants")
       .select("id, nickname, age, goal, avatar_url, completed_test")
@@ -100,6 +104,7 @@ export async function GET(request: Request) {
     let matches: MatchRow[] = []
 
     if (participantIds.length > 0) {
+      stage = "match"
       const [asFirst, asSecond] = await Promise.all([
         supabase.from("matches").select("*").in("user_one", participantIds),
         supabase.from("matches").select("*").in("user_two", participantIds),
@@ -128,6 +133,7 @@ export async function GET(request: Request) {
     let messages: MessageRow[] = []
 
     if (matchIds.length > 0) {
+      stage = "messaggi"
       const messagesResult = await supabase
         .from("messages")
         .select("*")
@@ -160,6 +166,7 @@ export async function GET(request: Request) {
 
     let openReports = 0
     if (matchIds.length > 0) {
+      stage = "segnalazioni"
       const reportsResult = await supabase
         .from("reports")
         .select("id", { count: "exact", head: true })
@@ -182,6 +189,9 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error("Admin data error", error)
-    return json({ error: "Impossibile caricare i dati amministrativi." }, 500)
+    return json(
+      { error: `Impossibile caricare i dati amministrativi (${stage}).` },
+      500
+    )
   }
 }
