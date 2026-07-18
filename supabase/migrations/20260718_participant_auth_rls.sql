@@ -55,7 +55,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public, auth
+set search_path = public, auth, extensions
 as $$
   select coalesce(
     (auth.jwt() -> 'app_metadata' ->> 'role') = 'admin'
@@ -69,7 +69,7 @@ returns boolean
 language sql
 stable
 security definer
-set search_path = public, auth
+set search_path = public, auth, extensions
 as $$
   select exists (
     select 1
@@ -144,7 +144,7 @@ set search_path = public, auth
 as $$
 declare
   v_id uuid;
-  v_code text := upper(encode(gen_random_bytes(16), 'hex'));
+  v_code text := upper(encode(extensions.gen_random_bytes(16), 'hex'));
 begin
   if auth.uid() is null then
     raise exception 'Authentication required' using errcode = '28000';
@@ -198,7 +198,7 @@ set search_path = public, auth
 as $$
 declare
   v_id uuid;
-  v_new_code text := upper(encode(gen_random_bytes(16), 'hex'));
+  v_new_code text := upper(encode(extensions.gen_random_bytes(16), 'hex'));
 begin
   if auth.uid() is null then
     raise exception 'Authentication required' using errcode = '28000';
