@@ -14,6 +14,7 @@ const VIEWS = new Set([
   "matches",
   "chat",
   "analytics",
+  "rewards",
 ])
 
 type ParticipantRow = {
@@ -83,6 +84,52 @@ export async function GET(request: Request) {
 
     if (eventError) throw eventError
     if (!event) return json({ error: "Evento non trovato." }, 404)
+
+      if (view === "rewards") {
+        stage = "missioni e premi"
+        const [missions, rewards, completions, redemptions, leaderboard, rewardParticipants] = await Promise.all([
+          supabase
+            .from("missions")
+            .select("id, event_code, code, title, description, points, verification_mode, verification_key, active, created_at")
+            .eq("event_code", code)
+            .order("created_at", { ascending: false })
+            .limit(500),
+          supabase
+            .from("rewards")
+            .select("id, event_code, code, name, description, points_cost, quantity_total, reward_type, threshold_points, podium_position, active, starts_at, created_at")
+            .eq("event_code", code)
+            .order("created_at", { ascending: false })
+            .limit(500),
+          supabase
+            .from("participant_mission_completions")
+            .select("id, mission_id, participant_id, points_awarded, verification_mode, approval_note, completed_at, mission:missions!inner(event_code,title), participant:participants(nickname)")
+            .eq("mission.event_code", code)
+            .order("completed_at", { ascending: false })
+            .limit(1000),
+          supabase
+            .from("reward_redemptions")
+            .select("id, reward_id, participant_id, points_spent, status, redeemed_at, fulfilled_at, reward:rewards!inner(event_code,name), participant:participants(nickname)")
+            .eq("reward.event_code", code)
+            .order("redeemed_at", { ascending: false })
+            .limit(1000),
+          supabase.rpc("mr_event_leaderboard", { p_event_code: code } as never),
+          supabase.from("participants").select("id,nickname").eq("event_code", code).order("nickname"),
+        ])
+
+        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants].find(
+          (result) => result.error
+        )
+      if (failed?.error) throw failed.error
+
+      return json({
+          missions: missions.data || [],
+          rewards: rewards.data || [],
+          completions: completions.data || [],
+          redemptions: redemptions.data || [],
+          leaderboard: (leaderboard.data || []).slice(0, 3),
+          participants: rewardParticipants.data || [],
+        })
+    }
 
     stage = "partecipanti"
     const { data: participants, error: participantsError } = await supabase
