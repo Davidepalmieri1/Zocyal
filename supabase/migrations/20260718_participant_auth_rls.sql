@@ -40,7 +40,7 @@ create index if not exists participants_recovery_code_hash_idx
 -- in clear text. Legacy clear-text values are removed after their hash is stored.
 update public.participants
 set recovery_code_hash = encode(
-      digest(upper(trim(recovery_code)), 'sha256'),
+      extensions.digest(upper(trim(recovery_code)), 'sha256'),
       'hex'
     )
 where recovery_code_hash is null
@@ -177,7 +177,7 @@ begin
   ) values (
     lower(trim(p_event_code)), trim(p_nickname), p_age, trim(p_gender),
     trim(p_goal), nullif(trim(p_avatar_url), ''), auth.uid(), null,
-    encode(digest(v_code, 'sha256'), 'hex')
+    encode(extensions.digest(v_code, 'sha256'), 'hex')
   )
   returning id into v_id;
 
@@ -219,11 +219,11 @@ begin
   update public.participants p
   set auth_user_id = auth.uid(),
       recovery_code = null,
-      recovery_code_hash = encode(digest(v_new_code, 'sha256'), 'hex')
+      recovery_code_hash = encode(extensions.digest(v_new_code, 'sha256'), 'hex')
   where p.event_code = lower(trim(p_event_code))
     and p.auth_user_id is null
     and p.recovery_code_hash = encode(
-      digest(upper(trim(p_recovery_code)), 'sha256'),
+      extensions.digest(upper(trim(p_recovery_code)), 'sha256'),
       'hex'
     )
   returning p.id into v_id;
