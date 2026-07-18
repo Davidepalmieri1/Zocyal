@@ -52,7 +52,7 @@ export default function RewardsAdminPage() {
   async function toggle(resource:"mission"|"reward", id:string, active:boolean){ setBusy(true); try{await mutate({resource,id,event_code:code,active},"PATCH");await load()}catch(e){setError(e instanceof Error?e.message:"Errore inatteso.")}finally{setBusy(false)} }
   async function remove(resource:"mission"|"reward", id:string){if(!window.confirm("Eliminare definitivamente questo elemento?"))return;setBusy(true);try{await mutate({resource,id,event_code:code},"DELETE");await load()}catch(e){setError(e instanceof Error?e.message:"Errore inatteso.")}finally{setBusy(false)}}
 
-  const podium=[1,2,3].map(place=>({place, reward:data?.rewards.find(r=>r.reward_type==="podium_position"&&r.podium_position===place), leader:data?.leaderboard.find(l=>Number(l.rank_position)===place)}))
+  const podium=[1,2,3].map(place=>({place, reward:data?.rewards.find(r=>r.reward_type==="podium_position"&&Number(r.podium_position)===place), leader:data?.leaderboard.find(l=>Number(l.rank_position)===place)}))
 
   return <div className="flex min-h-screen bg-black text-white"><Sidebar/><main className="min-w-0 flex-1 px-4 pb-16 pt-20 lg:p-8"><div className="mx-auto max-w-6xl">
     <p className="text-xs font-black uppercase tracking-[.2em] text-pink-400">Centro engagement</p><h1 className="mt-2 text-4xl font-black">Missioni, premi e riscatti</h1><p className="mt-3 text-zinc-400">Evento: {code}</p>
