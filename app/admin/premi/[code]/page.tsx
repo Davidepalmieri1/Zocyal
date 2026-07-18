@@ -41,11 +41,12 @@ export default function RewardsAdminPage() {
 
   async function submit(event:FormEvent<HTMLFormElement>, action:string) {
     event.preventDefault(); setBusy(true); setError("")
-    const form = new FormData(event.currentTarget)
+    const formElement = event.currentTarget
+    const form = new FormData(formElement)
     const body:Record<string,unknown>={action,event_code:code}
     form.forEach((value,key)=>body[key]=value)
     for (const key of ["points","quantity_total","points_cost","threshold_points","podium_position"]) if (body[key]!==undefined) body[key]=Number(body[key])
-    try { await mutate(body); event.currentTarget.reset(); await load() } catch(e){setError(e instanceof Error?e.message:"Errore inatteso.")} finally{setBusy(false)}
+    try { await mutate(body); formElement.reset(); await load() } catch(e){setError(e instanceof Error?e.message:"Errore inatteso.")} finally{setBusy(false)}
   }
 
   async function toggle(resource:"mission"|"reward", id:string, active:boolean){ setBusy(true); try{await mutate({resource,id,event_code:code,active},"PATCH");await load()}catch(e){setError(e instanceof Error?e.message:"Errore inatteso.")}finally{setBusy(false)} }
