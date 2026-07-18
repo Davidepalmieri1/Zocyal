@@ -89,7 +89,6 @@ export async function GET(request: Request) {
       .from("participants")
       .select("id, nickname, age, goal, avatar_url, completed_test")
       .eq("event_code", code)
-      .order("created_at", { ascending: false })
       .limit(5000)
 
     if (participantsError) throw participantsError
