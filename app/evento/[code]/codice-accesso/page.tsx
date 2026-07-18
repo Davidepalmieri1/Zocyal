@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { ensureAnonymousSession } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
 export default function CodiceAccessoPage() {
@@ -15,42 +15,41 @@ export default function CodiceAccessoPage() {
   const [errore, setErrore] = useState("")
 
   useEffect(() => {
-    const participantId = localStorage.getItem("participant_id")
-    const codiceSalvato = localStorage.getItem("recovery_code")
-
-    if (codiceSalvato) {
-      setCodice(codiceSalvato)
-      setLoading(false)
-      return
-    }
-
-    if (!participantId) {
-      setErrore("Profilo non trovato.")
-      setLoading(false)
-      return
-    }
-
     async function caricaCodice() {
-      const { data, error } = await supabase
-        .from("participants")
-        .select("recovery_code")
-        .eq("id", participantId)
-        .maybeSingle()
-
-      if (error || !data?.recovery_code) {
-        console.error("Errore caricamento codice:", error)
-        setErrore("Non siamo riusciti a caricare il codice.")
+      try {
+        await ensureAnonymousSession()
+      } catch (sessionError) {
+        console.error("Errore sessione partecipante:", sessionError)
+        setErrore("Sessione partecipante non disponibile.")
         setLoading(false)
         return
       }
 
-      localStorage.setItem("recovery_code", data.recovery_code)
-      setCodice(data.recovery_code)
+      const participantId = localStorage.getItem("participant_id")
+      const codiceSalvato = localStorage.getItem("recovery_code")
+      const eventCode = params.code.trim().toLowerCase()
+      const savedEventCode = localStorage.getItem("event_code")
+
+      if (codiceSalvato && savedEventCode === eventCode) {
+        setCodice(codiceSalvato)
+        setLoading(false)
+        return
+      }
+
+      if (!participantId) {
+        setErrore("Profilo non trovato.")
+        setLoading(false)
+        return
+      }
+
+      setErrore(
+        "Il codice è mostrato una sola volta. Crea o recupera nuovamente il profilo."
+      )
       setLoading(false)
     }
 
-    caricaCodice()
-  }, [])
+    void caricaCodice()
+  }, [params.code])
 
   async function copiaCodice() {
     try {
@@ -110,7 +109,7 @@ export default function CodiceAccessoPage() {
                 Codice personale
               </p>
 
-              <p className="mt-3 text-4xl font-black tracking-[0.2em] text-white">
+              <p className="mt-3 break-all font-mono text-2xl font-black tracking-[0.12em] text-white sm:text-3xl">
                 {codice}
               </p>
             </div>

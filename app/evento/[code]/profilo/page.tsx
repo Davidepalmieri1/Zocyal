@@ -3,6 +3,10 @@
 import { FormEvent, useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import {
+  createParticipantProfile,
+  ensureAnonymousSession,
+} from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
 export default function ProfiloPage() {
@@ -91,11 +95,29 @@ export default function ProfiloPage() {
 
     let avatarUrl = ""
 
+    try {
+      await ensureAnonymousSession()
+    } catch (sessionError) {
+      console.error("Errore sessione partecipante:", sessionError)
+      setErrore("Non siamo riusciti ad avviare la sessione.")
+      setLoading(false)
+      return
+    }
+
     if (photo) {
       const estensione =
         photo.name.split(".").pop()?.toLowerCase() || "jpg"
 
-      const fileName = `${eventCode}/${crypto.randomUUID()}.${estensione}`
+      const { data: authData } = await supabase.auth.getUser()
+      const userId = authData.user?.id
+
+      if (!userId) {
+        setErrore("Sessione partecipante non disponibile.")
+        setLoading(false)
+        return
+      }
+
+      const fileName = `${userId}/${eventCode}/${crypto.randomUUID()}.${estensione}`
 
       const { error: uploadError } = await supabase.storage
         .from("avatars")
@@ -118,40 +140,21 @@ export default function ProfiloPage() {
       avatarUrl = data.publicUrl
     }
 
-    const { data: participant, error } = await supabase
-      .from("participants")
-      .insert({
-        event_code: eventCode,
+    try {
+      await createParticipantProfile({
+        eventCode,
         nickname: nicknamePulito,
         age: eta,
         gender,
         goal,
-        avatar_url: avatarUrl,
+        avatarUrl,
       })
-      .select("id, recovery_code")
-      .single()
-
-    if (error) {
-      console.error("Errore salvataggio profilo:", error)
-      setErrore(error.message)
+    } catch (profileError) {
+      console.error("Errore salvataggio profilo:", profileError)
+      setErrore("Non siamo riusciti a creare il profilo.")
       setLoading(false)
       return
     }
-
-    if (!participant.recovery_code) {
-      setErrore(
-        "Il profilo è stato creato, ma manca il codice di recupero."
-      )
-      setLoading(false)
-      return
-    }
-
-    localStorage.setItem("participant_id", participant.id)
-    localStorage.setItem("event_code", eventCode)
-    localStorage.setItem(
-      "recovery_code",
-      participant.recovery_code
-    )
 
     router.push(`/evento/${eventCode}/codice-accesso`)
   }

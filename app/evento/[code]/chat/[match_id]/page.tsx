@@ -596,22 +596,10 @@ export default function ChatPage() {
     setInvioSicurezza(true)
     setErrore("")
 
-    const recoveryCode = localStorage.getItem("recovery_code")
-
-    if (!recoveryCode) {
-      setErrore(
-        "Codice di sicurezza del profilo non disponibile. Recupera nuovamente il profilo."
-      )
-      setInvioSicurezza(false)
-      return
-    }
-
     const { error: safetyError } = await supabase.rpc(
-      "block_and_report",
+      "block_report",
       {
         p_match_id: matchId,
-        p_participant_id: mioId,
-        p_recovery_code: recoveryCode,
         p_reason: segnala
           ? motivoSegnalazione
           : "Blocco senza segnalazione",
@@ -622,9 +610,7 @@ export default function ChatPage() {
 
     if (safetyError) {
       console.error("Errore sicurezza utente:", safetyError)
-      setErrore(
-        "Non siamo riusciti a completare il blocco. Riprova o recupera il profilo con il tuo codice."
-      )
+      setErrore("Non siamo riusciti a completare il blocco. Riprova.")
       setInvioSicurezza(false)
       return
     }
@@ -716,13 +702,10 @@ export default function ChatPage() {
 
     await mandaTyping(false)
 
-    const { error } = await supabase
-      .from("messages")
-      .insert({
-        match_id: matchId,
-        sender_id: mioId,
-        message: messaggioPulito,
-      })
+    const { error } = await supabase.rpc("create_message", {
+      p_match_id: matchId,
+      p_message: messaggioPulito,
+    })
 
     if (error) {
       console.error(

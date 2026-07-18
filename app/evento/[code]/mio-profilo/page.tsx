@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
+import { ensureAnonymousSession } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
 type Profilo = {
@@ -12,7 +13,7 @@ type Profilo = {
   gender: string | null
   goal: string | null
   avatar_url: string | null
-  recovery_code: string | null
+  recovery_code?: string | null
 }
 
 export default function MioProfiloPage() {
@@ -24,18 +25,29 @@ export default function MioProfiloPage() {
   const [errore, setErrore] = useState("")
 
   useEffect(() => {
-    const participantId = localStorage.getItem("participant_id")
-
-    if (!participantId) {
-      setErrore("Profilo non trovato.")
-      setLoading(false)
-      return
-    }
-
     async function caricaProfilo() {
+      try {
+        await ensureAnonymousSession()
+      } catch (sessionError) {
+        console.error("Errore sessione partecipante:", sessionError)
+        setErrore("Sessione partecipante non disponibile.")
+        setLoading(false)
+        return
+      }
+
+      const participantId = localStorage.getItem("participant_id")
+      const eventCode = params.code.trim().toLowerCase()
+      const savedEventCode = localStorage.getItem("event_code")
+
+      if (!participantId || savedEventCode !== eventCode) {
+        setErrore("Profilo non trovato.")
+        setLoading(false)
+        return
+      }
+
       const { data, error } = await supabase
         .from("participants")
-        .select("id, nickname, age, gender, goal, avatar_url, recovery_code")
+        .select("id, nickname, age, gender, goal, avatar_url")
         .eq("id", participantId)
         .maybeSingle()
 
@@ -52,12 +64,15 @@ export default function MioProfiloPage() {
         return
       }
 
-      setProfilo(data as Profilo)
+      setProfilo({
+        ...(data as Profilo),
+        recovery_code: localStorage.getItem("recovery_code"),
+      })
       setLoading(false)
     }
 
-    caricaProfilo()
-  }, [])
+    void caricaProfilo()
+  }, [params.code])
 
   if (loading) {
     return (
@@ -178,7 +193,7 @@ export default function MioProfiloPage() {
                       Codice personale
                     </p>
 
-                    <p className="mt-2 text-2xl font-black tracking-[0.18em] text-white">
+                    <p className="mt-2 break-all font-mono text-lg font-black tracking-[0.1em] text-white sm:text-xl">
                       {profilo.recovery_code || "NON DISPONIBILE"}
                     </p>
                   </div>

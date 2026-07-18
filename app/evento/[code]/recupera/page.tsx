@@ -2,7 +2,7 @@
 
 import { FormEvent, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { recoverParticipantProfile } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
 export default function RecuperaProfiloPage() {
@@ -19,39 +19,30 @@ export default function RecuperaProfiloPage() {
     const recoveryCode = codice.trim().toUpperCase()
     const eventCode = params.code.trim().toLowerCase()
 
-    if (recoveryCode.length !== 8) {
-      setErrore("Inserisci il codice personale di 8 caratteri.")
+    if (![8, 32].includes(recoveryCode.length)) {
+      setErrore("Inserisci un codice personale valido.")
       return
     }
 
     setLoading(true)
     setErrore("")
 
-    const { data: participant, error } = await supabase
-      .from("participants")
-      .select("id, completed_test")
-      .eq("event_code", eventCode)
-      .eq("recovery_code", recoveryCode)
-      .maybeSingle()
+    let participant
 
-    if (error) {
-      console.error("Errore recupero profilo:", error)
-      setErrore("Non siamo riusciti a recuperare il profilo.")
-      setLoading(false)
-      return
-    }
-
-    if (!participant) {
+    try {
+      participant = await recoverParticipantProfile({
+        eventCode,
+        recoveryCode,
+      })
+    } catch (recoveryError) {
+      console.error("Errore recupero profilo:", recoveryError)
       setErrore("Codice non riconosciuto per questo evento.")
       setLoading(false)
       return
     }
 
-    localStorage.setItem("participant_id", participant.id)
-    localStorage.setItem("event_code", eventCode)
-
     router.push(
-      participant.completed_test
+      participant.completedTest
         ? `/evento/${eventCode}/scegli`
         : `/evento/${eventCode}/questionario`
     )
@@ -87,7 +78,7 @@ export default function RecuperaProfiloPage() {
                 setErrore("")
               }}
               placeholder="ESEMPIO: A1B2C3D4"
-              maxLength={8}
+              maxLength={32}
               autoCapitalize="characters"
               autoComplete="off"
               className="w-full rounded-2xl border border-white/10 bg-white px-5 py-4 text-center text-xl font-black uppercase tracking-[0.18em] text-black outline-none transition placeholder:text-sm placeholder:tracking-normal placeholder:text-gray-400 focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20"
