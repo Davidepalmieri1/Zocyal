@@ -121,3 +121,15 @@ export async function PATCH(request: Request) {
   if (error) return reply({ error: "Aggiornamento non riuscito." }, 500)
   return data ? reply({ item: data }) : reply({ error: "Elemento non trovato." }, 404)
 }
+
+export async function DELETE(request: Request) {
+  if (!(await authorized(request))) return reply({ error: "Accesso non valido." }, 401)
+  const body = await input(request)
+  const table = body?.resource === "mission" ? "missions" : body?.resource === "reward" ? "rewards" : ""
+  const id = cleanText(body?.id, 36)
+  const code = eventCode(body?.event_code)
+  if (!table || !UUID.test(id) || !code) return reply({ error: "Dati non validi." }, 400)
+  const { data, error } = await getSupabaseAdmin().from(table).delete().eq("id", id).eq("event_code", code).select("id").maybeSingle()
+  if (error) return reply({ error: "Non puoi eliminare un elemento già utilizzato. Puoi disattivarlo." }, 409)
+  return data ? reply({ ok: true }) : reply({ error: "Elemento non trovato." }, 404)
+}
