@@ -580,7 +580,7 @@ grant update (nickname, age, gender, goal, avatar_url, completed_test)
   on public.participants to authenticated;
 
 grant select, insert, update, delete on public.answers to authenticated;
-grant select, insert on public.likes, public.matches;
+grant select, insert on public.likes, public.matches to authenticated;
 grant select on public.messages,
   public.participant_blocks to authenticated;
 grant update (read_at) on public.messages to authenticated;
