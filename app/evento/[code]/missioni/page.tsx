@@ -28,6 +28,7 @@ type Premio = {
   pointsCost: number
   available: boolean
   claimed: boolean
+  deliveryStatus: "redeemed" | "fulfilled" | null
   rewardType: string
   podiumPosition: number | null
   quantityRemaining: number
@@ -79,6 +80,13 @@ function normalizeDashboard(data: unknown): MissionDashboard {
       ? payload.available_rewards
       : []
   const rawLeaderboard = Array.isArray(payload.leaderboard) ? payload.leaderboard : []
+  const rawRedemptions = Array.isArray(payload.redemptions) ? payload.redemptions : []
+  const redemptionStatus = new Map(
+    rawRedemptions.map((item) => {
+      const redemption = record(item)
+      return [text(redemption.reward_id), text(redemption.status)]
+    })
+  )
   const pointsAvailable = number(payload.points_available)
   const rawMyPosition = payload.my_position ?? payload.current_position
   const myPosition = rawMyPosition == null ? null : number(rawMyPosition)
@@ -103,6 +111,12 @@ function normalizeDashboard(data: unknown): MissionDashboard {
 
   const rewards = rawRewards.map((item, index) => {
     const reward = record(item)
+    const savedStatus = redemptionStatus.get(text(reward.id))
+    const deliveryStatus: Premio["deliveryStatus"] = savedStatus === "fulfilled"
+      ? "fulfilled"
+      : savedStatus === "redeemed"
+        ? "redeemed"
+        : null
     const rewardType = text(reward.reward_type, "threshold")
     const pointsRequired = number(
       reward.threshold_points ?? reward.points_cost
@@ -126,6 +140,7 @@ function normalizeDashboard(data: unknown): MissionDashboard {
       pointsCost,
       available: boolean(reward.available ?? reward.is_available) || available,
       claimed: boolean(reward.redeemed ?? reward.claimed),
+      deliveryStatus,
       rewardType,
       podiumPosition,
       quantityRemaining,
@@ -185,18 +200,21 @@ export default function MissioniPage() {
       throw new Error("Participant authentication required")
     }
 
-    const [dashboardResult, leaderboardResult] = await Promise.all([
+    const [dashboardResult, leaderboardResult, redemptionsResult] = await Promise.all([
       supabase.rpc("get_missions_rewards"),
       supabase.rpc("get_event_leaderboard"),
+      supabase.from("reward_redemptions").select("reward_id,status"),
     ])
 
     if (dashboardResult.error) throw dashboardResult.error
     if (leaderboardResult.error) throw leaderboardResult.error
+    if (redemptionsResult.error) throw redemptionsResult.error
 
     const normalized = normalizeDashboard(dashboardResult.data)
     return normalizeDashboard({
       ...record(dashboardResult.data),
       leaderboard: leaderboardResult.data,
+      redemptions: redemptionsResult.data,
       my_position: normalized.myPosition,
     })
   }, [eventCode])
@@ -449,7 +467,7 @@ export default function MissioniPage() {
                   </span>
                 </div>
                 <p className={`mt-3 text-xs font-black uppercase tracking-wider ${premio.claimed ? "text-gray-400" : premio.available ? "text-green-300" : "text-gray-500"}`}>
-                  {premio.claimed ? "Già assegnato" : premio.quantityRemaining <= 0 ? "Esaurito" : premio.available ? "Sbloccato" : "Da sbloccare"}
+                  {premio.deliveryStatus === "fulfilled" ? "UTILIZZATO ✓" : premio.claimed ? "RISCATTATO · MOSTRALO ALLO STAFF" : premio.quantityRemaining <= 0 ? "Esaurito" : premio.available ? "Sbloccato" : "Da sbloccare"}
                 </p>
                 {premio.available && !premio.claimed && (
                   <button type="button" disabled={premioInCorso !== null} onClick={() => void riscattaPremio(premio.id)} className="mt-4 w-full rounded-xl bg-green-400 px-4 py-3 text-sm font-black text-black disabled:opacity-60">
