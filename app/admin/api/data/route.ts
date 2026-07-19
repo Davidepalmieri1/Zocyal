@@ -212,7 +212,7 @@ export async function GET(request: Request) {
       .eq("event_code", code).order("created_at", { ascending: false }).limit(1000)
     if (drinkResult.error) throw drinkResult.error
     const drinkOffers = (drinkResult.data || []) as DrinkOfferRow[]
-    const acceptedOfferIds = drinkOffers.filter((offer) => offer.status === "accepted").map((offer) => offer.id)
+    const acceptedOfferIds = drinkOffers.filter((offer) => offer.status === "accepted" || offer.status === "redeemed").map((offer) => offer.id)
     const drinkCouponResult = acceptedOfferIds.length
       ? await supabase.from("drink_coupons").select("offer_id,coupon_code").in("offer_id", acceptedOfferIds)
       : { data: [], error: null }
@@ -257,7 +257,7 @@ export async function GET(request: Request) {
         drinkAccepted: drinkOffers.filter((offer) => offer.status === "accepted" || offer.status === "redeemed").length,
         drinkRedeemed: drinkOffers.filter((offer) => offer.status === "redeemed").length,
       },
-      drinkCoupons: drinkOffers.filter((offer) => offer.status === "accepted").slice(0, 50).map((offer) => ({
+      drinkCoupons: drinkOffers.filter((offer) => offer.status === "accepted" || offer.status === "redeemed").slice(0, 50).map((offer) => ({
         ...offer,
         coupon_code: couponByOffer.get(offer.id),
         sender: people.find((person) => person.id === offer.sender_id)?.nickname || "Partecipante",

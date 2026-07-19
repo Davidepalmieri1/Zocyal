@@ -141,6 +141,13 @@ export default function ChatPage() {
   }, [notificheAttive])
 
   useEffect(() => {
+    if (!drinkOffer || drinkOffer.sender_id !== mioId || !["accepted","redeemed"].includes(drinkOffer.status) || drinkOffer.coupon_code) return
+    void supabase.from("drink_coupons").select("coupon_code").eq("offer_id",drinkOffer.id).maybeSingle().then(({data})=>{
+      if(data?.coupon_code)setDrinkOffer(current=>current?.id===drinkOffer.id?{...current,coupon_code:data.coupon_code}:current)
+    })
+  }, [drinkOffer, mioId])
+
+  useEffect(() => {
     const participantId =
       localStorage.getItem("participant_id")
 
@@ -1032,6 +1039,12 @@ export default function ChatPage() {
                 scrivi qualcosa di tuo.
               </p>
             </div>
+          )}
+
+          {drinkOffer && drinkOffer.sender_id === mioId && (drinkOffer.status === "accepted" || drinkOffer.status === "redeemed") && (
+            <button type="button" onClick={()=>setDrinkOpen(true)} className={`mb-3 w-full rounded-3xl border p-5 text-left ${drinkOffer.status==="redeemed"?"border-white/10 bg-white/[.04]":"border-green-400/30 bg-green-400/10"}`}>
+              <div className="flex items-center justify-between gap-3"><div><p className="text-xs font-black uppercase tracking-[.18em] text-green-300">🍹 Coupon Offri Drink</p><h3 className="mt-2 text-xl font-black">2 € di sconto sul secondo drink</h3><p className="mt-2 text-sm text-gray-400">{drinkOffer.status==="redeemed"?"Coupon utilizzato ✓":"Tocca per mostrare il codice allo staff"}</p></div><span className="text-3xl">›</span></div>
+            </button>
           )}
 
           {messages.map((msg) => {
