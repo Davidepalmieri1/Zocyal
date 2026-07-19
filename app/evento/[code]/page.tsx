@@ -19,7 +19,7 @@ export default async function EventoPage({
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("name, venue, code")
+    .select("name, venue, code, status, starts_at, ends_at")
     .eq("code", eventCode)
     .maybeSingle()
 
@@ -27,7 +27,14 @@ export default async function EventoPage({
     console.error("Errore caricamento evento:", error)
   }
 
-  if (!event) {
+  const now = Date.now()
+  const unavailable = event && (
+    event.status !== "open" ||
+    (event.starts_at && new Date(event.starts_at).getTime() > now) ||
+    (event.ends_at && new Date(event.ends_at).getTime() <= now)
+  )
+
+  if (!event || unavailable) {
     return (
       <main className="relative min-h-screen overflow-hidden bg-black px-6 text-white">
         <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
@@ -37,11 +44,11 @@ export default async function EventoPage({
           <Logo size="large" />
 
           <h1 className="mt-8 text-3xl font-black">
-            Evento non trovato
+            {event ? "Evento non disponibile" : "Evento non trovato"}
           </h1>
 
           <p className="mt-3 leading-7 text-gray-400">
-            Il codice inserito non esiste oppure l&apos;evento non è più disponibile.
+            {event?.status === "draft" ? "L'evento non è ancora aperto ai partecipanti." : event ? "L'evento è terminato oppure si trova fuori dall'orario previsto." : "Il codice inserito non esiste oppure l'evento non è più disponibile."}
           </p>
 
           <Link
