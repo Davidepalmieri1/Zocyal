@@ -29,6 +29,16 @@ type Persona = {
   goal: string | null
 }
 
+type DrinkOffer = {
+  id: string
+  match_id: string
+  sender_id: string
+  receiver_id: string
+  status: "pending" | "accepted" | "declined" | "redeemed"
+  discount_cents: number
+  coupon_code?: string
+}
+
 function creaSuggerimenti(persona: Persona | null) {
   const nome = persona?.nickname || "te"
 
@@ -95,6 +105,9 @@ export default function ChatPage() {
   const [dettagliSegnalazione, setDettagliSegnalazione] = useState("")
   const [invioSicurezza, setInvioSicurezza] = useState(false)
   const [mioId, setMioId] = useState<string | null>(null)
+  const [drinkOffer, setDrinkOffer] = useState<DrinkOffer | null>(null)
+  const [drinkBusy, setDrinkBusy] = useState(false)
+  const [drinkOpen, setDrinkOpen] = useState(false)
   const [profiloControllato, setProfiloControllato] =
     useState(false)
 
@@ -484,6 +497,24 @@ export default function ChatPage() {
 
       setPersona(personaCaricata)
       personaRef.current = personaCaricata
+
+      const { data: offerte, error: offerteError } = await supabase
+        .from("drink_offers")
+        .select("id,match_id,sender_id,receiver_id,status,discount_cents")
+        .eq("match_id", matchId)
+        .or(`sender_id.eq.${mioId},receiver_id.eq.${mioId}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+
+      if (!offerteError && offerte?.[0]) {
+        const offer = offerte[0] as DrinkOffer
+        if (offer.sender_id === mioId && (offer.status === "accepted" || offer.status === "redeemed")) {
+          const {data:coupon}=await supabase.from("drink_coupons").select("coupon_code").eq("offer_id",offer.id).maybeSingle()
+          offer.coupon_code=coupon?.coupon_code
+        }
+        setDrinkOffer(offer)
+        if (offer.receiver_id === mioId && offer.status === "pending") setDrinkOpen(true)
+      }
       setLoading(false)
     }
 
@@ -551,6 +582,24 @@ export default function ChatPage() {
       )
 
       .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "drink_offers", filter: `match_id=eq.${matchId}` },
+        async (payload) => {
+          const offer = (payload.new || payload.old) as DrinkOffer
+          if (offer.sender_id !== mioId && offer.receiver_id !== mioId) return
+          if (offer.sender_id === mioId && (offer.status === "accepted" || offer.status === "redeemed")) {
+            const {data:coupon}=await supabase.from("drink_coupons").select("coupon_code").eq("offer_id",offer.id).maybeSingle()
+            offer.coupon_code=coupon?.coupon_code
+          }
+          setDrinkOffer(offer)
+          setDrinkOpen(true)
+          if (offer.receiver_id === mioId && offer.status === "pending" && notificheAttiveRef.current && "Notification" in window && Notification.permission === "granted") {
+            new Notification(`${personaRef.current?.nickname || "Il tuo match"} ti offre un drink 🍹`, { body: "Apri la chat per accettare o rifiutare." })
+          }
+        }
+      )
+
+      .on(
         "broadcast",
         {
           event: "typing",
@@ -580,6 +629,35 @@ export default function ChatPage() {
       supabase.removeChannel(channel)
     }
   }, [matchId, mioId])
+
+  async function inviaDrink() {
+    if (drinkBusy || chatBloccata) return
+    setDrinkBusy(true); setErrore("")
+    try {
+      const { data, error } = await supabase.rpc("send_drink_offer", { p_match_id: matchId })
+      if (error) throw error
+      setDrinkOffer(data as DrinkOffer); setDrinkOpen(true)
+    } catch (error) {
+      console.error("Errore offerta drink", error)
+      setErrore("Hai già inviato un'offerta drink a questa persona.")
+    } finally { setDrinkBusy(false) }
+  }
+
+  async function rispondiDrink(accept: boolean) {
+    if (!drinkOffer || drinkBusy) return
+    setDrinkBusy(true); setErrore("")
+    try {
+      const { data, error } = await supabase.rpc("respond_drink_offer", { p_offer_id: drinkOffer.id, p_accept: accept })
+      if (error) throw error
+      const offer=data as DrinkOffer
+      if(accept&&offer.sender_id===mioId){const {data:coupon}=await supabase.from("drink_coupons").select("coupon_code").eq("offer_id",offer.id).maybeSingle();offer.coupon_code=coupon?.coupon_code}
+      setDrinkOffer(offer)
+      if (!accept) setDrinkOpen(false)
+    } catch (error) {
+      console.error("Errore risposta drink", error)
+      setErrore("Non siamo riusciti a registrare la risposta.")
+    } finally { setDrinkBusy(false) }
+  }
 
   async function gestisciSicurezza(
     segnala: boolean
@@ -848,6 +926,15 @@ export default function ChatPage() {
 
           <button
             type="button"
+            onClick={() => drinkOffer ? setDrinkOpen(true) : void inviaDrink()}
+            disabled={drinkBusy || chatBloccata}
+            className="hidden shrink-0 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-4 py-3 text-xs font-black text-white disabled:opacity-50 sm:block"
+          >
+            {drinkOffer?.status === "accepted" || drinkOffer?.status === "redeemed" ? "🍹 COUPON" : drinkOffer ? "🍹 OFFERTA" : "🍹 OFFRI DRINK"}
+          </button>
+
+          <button
+            type="button"
             onClick={() => setSicurezzaAperta(true)}
             aria-label="Apri sicurezza"
             title="Sicurezza"
@@ -909,6 +996,10 @@ export default function ChatPage() {
               Avete mostrato interesse reciproco. Il resto
               della storia è tutto da scrivere.
             </p>
+
+            <button type="button" onClick={() => drinkOffer ? setDrinkOpen(true) : void inviaDrink()} disabled={drinkBusy || chatBloccata} className="mt-4 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-5 py-3 text-xs font-black text-white disabled:opacity-50 sm:hidden">
+              {drinkOffer?.status === "accepted" || drinkOffer?.status === "redeemed" ? "🍹 APRI COUPON" : drinkOffer ? "🍹 VEDI OFFERTA" : "🍹 OFFRI DRINK"}
+            </button>
 
             {!notificheAttive && (
               <button
@@ -1119,6 +1210,21 @@ export default function ChatPage() {
           </form>
         </div>
       </footer>
+
+      {drinkOpen && drinkOffer && (
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
+          <div className="w-full max-w-md rounded-[2rem] border border-pink-400/30 bg-zinc-950 p-6 text-center shadow-2xl">
+            <button type="button" onClick={()=>setDrinkOpen(false)} className="float-right flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-xl">×</button>
+            <div className="text-6xl">🍹</div>
+            {drinkOffer.status==="pending"&&drinkOffer.receiver_id===mioId&&<><p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-pink-300">Offerta drink</p><h2 className="mt-2 text-2xl font-black">{persona?.nickname||"Il tuo match"} vuole offrirti un drink</h2><p className="mt-3 text-sm leading-6 text-gray-400">Se accetti, potete incontrarvi al bancone. Chi ha inviato l&apos;offerta riceverà 2 € di sconto sul secondo drink.</p><div className="mt-6 grid grid-cols-2 gap-3"><button disabled={drinkBusy} onClick={()=>void rispondiDrink(false)} className="rounded-xl border border-white/10 px-4 py-3 font-black">RIFIUTA</button><button disabled={drinkBusy} onClick={()=>void rispondiDrink(true)} className="rounded-xl bg-green-400 px-4 py-3 font-black text-black">ACCETTA</button></div></>}
+            {drinkOffer.status==="pending"&&drinkOffer.sender_id===mioId&&<><h2 className="mt-4 text-2xl font-black">Offerta inviata!</h2><p className="mt-3 text-gray-400">Aspettiamo la risposta di {persona?.nickname||"questa persona"}. Ti avviseremo qui nella chat.</p></>}
+            {drinkOffer.status==="accepted"&&drinkOffer.sender_id===mioId&&<><p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-green-300">Offerta accettata</p><h2 className="mt-2 text-2xl font-black">2 € di sconto sul secondo drink</h2><p className="mt-3 text-sm text-gray-400">Mostra questo codice allo staff. È personale e utilizzabile una sola volta.</p><div className="mt-5 rounded-2xl border-2 border-dashed border-green-300 bg-green-300/10 p-5 text-3xl font-black tracking-[.18em] text-green-300">{drinkOffer.coupon_code}</div></>}
+            {drinkOffer.status==="accepted"&&drinkOffer.receiver_id===mioId&&<><h2 className="mt-4 text-2xl font-black">Hai accettato 🎉</h2><p className="mt-3 text-gray-400">Raggiungi {persona?.nickname||"il tuo match"} al bancone e godetevi il drink.</p></>}
+            {drinkOffer.status==="declined"&&<><h2 className="mt-4 text-2xl font-black">Offerta rifiutata</h2><p className="mt-3 text-gray-400">Nessun problema: la conversazione può continuare normalmente.</p></>}
+            {drinkOffer.status==="redeemed"&&drinkOffer.sender_id===mioId&&<><h2 className="mt-4 text-2xl font-black">Coupon utilizzato ✓</h2><p className="mt-3 text-gray-400">Lo sconto di 2 € è stato registrato dallo staff.</p></>}
+          </div>
+        </div>
+      )}
 
       {sicurezzaAperta && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">

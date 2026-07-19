@@ -37,6 +37,11 @@ type MessageRow = Record<string, unknown> & {
   sender_id: string
 }
 
+type DrinkOfferRow = {
+  id:string; sender_id:string; receiver_id:string; status:string;
+  discount_cents:number; created_at:string;
+}
+
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, {
     status,
@@ -201,12 +206,29 @@ export async function GET(request: Request) {
       })
     }
 
+    stage = "offerte drink"
+    const drinkResult = await supabase.from("drink_offers")
+      .select("id,sender_id,receiver_id,status,discount_cents,created_at,responded_at,redeemed_at")
+      .eq("event_code", code).order("created_at", { ascending: false }).limit(1000)
+    if (drinkResult.error) throw drinkResult.error
+    const drinkOffers = (drinkResult.data || []) as DrinkOfferRow[]
+    const acceptedOfferIds = drinkOffers.filter((offer) => offer.status === "accepted").map((offer) => offer.id)
+    const drinkCouponResult = acceptedOfferIds.length
+      ? await supabase.from("drink_coupons").select("offer_id,coupon_code").in("offer_id", acceptedOfferIds)
+      : { data: [], error: null }
+    if (drinkCouponResult.error) throw drinkCouponResult.error
+    const couponRows = (drinkCouponResult.data || []) as {offer_id:string;coupon_code:string}[]
+    const couponByOffer = new Map(couponRows.map((coupon) => [coupon.offer_id, coupon.coupon_code]))
+
     if (view === "analytics") {
       return json({
         participants: people.length,
         completedTests: people.filter((person) => person.completed_test).length,
         matches: matches.length,
         messages: messages.length,
+        drinkOffers: drinkOffers.length,
+        drinkAccepted: drinkOffers.filter((offer) => offer.status === "accepted" || offer.status === "redeemed").length,
+        drinkRedeemed: drinkOffers.filter((offer) => offer.status === "redeemed").length,
       })
     }
 
@@ -231,7 +253,16 @@ export async function GET(request: Request) {
         matches: matches.length,
         messages: messages.length,
         reports: openReports,
+        drinkOffers: drinkOffers.length,
+        drinkAccepted: drinkOffers.filter((offer) => offer.status === "accepted" || offer.status === "redeemed").length,
+        drinkRedeemed: drinkOffers.filter((offer) => offer.status === "redeemed").length,
       },
+      drinkCoupons: drinkOffers.filter((offer) => offer.status === "accepted").slice(0, 50).map((offer) => ({
+        ...offer,
+        coupon_code: couponByOffer.get(offer.id),
+        sender: people.find((person) => person.id === offer.sender_id)?.nickname || "Partecipante",
+        receiver: people.find((person) => person.id === offer.receiver_id)?.nickname || "Partecipante",
+      })),
     })
   } catch (error) {
     console.error("Admin data error", error)
