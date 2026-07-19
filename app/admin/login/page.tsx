@@ -30,12 +30,12 @@ export default function AdminLoginPage() {
 
       const requestedPath =
         new URLSearchParams(window.location.search).get("next") ||
-        "/admin/dashboard/test"
+        "/admin/events"
       const destination =
         requestedPath.startsWith("/admin/") &&
         !requestedPath.startsWith("/admin/login")
           ? requestedPath
-          : "/admin/dashboard/test"
+          : "/admin/events"
 
       router.replace(destination)
       router.refresh()

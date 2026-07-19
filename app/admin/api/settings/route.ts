@@ -31,3 +31,15 @@ export async function PATCH(request:Request){
   if(error)return reply({error:"Salvataggio non riuscito."},500)
   return data?reply({event:data}):reply({error:"Evento non trovato."},404)
 }
+
+export async function POST(request:Request){
+  if(!(await authenticated()))return reply({error:"Accesso non valido."},401)
+  if(request.headers.get("origin")!==new URL(request.url).origin)return reply({error:"Richiesta non valida."},403)
+  let body:Record<string,unknown>;try{body=await request.json()}catch{return reply({error:"Dati non validi."},400)}
+  const code=clean(body.code,24).toLowerCase(),name=clean(body.name,100),venue=clean(body.venue,160),description=clean(body.description,1000),timezone=clean(body.timezone,60)||"Europe/Rome",startsAt=date(body.starts_at),endsAt=date(body.ends_at)
+  if(!/^[a-z0-9][a-z0-9_-]{2,23}$/.test(code)||name.length<3||startsAt===undefined||endsAt===undefined)return reply({error:"Controlla nome, codice e orari."},400)
+  if(startsAt&&endsAt&&new Date(startsAt)>=new Date(endsAt))return reply({error:"La chiusura deve essere successiva all'apertura."},400)
+  const {data,error}=await getSupabaseAdmin().from("events").insert({code,name,venue:venue||null,description,timezone,starts_at:startsAt,ends_at:endsAt,status:"draft",updated_at:new Date().toISOString()} as never).select("code,name,status").single()
+  if(error){if(error.code==="23505")return reply({error:"Questo codice evento è già utilizzato."},409);return reply({error:"Creazione evento non riuscita."},500)}
+  return reply({event:data},201)
+}

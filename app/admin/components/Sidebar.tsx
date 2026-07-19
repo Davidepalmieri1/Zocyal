@@ -111,6 +111,7 @@ export default function Sidebar() {
                 <p className="mt-4 text-xs font-black uppercase tracking-[0.16em] text-pink-400">
                   Evento {code}
                 </p>
+                <Link href="/admin/events" onClick={()=>setMobileOpen(false)} className="mt-3 inline-flex rounded-lg border border-white/10 px-3 py-2 text-[10px] font-black text-zinc-300">CAMBIA EVENTO</Link>
               </div>
               <div className="flex gap-2">
                 <form action="/admin/api/logout" method="post">
@@ -201,6 +202,7 @@ export default function Sidebar() {
           <p className="mt-2 text-sm font-bold text-white">
             Evento {code}
           </p>
+          <Link href="/admin/events" className="mt-3 inline-flex rounded-lg border border-white/10 px-3 py-2 text-[10px] font-black text-zinc-300">CAMBIA EVENTO</Link>
         </div>
       </div>
 
