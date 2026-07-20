@@ -106,7 +106,10 @@ export async function resolveCurrentParticipant(eventCode: string) {
   await ensureAnonymousSession()
 
   const normalizedEventCode = eventCode.trim().toLowerCase()
-  const { data, error } = await supabase.rpc("mr_current_participant_id")
+  const { data, error } = await supabase.rpc(
+    "current_participant_for_event",
+    { p_event_code: normalizedEventCode }
+  )
 
   if (error) throw error
 
