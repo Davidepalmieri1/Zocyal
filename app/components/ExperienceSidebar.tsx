@@ -224,7 +224,7 @@ export default function ExperienceSidebar() {
         aria-label="Apri menu attività"
         whileTap={{ scale: 0.92 }}
         whileHover={{ scale: 1.06 }}
-        className={`fixed right-4 z-40 flex items-center justify-center rounded-full border border-pink-400/30 bg-gradient-to-br from-fuchsia-600 via-pink-500 to-orange-400 text-white shadow-[0_0_40px_rgba(236,72,153,0.35)] transition-[bottom,width,height] sm:right-6 ${
+        className={`premium-cta fixed right-4 z-40 flex items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-fuchsia-600 via-pink-500 to-orange-400 text-white transition-[bottom,width,height] sm:right-6 ${
           pathname.includes("/chat/")
             ? "bottom-24 h-12 w-12 text-xl sm:bottom-28"
             : "bottom-6 h-14 w-14 text-2xl"
@@ -256,7 +256,7 @@ export default function ExperienceSidebar() {
                 stiffness: 260,
                 damping: 28,
               }}
-              className="fixed bottom-0 right-0 top-0 z-50 flex w-[88%] max-w-sm flex-col overflow-hidden border-l border-white/10 bg-zinc-950 text-white shadow-[-30px_0_100px_rgba(0,0,0,0.65)]"
+              className="fixed bottom-0 right-0 top-0 z-50 flex w-[88%] max-w-sm flex-col overflow-hidden border-l border-white/10 bg-[#09060b]/95 text-white shadow-[-30px_0_100px_rgba(0,0,0,0.65)] backdrop-blur-2xl"
             >
               <div className="pointer-events-none absolute right-[-100px] top-[-120px] h-[320px] w-[320px] rounded-full bg-fuchsia-600/20 blur-[100px]" />
               <div className="pointer-events-none absolute bottom-[-120px] left-[-100px] h-[300px] w-[300px] rounded-full bg-orange-500/10 blur-[100px]" />

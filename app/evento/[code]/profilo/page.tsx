@@ -6,6 +6,7 @@ import { supabase } from "@/lib/supabase"
 import {
   createParticipantProfile,
   ensureAnonymousSession,
+  participantErrorMessage,
 } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
@@ -94,12 +95,13 @@ export default function ProfiloPage() {
     setErrore("")
 
     let avatarUrl = ""
+    let uploadedAvatarPath = ""
 
     try {
       await ensureAnonymousSession()
     } catch (sessionError) {
       console.error("Errore sessione partecipante:", sessionError)
-      setErrore("Non siamo riusciti ad avviare la sessione.")
+      setErrore(participantErrorMessage(sessionError))
       setLoading(false)
       return
     }
@@ -138,6 +140,7 @@ export default function ProfiloPage() {
         .getPublicUrl(fileName)
 
       avatarUrl = data.publicUrl
+      uploadedAvatarPath = fileName
     }
 
     try {
@@ -151,7 +154,18 @@ export default function ProfiloPage() {
       })
     } catch (profileError) {
       console.error("Errore salvataggio profilo:", profileError)
-      setErrore("Non siamo riusciti a creare il profilo.")
+
+      if (uploadedAvatarPath) {
+        const { error: cleanupError } = await supabase.storage
+          .from("avatars")
+          .remove([uploadedAvatarPath])
+
+        if (cleanupError) {
+          console.error("Errore pulizia foto profilo:", cleanupError)
+        }
+      }
+
+      setErrore(participantErrorMessage(profileError))
       setLoading(false)
       return
     }

@@ -17,6 +17,49 @@ type ParticipantRpcRow = {
   completed_test?: boolean | null
 }
 
+type SupabaseErrorLike = {
+  code?: string
+  message?: string
+  status?: number
+}
+
+export function participantErrorMessage(error: unknown) {
+  const value = (error || {}) as SupabaseErrorLike
+  const code = value.code?.toLowerCase() || ""
+  const message = value.message?.toLowerCase() || ""
+
+  if (
+    value.status === 429 ||
+    code.includes("rate_limit") ||
+    message.includes("rate limit") ||
+    message.includes("too many requests")
+  ) {
+    return "Sono stati fatti troppi nuovi accessi dalla stessa rete. Attendi qualche minuto e riprova."
+  }
+
+  if (
+    code.includes("anonymous_provider_disabled") ||
+    message.includes("anonymous sign-ins are disabled") ||
+    message.includes("anonymous provider is disabled")
+  ) {
+    return "L’accesso rapido dei partecipanti non è attivo. Avvisa lo staff."
+  }
+
+  if (message.includes("captcha")) {
+    return "Il controllo di sicurezza non è stato completato. Ricarica la pagina e riprova."
+  }
+
+  if (message.includes("already owns a participant")) {
+    return "Hai già un profilo per questo evento. Torna indietro e scegli Recupera profilo."
+  }
+
+  if (message.includes("invalid event")) {
+    return "Questo evento non è disponibile. Controlla il link o il QR."
+  }
+
+  return "Non siamo riusciti a creare il profilo. Controlla la connessione e riprova."
+}
+
 function firstRow(data: unknown): ParticipantRpcRow | null {
   if (Array.isArray(data)) {
     return (data[0] as ParticipantRpcRow | undefined) ?? null

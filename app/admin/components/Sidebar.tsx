@@ -85,7 +85,7 @@ export default function Sidebar() {
         aria-expanded={mobileOpen}
         aria-controls="admin-mobile-menu"
         onClick={() => setMobileOpen(true)}
-        className="fixed left-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-2xl border border-white/15 bg-zinc-950/95 text-2xl text-white shadow-xl backdrop-blur lg:hidden"
+        className="premium-glass fixed left-4 top-4 z-40 flex h-12 w-12 items-center justify-center rounded-2xl text-2xl text-white lg:hidden"
       >
         ☰
       </button>
@@ -103,7 +103,7 @@ export default function Sidebar() {
             id="admin-mobile-menu"
             initial={{ x: -320 }}
             animate={{ x: 0 }}
-            className="relative flex h-full w-[min(86vw,320px)] flex-col overflow-y-auto border-r border-white/10 bg-zinc-950 p-5 text-white shadow-2xl"
+            className="relative flex h-full w-[min(88vw,340px)] flex-col overflow-y-auto border-r border-white/10 bg-[#09060b]/95 p-5 text-white shadow-2xl backdrop-blur-2xl"
           >
             <div className="flex items-start justify-between gap-4">
               <div>
@@ -175,7 +175,7 @@ export default function Sidebar() {
       transition={{
         duration: 0.45,
       }}
-      className="relative hidden min-h-screen w-64 shrink-0 overflow-hidden border-r border-white/10 bg-zinc-950 px-4 py-5 text-white lg:flex lg:flex-col"
+      className="relative hidden min-h-screen w-72 shrink-0 overflow-hidden border-r border-white/[.075] bg-[#08050a]/90 px-5 py-5 text-white backdrop-blur-2xl lg:flex lg:flex-col"
     >
       <div className="pointer-events-none absolute left-[-120px] top-[-100px] h-72 w-72 rounded-full bg-fuchsia-600/20 blur-[100px]" />
 

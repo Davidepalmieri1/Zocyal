@@ -1,6 +1,7 @@
 import Link from "next/link"
 import Logo from "@/app/components/Logo"
 import ExistingProfileActions from "@/app/components/ExistingProfileActions"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { supabase } from "@/lib/supabase"
 
 export const dynamic = "force-dynamic"
@@ -36,14 +37,14 @@ export default async function EventoPage({
 
   if (!event || unavailable) {
     return (
-      <main className="relative min-h-screen overflow-hidden bg-black px-6 text-white">
-        <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-        <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
+      <main className="premium-page px-6 text-white">
+        <PremiumBackdrop />
 
         <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center text-center">
           <Logo size="large" />
 
-          <h1 className="mt-8 text-3xl font-black">
+          <p className="premium-eyebrow mt-8">Stato evento</p>
+          <h1 className="premium-title mt-4 text-4xl font-black">
             {event ? "Evento non disponibile" : "Evento non trovato"}
           </h1>
 
@@ -53,7 +54,7 @@ export default async function EventoPage({
 
           <Link
             href="/evento"
-            className="mt-8 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-8 py-4 font-black text-white shadow-[0_0_40px_rgba(236,72,153,0.25)] transition hover:scale-[1.02]"
+            className="premium-cta mt-8 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-8 py-4 font-black text-white"
           >
             INSERISCI UN ALTRO CODICE
           </Link>
@@ -63,19 +64,18 @@ export default async function EventoPage({
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-6 text-white">
-      <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-      <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
+    <main className="premium-page px-6 text-white">
+      <PremiumBackdrop />
 
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center text-center">
         <Logo size="large" />
 
-        <div className="mt-8 w-full rounded-3xl border border-white/10 bg-white/[0.05] p-8 backdrop-blur">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-pink-400">
+        <div className="premium-glass premium-enter mt-8 w-full rounded-[2.25rem] p-8">
+          <p className="premium-eyebrow">
             Evento attivo
           </p>
 
-          <h1 className="mt-4 text-4xl font-black">
+          <h1 className="premium-title mt-4 text-5xl font-black">
             {event.name}
           </h1>
 
@@ -85,7 +85,7 @@ export default async function EventoPage({
             </p>
           )}
 
-          <div className="mt-6 rounded-2xl border border-white/10 bg-black/30 p-4">
+          <div className="mt-6 rounded-2xl border border-white/10 bg-black/25 p-4 shadow-inner">
             <p className="text-sm text-gray-500">
               Codice evento
             </p>

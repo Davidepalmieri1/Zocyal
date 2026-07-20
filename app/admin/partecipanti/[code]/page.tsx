@@ -1,73 +1,27 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
 import { motion } from "framer-motion"
 import Sidebar from "@/app/admin/components/Sidebar"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { fetchAdminData } from "@/app/admin/data-client"
 
-type Participant = {
-  id: string
-  nickname: string | null
-  age: number | null
-  goal: string | null
-  avatar_url: string | null
-  completed_test: boolean | null
-}
+type Participant = { id:string; nickname:string|null; age:number|null; goal:string|null; avatar_url:string|null; completed_test:boolean|null }
+type Filter = "all" | "complete" | "incomplete"
 
-export default function Page() {
-  const { code: rawCode } = useParams<{ code: string }>()
-  const code = rawCode.trim().toLowerCase()
-  const [participants, setParticipants] = useState<Participant[]>([])
-  const [search, setSearch] = useState("")
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true)
-    try {
-      const data = await fetchAdminData<{ participants: Participant[] }>("participants", code)
-      setParticipants(data.participants)
-      setError("")
-    } catch (cause) {
-      setError(cause instanceof Error ? cause.message : "Errore inatteso.")
-    } finally {
-      if (!silent) setLoading(false)
-    }
-  }, [code])
-
-  useEffect(() => {
-    const initial = window.setTimeout(() => void load(), 0)
-    const timer = window.setInterval(() => void load(true), 5000)
-    return () => { window.clearTimeout(initial); window.clearInterval(timer) }
-  }, [load])
-
-  const filtered = participants.filter((person) =>
-    person.nickname?.toLowerCase().includes(search.toLowerCase())
-  )
-
-  return (
-    <div className="flex min-h-screen bg-black text-white">
-      <Sidebar />
-      <main className="min-w-0 flex-1 px-4 pb-8 pt-20 sm:px-6 lg:p-8">
-        <h1 className="text-4xl font-bold text-pink-500 sm:text-5xl">👥 Partecipanti</h1>
-        <p className="mt-3 text-gray-400">Evento: {code}</p>
-        <input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Cerca partecipante..." className="my-8 w-full max-w-xl rounded-xl bg-white p-4 text-black outline-none" />
-        {error && <p role="alert" className="mb-6 rounded-xl bg-red-500/15 p-4 text-red-200">{error}</p>}
-        {loading ? <p>Carico partecipanti...</p> : (
-          <div className="grid gap-6 md:grid-cols-2 xl:grid-cols-3">
-            {filtered.map((person, index) => (
-              <motion.article key={person.id} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: Math.min(index * 0.03, 0.3) }} className="rounded-3xl bg-white p-6 text-black shadow-xl">
-                {person.avatar_url && <img src={person.avatar_url} alt="" className="mx-auto mb-4 h-24 w-24 rounded-full object-cover" />}
-                <h2 className="text-center text-2xl font-bold">{person.nickname || "Senza nome"}</h2>
-                <p className="text-center">{person.age || "?"} anni</p>
-                <p className="mt-2 text-center text-gray-500">🎯 {person.goal || "Nessun obiettivo"}</p>
-                <p className="mt-5 text-center font-bold">{person.completed_test ? "✅ Test completato" : "⏳ Test incompleto"}</p>
-              </motion.article>
-            ))}
-          </div>
-        )}
-      </main>
-    </div>
-  )
+export default function Page(){
+  const {code:rawCode}=useParams<{code:string}>(); const code=rawCode.trim().toLowerCase()
+  const [participants,setParticipants]=useState<Participant[]>([]),[search,setSearch]=useState(""),[filter,setFilter]=useState<Filter>("all"),[loading,setLoading]=useState(true),[error,setError]=useState("")
+  const load=useCallback(async(silent=false)=>{if(!silent)setLoading(true);try{const data=await fetchAdminData<{participants:Participant[]}>("participants",code);setParticipants(data.participants);setError("")}catch(cause){setError(cause instanceof Error?cause.message:"Errore inatteso.")}finally{if(!silent)setLoading(false)}},[code])
+  useEffect(()=>{void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load(true)},15000);return()=>window.clearInterval(timer)},[load])
+  const filtered=useMemo(()=>participants.filter(person=>`${person.nickname||""} ${person.goal||""}`.toLowerCase().includes(search.toLowerCase())&&(filter==="all"||(filter==="complete"?person.completed_test:!person.completed_test))),[participants,search,filter])
+  const completed=participants.filter(person=>person.completed_test).length
+  return <div className="flex min-h-screen bg-[#050306] text-white"><Sidebar/><main className="relative min-w-0 flex-1 overflow-hidden px-4 pb-10 pt-20 sm:px-6 lg:p-8"><PremiumBackdrop orbs={false}/><div className="relative mx-auto max-w-7xl">
+    <header className="border-b border-white/[.07] pb-7"><p className="premium-eyebrow">People operations</p><div className="mt-3 flex flex-col justify-between gap-4 sm:flex-row sm:items-end"><div><h1 className="premium-title text-4xl font-black sm:text-6xl">Partecipanti.</h1><p className="mt-3 text-sm text-white/45">Evento <strong className="text-pink-300">{code}</strong> · aggiornamento automatico</p></div><button onClick={()=>void load(true)} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-xs font-black text-white/60">↻ AGGIORNA</button></div></header>
+    <section className="mt-6 grid grid-cols-3 gap-3">{[["Totali",participants.length,"text-white"],["Pronti",completed,"text-emerald-300"],["Da completare",participants.length-completed,"text-amber-300"]].map(([label,value,tone])=><article key={String(label)} className="premium-glass rounded-2xl p-4 sm:p-5"><p className="text-[10px] font-black uppercase tracking-wider text-white/35">{label}</p><p className={`mt-3 text-3xl font-black ${tone}`}>{value}</p></article>)}</section>
+    <section className="premium-glass mt-5 rounded-[1.75rem] p-4 sm:p-5"><label htmlFor="participant-search" className="sr-only">Cerca partecipante</label><input id="participant-search" value={search} onChange={event=>setSearch(event.target.value)} placeholder="Cerca nome o obiettivo…" className="w-full rounded-2xl border border-white/10 bg-white/[.06] px-5 py-4 text-white outline-none placeholder:text-white/25 focus:border-pink-400/50"/><div className="mt-3 flex gap-2 overflow-x-auto">{([['all','Tutti'],['complete','Pronti'],['incomplete','Incompleti']] as const).map(([id,label])=><button key={id} onClick={()=>setFilter(id)} className={`rounded-full border px-4 py-2 text-[10px] font-black uppercase tracking-wider ${filter===id?"border-pink-300 bg-pink-300 text-black":"border-white/10 text-white/45"}`}>{label}</button>)}</div></section>
+    {error&&<p role="alert" className="mt-5 rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-red-200">{error}</p>}
+    {loading?<div className="mt-6 h-56 animate-pulse rounded-[2rem] bg-white/[.04]"/>:<section aria-live="polite" className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-3">{filtered.map((person,index)=><motion.article key={person.id} initial={{opacity:0,y:12}} animate={{opacity:1,y:0}} transition={{delay:Math.min(index*.025,.25)}} className="premium-card-lift rounded-[1.75rem] border border-white/[.08] bg-white/[.035] p-5"><div className="flex items-center gap-4"><div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-white/10 bg-white/[.05] text-2xl font-black">{person.avatar_url?<img src={person.avatar_url} alt={`Foto di ${person.nickname||"partecipante"}`} className="h-full w-full object-cover"/>:(person.nickname||"?").slice(0,1).toUpperCase()}</div><div className="min-w-0 flex-1"><div className="flex items-start justify-between gap-2"><h2 className="truncate text-xl font-black">{person.nickname||"Senza nome"}</h2><span className={`shrink-0 rounded-full px-2.5 py-1 text-[9px] font-black uppercase ${person.completed_test?"bg-emerald-400/10 text-emerald-300":"bg-amber-400/10 text-amber-300"}`}>{person.completed_test?"Pronto":"Incompleto"}</span></div><p className="mt-1 text-sm text-white/40">{person.age?`${person.age} anni`:"Età non indicata"}</p><p className="mt-2 truncate text-xs font-semibold text-pink-200/65">{person.goal||"Nessun obiettivo"}</p></div></div></motion.article>)}{filtered.length===0&&<p className="rounded-2xl border border-white/[.08] p-6 text-white/40">Nessun partecipante trovato.</p>}</section>}
+  </div></main></div>
 }

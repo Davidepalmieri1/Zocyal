@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useRouter } from "next/navigation"
 import { Html5QrcodeScanner } from "html5-qrcode"
 import Logo from "@/app/components/Logo"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 
 export default function EventoPage() {
   const router = useRouter()
@@ -117,19 +118,18 @@ export default function EventoPage() {
   }, [scannerAperto, router])
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-6 text-white">
-      <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
+    <main className="premium-page px-5 text-white sm:px-6">
+      <PremiumBackdrop />
 
-      <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
-
-      <div className="relative mx-auto flex min-h-screen w-full max-w-md flex-col items-center justify-center py-10 text-center">
+      <div className="relative mx-auto flex min-h-screen w-full max-w-lg flex-col items-center justify-center py-10 text-center">
         <Logo size="large" />
 
         <h1 className="sr-only">
           Entra in Zocyal
         </h1>
 
-        <h2 className="mt-6 text-3xl font-black">
+        <p className="premium-eyebrow premium-enter mt-7">Accesso esperienza</p>
+        <h2 className="premium-title premium-enter premium-enter-delay-1 mt-4 text-4xl font-black sm:text-5xl">
           Entra nella serata
         </h2>
 
@@ -138,7 +138,7 @@ export default function EventoPage() {
           dell&apos;evento.
         </p>
 
-        <div className="mt-10 w-full">
+        <div className="premium-glass premium-enter premium-enter-delay-2 mt-9 w-full rounded-[2rem] p-5 text-left sm:p-7">
           <label
             htmlFor="event-code"
             className="mb-3 block text-left text-sm font-bold text-gray-300"
@@ -162,7 +162,7 @@ export default function EventoPage() {
             placeholder="Esempio: zocyal01"
             autoComplete="off"
             spellCheck={false}
-            className="w-full rounded-2xl border border-white/10 bg-white px-5 py-4 text-center text-lg font-bold lowercase text-black outline-none transition placeholder:font-normal placeholder:text-gray-400 focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20"
+            className="w-full rounded-2xl border border-white/10 bg-white/[.075] px-5 py-4 text-center text-lg font-black uppercase tracking-[.15em] text-white outline-none transition placeholder:font-normal placeholder:normal-case placeholder:tracking-normal placeholder:text-white/25 focus:border-pink-400/60 focus:bg-white/[.11] focus:ring-4 focus:ring-pink-500/10"
           />
 
           {errore && (
@@ -174,7 +174,7 @@ export default function EventoPage() {
           <button
             type="button"
             onClick={entraEvento}
-            className="mt-5 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-8 py-4 text-lg font-black text-white shadow-[0_0_40px_rgba(236,72,153,0.25)] transition hover:scale-[1.02]"
+            className="premium-cta mt-5 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-8 py-4 text-sm font-black uppercase tracking-[.12em] text-white"
           >
             ENTRA NELLA SERATA
           </button>
@@ -182,7 +182,7 @@ export default function EventoPage() {
           <button
             type="button"
             onClick={apriScanner}
-            className="mt-3 w-full rounded-full border border-pink-500 bg-white/[0.04] px-8 py-4 font-black text-white transition hover:bg-pink-500/10"
+            className="mt-3 w-full rounded-full border border-white/10 bg-white/[0.04] px-8 py-4 text-sm font-black uppercase tracking-[.1em] text-white/75 transition hover:border-pink-400/30 hover:bg-pink-500/10 hover:text-white"
           >
             📷 SCANSIONA IL QR
           </button>
@@ -199,7 +199,7 @@ export default function EventoPage() {
 
       {scannerAperto && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-5">
-          <div className="w-full max-w-md rounded-3xl border border-white/10 bg-zinc-950 p-5">
+          <div className="premium-glass w-full max-w-md rounded-[2rem] bg-zinc-950/90 p-5">
             <div className="mb-5 flex items-center justify-between">
               <div className="text-left">
                 <h2 className="text-xl font-black">

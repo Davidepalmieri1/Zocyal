@@ -10,10 +10,10 @@ export default function EventoLayout({
   children,
 }: EventoLayoutProps) {
   return (
-    <>
+    <div className="event-experience-shell contents">
       <NetworkStatus />
       {children}
       <ExperienceSidebar />
-    </>
+    </div>
   )
 }

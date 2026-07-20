@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 
 const PROFILI_PER_PAGINA = 20
 
@@ -55,6 +56,7 @@ export default function CompatibilitaPage() {
   const [errore, setErrore] = useState("")
   const [azioneInCorso, setAzioneInCorso] = useState<string | null>(null)
   const [mioId, setMioId] = useState<string | null>(null)
+  const [indiceAttivo, setIndiceAttivo] = useState(0)
 
   const mieRisposteRef = useRef<Risposte | null>(null)
   const likesRef = useRef<LikeRecord[]>([])
@@ -230,6 +232,25 @@ export default function CompatibilitaPage() {
       prossimoIndice
     )
   }
+
+  async function vaiAlProssimoProfilo() {
+    if (indiceAttivo < matches.length - 1) {
+      setIndiceAttivo((indice) => indice + 1)
+      return
+    }
+
+    if (haAltriProfili && !loadingAltri) {
+      const quantiPrima = matches.length
+      await caricaAltriProfili()
+      setIndiceAttivo(quantiPrima)
+    }
+  }
+
+  useEffect(() => {
+    if (matches.length > 0 && indiceAttivo >= matches.length) {
+      setIndiceAttivo(matches.length - 1)
+    }
+  }, [indiceAttivo, matches.length])
 
   async function apriChat(person: PersonaMatch) {
     const participantId = localStorage.getItem("participant_id")
@@ -418,6 +439,7 @@ export default function CompatibilitaPage() {
       setLoading(true)
       setErrore("")
       setMatches([])
+      setIndiceAttivo(0)
       setProssimoIndice(0)
       setHaAltriProfili(true)
 
@@ -564,19 +586,18 @@ export default function CompatibilitaPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-6 py-10 text-white">
-      <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-      <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
+    <main className="premium-page min-h-screen px-5 py-7 text-white sm:px-6 sm:py-10">
+      <PremiumBackdrop orbs={false} />
 
       <div className="relative mx-auto w-full max-w-md">
         <Logo size="medium" />
 
         <div className="mt-7 text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-pink-400">
+          <p className="premium-eyebrow">
             Le tue affinità
           </p>
 
-          <h1 className="mt-3 text-3xl font-black">
+          <h1 className="premium-title mt-3 text-4xl font-black">
             Persone compatibili
           </h1>
 
@@ -620,10 +641,10 @@ export default function CompatibilitaPage() {
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-6">
-            {matches.map((person, index) => (
+            {[matches[indiceAttivo]].filter((person): person is PersonaMatch => Boolean(person)).map((person) => (
               <article
                 key={person.id}
-                className="overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.045] shadow-[0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl"
+                className="premium-glass premium-enter overflow-hidden rounded-[2.25rem]"
               >
                 <div className="relative h-72 overflow-hidden bg-zinc-900">
                   {person.avatar_url ? (
@@ -641,7 +662,7 @@ export default function CompatibilitaPage() {
                   <div className="absolute inset-0 bg-gradient-to-t from-black via-black/10 to-transparent" />
 
                   <div className="absolute left-5 top-5 rounded-full border border-white/10 bg-black/50 px-4 py-2 text-xs font-black uppercase tracking-wider text-white backdrop-blur">
-                    #{index + 1} affinità
+                    {indiceAttivo + 1} di {matches.length}
                   </div>
 
                   {person.stato === "match" && (
@@ -720,6 +741,17 @@ export default function CompatibilitaPage() {
                             ? "💌 RICAMBIA L’INTERESSE"
                             : "❤️ MI INTERESSA"}
                   </button>
+
+                  {person.stato !== "match" && (
+                    <button
+                      type="button"
+                      onClick={() => void vaiAlProssimoProfilo()}
+                      disabled={loadingAltri}
+                      className="mt-3 w-full rounded-full border border-white/10 bg-white/[0.035] px-6 py-4 text-sm font-black text-white/55 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50"
+                    >
+                      {loadingAltri ? "CARICAMENTO…" : "PASSA AL PROSSIMO"}
+                    </button>
+                  )}
 
                   {person.stato === "match" && (
                     <button

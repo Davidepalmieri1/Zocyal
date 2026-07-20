@@ -10,6 +10,12 @@ const PUBLIC_ADMIN_PATHS = new Set(["/admin/login", "/admin/api/login"])
 export function proxy(request: NextRequest) {
   const { pathname, search } = request.nextUrl
 
+  if (pathname === "/admin/dashoboard" || pathname.startsWith("/admin/dashoboard/")) {
+    const correctedUrl = request.nextUrl.clone()
+    correctedUrl.pathname = pathname.replace("/admin/dashoboard", "/admin/dashboard")
+    return NextResponse.redirect(correctedUrl, 308)
+  }
+
   if (PUBLIC_ADMIN_PATHS.has(pathname)) {
     return NextResponse.next()
   }

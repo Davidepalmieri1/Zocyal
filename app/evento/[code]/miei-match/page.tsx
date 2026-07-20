@@ -4,6 +4,7 @@ import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 
 type PersonaMatch = {
   id: string
@@ -51,6 +52,7 @@ export default function MieiMatchPage() {
   const [matches, setMatches] = useState<PersonaMatch[]>([])
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
+  const [filtro, setFiltro] = useState<"tutte" | "non-lette">("tutte")
 
   useEffect(() => {
     async function caricaChat() {
@@ -232,8 +234,8 @@ export default function MieiMatchPage() {
 
   if (loading) {
     return (
-      <main className="relative flex min-h-screen items-center justify-center overflow-hidden bg-black px-6 text-white">
-        <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
+      <main className="premium-page relative flex min-h-screen items-center justify-center overflow-hidden px-6 text-white">
+        <PremiumBackdrop orbs={false} />
 
         <div className="relative text-center">
           <Logo size="medium" />
@@ -253,20 +255,19 @@ export default function MieiMatchPage() {
   }
 
   return (
-    <main className="relative min-h-screen overflow-hidden bg-black px-5 py-10 text-white">
-      <div className="absolute left-1/2 top-[-180px] h-[420px] w-[420px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[120px]" />
-      <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
+    <main className="premium-page relative min-h-screen overflow-hidden px-5 py-8 text-white sm:py-10">
+      <PremiumBackdrop orbs={false} />
 
       <div className="relative mx-auto w-full max-w-md">
         <Logo size="medium" />
 
         <div className="mt-7 text-center">
-          <p className="text-sm font-bold uppercase tracking-[0.2em] text-pink-400">
+          <p className="premium-eyebrow">
             Centro conversazioni
           </p>
 
-          <h1 className="mt-3 text-3xl font-black">
-            Le mie chat
+          <h1 className="premium-title mt-3 text-4xl font-black">
+            Le tue connessioni.
           </h1>
 
           <p className="mt-3 leading-7 text-gray-400">
@@ -282,7 +283,7 @@ export default function MieiMatchPage() {
         )}
 
         {matches.length === 0 ? (
-          <section className="mt-8 rounded-3xl border border-white/10 bg-white/[0.05] p-8 text-center shadow-[0_24px_80px_rgba(0,0,0,0.4)] backdrop-blur-xl">
+          <section className="premium-glass premium-enter mt-8 rounded-[2rem] p-8 text-center">
             <span className="text-5xl">💬</span>
 
             <h2 className="mt-5 text-2xl font-black">
@@ -307,7 +308,20 @@ export default function MieiMatchPage() {
           </section>
         ) : (
           <div className="mt-8 flex flex-col gap-3">
-            {matches.map((persona) => {
+            <div className="mb-2 grid grid-cols-2 gap-2 rounded-2xl border border-white/10 bg-black/25 p-1.5">
+              {([['tutte', 'Tutte'], ['non-lette', 'Da leggere']] as const).map(([value, label]) => (
+                <button
+                  key={value}
+                  type="button"
+                  onClick={() => setFiltro(value)}
+                  className={`rounded-xl px-4 py-3 text-xs font-black uppercase tracking-[0.12em] transition ${filtro === value ? 'bg-white text-black' : 'text-white/45 hover:text-white'}`}
+                >
+                  {label}{value === 'non-lette' ? ` · ${matches.filter((item) => item.non_letti > 0).length}` : ''}
+                </button>
+              ))}
+            </div>
+
+            {matches.filter((persona) => filtro === "tutte" || persona.non_letti > 0).map((persona) => {
               const bloccata =
                 persona.status === "blocked"
 
@@ -320,7 +334,7 @@ export default function MieiMatchPage() {
                       `/evento/${params.code}/chat/${persona.match_id}`
                     )
                   }
-                  className="group flex w-full items-center gap-4 rounded-3xl border border-white/10 bg-white/[0.05] p-4 text-left shadow-[0_16px_45px_rgba(0,0,0,0.25)] backdrop-blur-xl transition hover:border-pink-400/30 hover:bg-white/[0.08]"
+                  className="premium-glass premium-enter group flex w-full items-center gap-4 rounded-[1.65rem] p-4 text-left transition hover:-translate-y-0.5 hover:border-pink-400/30"
                 >
                   <div className="relative shrink-0">
                     <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-zinc-900">
@@ -338,9 +352,6 @@ export default function MieiMatchPage() {
                       )}
                     </div>
 
-                    {!bloccata && (
-                      <span className="absolute bottom-0 right-0 h-4 w-4 rounded-full border-2 border-zinc-950 bg-green-400" />
-                    )}
                   </div>
 
                   <div className="min-w-0 flex-1">

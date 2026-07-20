@@ -266,8 +266,17 @@ export async function GET(request: Request) {
     })
   } catch (error) {
     console.error("Admin data error", error)
+    const configurationMissing =
+      stage === "configurazione" &&
+      error instanceof Error &&
+      error.message.includes("SUPABASE_SECRET_KEY")
+
     return json(
-      { error: `Impossibile caricare i dati amministrativi (${stage}).` },
+      {
+        error: configurationMissing
+          ? "Configurazione locale incompleta: aggiungi SUPABASE_SECRET_KEY e riavvia il server."
+          : `Impossibile caricare i dati amministrativi (${stage}).`,
+      },
       500
     )
   }

@@ -1,31 +1,20 @@
 "use client"
 
-import { useCallback, useEffect, useState } from "react"
+import { useCallback,useEffect,useState } from "react"
 import { useParams } from "next/navigation"
 import Sidebar from "@/app/admin/components/Sidebar"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { fetchAdminData } from "@/app/admin/data-client"
 
-type Analytics = { participants: number; completedTests: number; matches: number; messages: number }
-const empty: Analytics = { participants: 0, completedTests: 0, matches: 0, messages: 0 }
+type Analytics={participants:number;completedTests:number;matches:number;messages:number;drinkOffers:number;drinkAccepted:number;drinkRedeemed:number}
+const empty:Analytics={participants:0,completedTests:0,matches:0,messages:0,drinkOffers:0,drinkAccepted:0,drinkRedeemed:0}
+const percent=(value:number,total:number)=>total?Math.round(value/total*100):0
 
-export default function Page() {
-  const { code: rawCode } = useParams<{ code: string }>()
-  const code = rawCode.trim().toLowerCase()
-  const [data, setData] = useState(empty)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState("")
-  const load = useCallback(async (silent = false) => {
-    if (!silent) setLoading(true)
-    try { setData(await fetchAdminData<Analytics>("analytics", code)); setError("") }
-    catch (cause) { setError(cause instanceof Error ? cause.message : "Errore inatteso.") }
-    finally { if (!silent) setLoading(false) }
-  }, [code])
-  useEffect(() => { const initial = window.setTimeout(() => void load(), 0); const timer = window.setInterval(() => void load(true), 5000); return () => { window.clearTimeout(initial); window.clearInterval(timer) } }, [load])
-  const cards = [{ title: "Partecipanti", value: data.participants, icon: "👥" }, { title: "Test completati", value: data.completedTests, icon: "🎯" }, { title: "Match creati", value: data.matches, icon: "❤️" }, { title: "Messaggi", value: data.messages, icon: "💬" }]
-
-  return <div className="flex min-h-screen bg-black text-white"><Sidebar /><main className="min-w-0 flex-1 px-4 pb-8 pt-20 sm:px-6 lg:p-8">
-    <h1 className="text-4xl font-bold text-pink-500 sm:text-5xl">📈 Analytics Live</h1><p className="mt-3 text-gray-400">Evento: {code}</p>
-    {error && <p role="alert" className="mt-6 rounded-xl bg-red-500/15 p-4 text-red-200">{error}</p>}
-    {loading ? <p className="mt-8">Carico analytics...</p> : <div className="mt-10 grid gap-6 md:grid-cols-2 xl:grid-cols-4">{cards.map((card) => <article key={card.title} className="rounded-3xl bg-white p-6 text-black"><div className="text-4xl">{card.icon}</div><h2 className="mt-4 text-gray-500">{card.title}</h2><p className="mt-2 text-5xl font-bold">{card.value}</p></article>)}</div>}
-  </main></div>
+export default function Page(){
+ const {code:rawCode}=useParams<{code:string}>(),code=rawCode.trim().toLowerCase();const [data,setData]=useState(empty),[loading,setLoading]=useState(true),[error,setError]=useState("")
+ const load=useCallback(async(silent=false)=>{if(!silent)setLoading(true);try{setData(await fetchAdminData<Analytics>("analytics",code));setError("")}catch(cause){setError(cause instanceof Error?cause.message:"Errore inatteso.")}finally{if(!silent)setLoading(false)}},[code])
+ useEffect(()=>{void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load(true)},15000);return()=>window.clearInterval(timer)},[load])
+ const profileRate=percent(data.completedTests,data.participants),drinkRate=percent(data.drinkAccepted,data.drinkOffers),redeemRate=percent(data.drinkRedeemed,data.drinkAccepted)
+ const cards=[{title:"Partecipanti",value:data.participants,symbol:"◎",note:`${profileRate}% ha completato il test`},{title:"Match creati",value:data.matches,symbol:"♥",note:`${data.participants?(data.matches/data.participants).toFixed(1):"0"} per partecipante`},{title:"Messaggi",value:data.messages,symbol:"◌",note:"Conversazioni generate"},{title:"Drink offerti",value:data.drinkOffers,symbol:"◇",note:`${drinkRate}% accettati`}]
+ return <div className="flex min-h-screen bg-[#050306] text-white"><Sidebar/><main className="relative min-w-0 flex-1 overflow-hidden px-4 pb-10 pt-20 sm:px-6 lg:p-8"><PremiumBackdrop orbs={false}/><div className="relative mx-auto max-w-7xl"><header className="border-b border-white/[.07] pb-7"><p className="premium-eyebrow">Live intelligence</p><h1 className="premium-title mt-3 text-4xl font-black sm:text-6xl">Impatto della serata.</h1><div className="mt-4 flex items-center justify-between gap-4"><p className="text-sm text-white/45">Evento <strong className="text-pink-300">{code}</strong> · dati live</p><button onClick={()=>void load(true)} className="rounded-xl border border-white/10 px-4 py-3 text-xs font-black text-white/55">↻</button></div></header>{error&&<p role="alert" className="mt-5 rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-red-200">{error}</p>}{loading?<div className="mt-6 h-64 animate-pulse rounded-[2rem] bg-white/[.04]"/>:<><section className="mt-6 grid grid-cols-2 gap-3 xl:grid-cols-4">{cards.map(card=><article key={card.title} className="premium-card-lift premium-glass rounded-[1.75rem] p-5 sm:p-6"><div className="flex justify-between"><p className="text-[10px] font-black uppercase tracking-wider text-white/35">{card.title}</p><span className="text-pink-300">{card.symbol}</span></div><p className="mt-7 text-4xl font-black sm:text-5xl">{card.value}</p><p className="mt-2 text-xs text-white/35">{card.note}</p></article>)}</section><section className="premium-glass mt-6 rounded-[2rem] p-6 sm:p-8"><p className="premium-eyebrow">Conversioni</p><h2 className="mt-2 text-2xl font-black">Dal profilo all’incontro.</h2><div className="mt-7 grid gap-6 md:grid-cols-3">{[{label:"Profili pronti",value:profileRate,color:"from-fuchsia-500 to-pink-400"},{label:"Inviti accettati",value:drinkRate,color:"from-pink-500 to-orange-400"},{label:"Coupon utilizzati",value:redeemRate,color:"from-orange-400 to-amber-300"}].map(item=><div key={item.label}><div className="flex items-end justify-between"><p className="text-sm font-bold text-white/60">{item.label}</p><p className="text-2xl font-black">{item.value}%</p></div><div className="mt-3 h-2 overflow-hidden rounded-full bg-white/[.07]"><div className={`h-full rounded-full bg-gradient-to-r ${item.color}`} style={{width:`${item.value}%`}}/></div></div>)}</div></section></>}</div></main></div>
 }

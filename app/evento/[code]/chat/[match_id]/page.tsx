@@ -11,6 +11,7 @@ import { useParams, useRouter } from "next/navigation"
 import { RealtimeChannel } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
+import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 
 type Messaggio = {
   id: string
@@ -876,12 +877,10 @@ export default function ChatPage() {
   }
 
   return (
-    <main className="relative flex h-dvh min-h-screen flex-col overflow-hidden bg-black text-white">
-      <div className="pointer-events-none absolute left-1/2 top-[-240px] h-[480px] w-[480px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[130px]" />
+    <main className="premium-page relative flex h-dvh min-h-screen flex-col overflow-hidden text-white">
+      <PremiumBackdrop orbs={false} />
 
-      <div className="pointer-events-none absolute bottom-[-220px] right-[-160px] h-[400px] w-[400px] rounded-full bg-orange-500/10 blur-[120px]" />
-
-      <header className="relative z-20 border-b border-white/10 bg-black/75 px-4 py-4 backdrop-blur-2xl">
+      <header className="relative z-20 border-b border-white/[.08] bg-[#08050a]/80 px-4 py-3 shadow-[0_16px_50px_rgba(0,0,0,.18)] backdrop-blur-2xl sm:py-4">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
           <button
             type="button"
@@ -935,7 +934,7 @@ export default function ChatPage() {
             type="button"
             onClick={() => drinkOffer ? setDrinkOpen(true) : void inviaDrink()}
             disabled={drinkBusy || chatBloccata}
-            className="hidden shrink-0 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-4 py-3 text-xs font-black text-white disabled:opacity-50 sm:block"
+            className="premium-cta hidden shrink-0 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-4 py-3 text-xs font-black text-white disabled:opacity-50 sm:block"
           >
             {drinkOffer?.status === "accepted" || drinkOffer?.status === "redeemed" ? "🍹 COUPON" : drinkOffer ? "🍹 OFFERTA" : "🍹 OFFRI DRINK"}
           </button>
@@ -982,7 +981,7 @@ export default function ChatPage() {
         </div>
       </header>
 
-      <section className="relative z-10 flex-1 overflow-y-auto px-4 py-6">
+      <section aria-label="Messaggi della conversazione" aria-live="polite" className="relative z-10 flex-1 overflow-y-auto px-4 py-6">
         <div className="mx-auto flex w-full max-w-3xl flex-col gap-3">
           {chatBloccata && (
             <div className="mb-4 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center">
@@ -1064,7 +1063,7 @@ export default function ChatPage() {
                   className={`max-w-[82%] rounded-3xl px-4 py-3 shadow-lg sm:max-w-[70%] ${
                     mioMessaggio
                       ? "rounded-br-md bg-gradient-to-br from-fuchsia-600 via-pink-500 to-orange-400 text-white shadow-pink-500/10"
-                      : "rounded-bl-md border border-white/10 bg-white/[0.08] text-white backdrop-blur-xl"
+                      : "rounded-bl-md border border-white/[.08] bg-white/[0.065] text-white shadow-[inset_0_1px_rgba(255,255,255,.05)] backdrop-blur-xl"
                   }`}
                 >
                   <p className="whitespace-pre-wrap break-words text-sm font-medium leading-6">
@@ -1123,7 +1122,7 @@ export default function ChatPage() {
         </div>
       </section>
 
-      <footer className="relative z-20 border-t border-white/10 bg-black/80 px-4 py-4 backdrop-blur-2xl">
+      <footer className="relative z-20 border-t border-white/[.08] bg-[#08050a]/88 px-4 py-3 shadow-[0_-18px_55px_rgba(0,0,0,.22)] backdrop-blur-2xl sm:py-4">
         <div className="mx-auto w-full max-w-3xl">
           {!online && (
             <p className="mb-3 rounded-2xl border border-orange-400/30 bg-orange-400/10 px-4 py-3 text-center text-xs font-bold leading-5 text-orange-200">
@@ -1226,7 +1225,7 @@ export default function ChatPage() {
 
       {drinkOpen && drinkOffer && (
         <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-[2rem] border border-pink-400/30 bg-zinc-950 p-6 text-center shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-label="Offerta drink" className="premium-glass w-full max-w-md rounded-[2rem] bg-[#0b070d]/95 p-6 text-center">
             <button type="button" onClick={()=>setDrinkOpen(false)} className="float-right flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-xl">×</button>
             <div className="text-6xl">🍹</div>
             {drinkOffer.status==="pending"&&drinkOffer.receiver_id===mioId&&<><p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-pink-300">Offerta drink</p><h2 className="mt-2 text-2xl font-black">{persona?.nickname||"Il tuo match"} vuole offrirti un drink</h2><p className="mt-3 text-sm leading-6 text-gray-400">Se accetti, potete incontrarvi al bancone. Chi ha inviato l&apos;offerta riceverà 2 € di sconto sul secondo drink.</p><div className="mt-6 grid grid-cols-2 gap-3"><button disabled={drinkBusy} onClick={()=>void rispondiDrink(false)} className="rounded-xl border border-white/10 px-4 py-3 font-black">RIFIUTA</button><button disabled={drinkBusy} onClick={()=>void rispondiDrink(true)} className="rounded-xl bg-green-400 px-4 py-3 font-black text-black">ACCETTA</button></div></>}
@@ -1241,13 +1240,13 @@ export default function ChatPage() {
 
       {sicurezzaAperta && (
         <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
-          <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-zinc-950 p-6 shadow-2xl">
+          <div role="dialog" aria-modal="true" aria-labelledby="safety-dialog-title" className="premium-glass w-full max-w-md rounded-[2rem] bg-[#0b070d]/95 p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
                   Sicurezza
                 </p>
-                <h2 className="mt-2 text-2xl font-black">
+                <h2 id="safety-dialog-title" className="mt-2 text-2xl font-black">
                   Proteggi la conversazione
                 </h2>
               </div>

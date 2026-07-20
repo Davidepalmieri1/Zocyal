@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import "./globals.css";
+import MotionProvider from "@/app/components/MotionProvider";
 
 export const metadata: Metadata = {
   title: "Zocyal",
@@ -13,7 +14,7 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="it" className="h-full antialiased">
-      <body className="min-h-full flex flex-col">{children}</body>
+      <body className="min-h-full flex flex-col"><MotionProvider>{children}</MotionProvider></body>
     </html>
   );
 }
