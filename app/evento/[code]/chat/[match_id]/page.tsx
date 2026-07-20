@@ -12,6 +12,7 @@ import { RealtimeChannel } from "@supabase/supabase-js"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type Messaggio = {
   id: string
@@ -149,14 +150,8 @@ export default function ChatPage() {
   }, [drinkOffer, mioId])
 
   useEffect(() => {
-    const participantId =
-      localStorage.getItem("participant_id")
-
     const notificheSalvate =
       localStorage.getItem("zocyal_chat_notifications")
-
-    setMioId(participantId)
-    setProfiloControllato(true)
 
     if ("Notification" in window) {
       setPermessoNotifiche(Notification.permission)
@@ -170,10 +165,25 @@ export default function ChatPage() {
       setPermessoNotifiche("unsupported")
     }
 
-    if (!participantId) {
-      setLoading(false)
+    async function identificaProfilo() {
+      try {
+        const participantId = await resolveCurrentParticipant(eventCode)
+        setMioId(participantId)
+
+        if (!participantId) {
+          setLoading(false)
+        }
+      } catch (cause) {
+        console.error("Errore identificazione profilo chat:", cause)
+        setErrore("Non siamo riusciti a riconoscere il profilo attivo.")
+        setLoading(false)
+      } finally {
+        setProfiloControllato(true)
+      }
     }
-  }, [])
+
+    void identificaProfilo()
+  }, [eventCode])
 
   useEffect(() => {
     setOnline(navigator.onLine)
