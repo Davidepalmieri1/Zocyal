@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 const PROFILI_PER_PAGINA = 20
 
@@ -422,16 +423,32 @@ export default function CompatibilitaPage() {
   }
 
   useEffect(() => {
-    const participantId = localStorage.getItem("participant_id")
     const eventCode = params.code.trim().toLowerCase()
 
-    setMioId(participantId)
+    async function identificaProfilo() {
+      try {
+        const participantId = await resolveCurrentParticipant(eventCode)
+        setMioId(participantId)
 
-    if (!participantId) {
-      setErrore("Profilo non trovato.")
-      setLoading(false)
-      return
+        if (!participantId) {
+          setErrore("Profilo non trovato. Recuperalo o creane uno nuovo.")
+          setLoading(false)
+        }
+      } catch (cause) {
+        console.error("Errore identificazione profilo:", cause)
+        setErrore("Non siamo riusciti a riconoscere il profilo attivo.")
+        setLoading(false)
+      }
     }
+
+    void identificaProfilo()
+  }, [params.code])
+
+  useEffect(() => {
+    if (!mioId) return
+
+    const eventCode = params.code.trim().toLowerCase()
+    const participantId = mioId
 
     const participantIdSicuro = participantId
 
@@ -467,7 +484,7 @@ export default function CompatibilitaPage() {
       likesRef.current = (likesResult.data || []) as LikeRecord[]
       userMatchesRef.current = (matchesResult.data || []) as MatchRecord[]
 
-      await caricaBloccoProfili(participantId!, eventCode, 0, true)
+      await caricaBloccoProfili(participantId, eventCode, 0, true)
     }
 
     inizializzaPagina()
@@ -561,7 +578,7 @@ export default function CompatibilitaPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [params.code])
+  }, [mioId, params.code])
 
   if (loading) {
     return (

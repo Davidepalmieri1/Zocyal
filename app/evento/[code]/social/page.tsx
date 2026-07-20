@@ -5,6 +5,7 @@ import { motion } from "framer-motion"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type PersonaSocial = {
   id: string
@@ -31,20 +32,26 @@ export default function SocialPage() {
   const [errore, setErrore] = useState("")
 
   useEffect(() => {
-    const participantId =
-      localStorage.getItem("participant_id")
-
-    setMioId(participantId)
-    setProfiloControllato(true)
-
-    if (!participantId) {
-      setLoading(false)
-      return
-    }
-
     async function caricaPersone() {
       setLoading(true)
       setErrore("")
+
+      let participantId: string | null = null
+
+      try {
+        participantId = await resolveCurrentParticipant(eventCode)
+      } catch (cause) {
+        console.error("Errore identificazione profilo:", cause)
+        setErrore("Non siamo riusciti a riconoscere il profilo attivo.")
+      }
+
+      setMioId(participantId)
+      setProfiloControllato(true)
+
+      if (!participantId) {
+        setLoading(false)
+        return
+      }
 
       const { data, error } = await supabase
         .from("participants")

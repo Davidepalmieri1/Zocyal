@@ -102,6 +102,35 @@ export function saveParticipantSession(session: ParticipantSession) {
   localStorage.setItem("event_code", session.eventCode)
 }
 
+export async function resolveCurrentParticipant(eventCode: string) {
+  await ensureAnonymousSession()
+
+  const normalizedEventCode = eventCode.trim().toLowerCase()
+  const { data, error } = await supabase.rpc("mr_current_participant_id")
+
+  if (error) throw error
+
+  const participantId = typeof data === "string" ? data : null
+  if (!participantId) return null
+
+  const { data: participant, error: participantError } = await supabase
+    .from("participants")
+    .select("id, event_code")
+    .eq("id", participantId)
+    .eq("event_code", normalizedEventCode)
+    .maybeSingle()
+
+  if (participantError) throw participantError
+  if (!participant) return null
+
+  saveParticipantSession({
+    participantId: participant.id,
+    eventCode: normalizedEventCode,
+  })
+
+  return participant.id
+}
+
 export async function createParticipantProfile(input: {
   eventCode: string
   nickname: string
