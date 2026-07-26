@@ -9,6 +9,7 @@ type EventItem = {
   name: string
   venue: string | null
   status: "draft" | "open" | "closed"
+  experience_mode: "standard" | "inclusive"
   starts_at: string | null
   ends_at: string | null
 }
@@ -61,6 +62,7 @@ export default function EventsPage() {
                   <span className={`rounded-full px-3 py-1.5 text-[10px] font-black tracking-wider ${event.status === "open" ? "bg-emerald-400/12 text-emerald-300" : event.status === "draft" ? "bg-amber-400/12 text-amber-300" : "bg-white/[.06] text-white/45"}`}>{labels[event.status]}</span>
                 </div>
                 <div className="mt-8 border-t border-white/[.07] pt-5"><p className="text-sm text-white/55">⌖ {event.venue || "Luogo non indicato"}</p><p className="mt-2 text-xs text-white/30">{event.starts_at ? new Date(event.starts_at).toLocaleString("it-IT") : "Apertura non impostata"}</p></div>
+                <p className={`mt-4 rounded-xl border p-3 text-[10px] font-black uppercase tracking-wider ${event.experience_mode === "inclusive" ? "border-pink-400/20 bg-pink-400/[.08] text-pink-300" : "border-white/[.07] bg-white/[.025] text-white/40"}`}>{event.experience_mode === "inclusive" ? "Evento inclusivo" : "Evento standard"}</p>
                 {event.code === "test" && <p className="mt-4 rounded-xl border border-sky-400/15 bg-sky-400/[.07] p-3 text-[10px] font-black uppercase tracking-wider text-sky-300">Ambiente di prova</p>}
                 <div className="mt-6 grid grid-cols-[1fr_auto] gap-2"><a href={`/admin/dashboard/${event.code}`} className="rounded-xl bg-white px-4 py-3 text-center text-sm font-black text-black transition hover:bg-pink-100">GESTISCI</a><a href={`/admin/impostazioni/${event.code}`} aria-label={`Impostazioni ${event.name}`} className="flex w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[.035] text-lg transition hover:border-pink-300/30 hover:bg-pink-400/10">⚙</a></div>
               </article>

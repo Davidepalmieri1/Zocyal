@@ -6,6 +6,7 @@ import { getSupabaseAdmin } from "@/app/lib/supabase-admin"
 export const dynamic = "force-dynamic"
 const EVENT = /^[a-z0-9_-]{1,64}$/
 const STATES = new Set(["draft", "open", "closed"])
+const EXPERIENCE_MODES = new Set(["standard", "inclusive"])
 function reply(body:unknown,status=200){return NextResponse.json(body,{status,headers:{"Cache-Control":"private, no-store"}})}
 async function authenticated(){return verifyAdminSessionToken((await cookies()).get(ADMIN_SESSION_COOKIE)?.value)}
 function clean(value:unknown,max:number){return typeof value==="string"?value.trim().slice(0,max):""}
@@ -15,7 +16,7 @@ export async function GET(request:Request){
   if(!(await authenticated()))return reply({error:"Accesso non valido."},401)
   const code=new URL(request.url).searchParams.get("code")?.trim().toLowerCase()||""
   if(!EVENT.test(code))return reply({error:"Codice non valido."},400)
-  const {data,error}=await getSupabaseAdmin().from("events").select("name,venue,code,description,starts_at,ends_at,timezone,status,updated_at").eq("code",code).maybeSingle()
+  const {data,error}=await getSupabaseAdmin().from("events").select("name,venue,code,description,starts_at,ends_at,timezone,status,experience_mode,updated_at").eq("code",code).maybeSingle()
   if(error)return reply({error:"Impossibile caricare le impostazioni."},500)
   return data?reply({event:data}):reply({error:"Evento non trovato."},404)
 }
@@ -27,7 +28,7 @@ export async function PATCH(request:Request){
   const code=clean(body.code,64).toLowerCase(),name=clean(body.name,100),venue=clean(body.venue,160),description=clean(body.description,1000),timezone=clean(body.timezone,60)||"Europe/Rome",status=clean(body.status,20),startsAt=date(body.starts_at),endsAt=date(body.ends_at)
   if(!EVENT.test(code)||name.length<3||!STATES.has(status)||startsAt===undefined||endsAt===undefined)return reply({error:"Controlla i campi inseriti."},400)
   if(startsAt&&endsAt&&new Date(startsAt)>=new Date(endsAt))return reply({error:"La chiusura deve essere successiva all'apertura."},400)
-  const {data,error}=await getSupabaseAdmin().from("events").update({name,venue:venue||null,description,timezone,status,starts_at:startsAt,ends_at:endsAt,updated_at:new Date().toISOString()} as never).eq("code",code).select("name,venue,code,description,starts_at,ends_at,timezone,status,updated_at").maybeSingle()
+  const {data,error}=await getSupabaseAdmin().from("events").update({name,venue:venue||null,description,timezone,status,starts_at:startsAt,ends_at:endsAt,updated_at:new Date().toISOString()} as never).eq("code",code).select("name,venue,code,description,starts_at,ends_at,timezone,status,experience_mode,updated_at").maybeSingle()
   if(error)return reply({error:"Salvataggio non riuscito."},500)
   return data?reply({event:data}):reply({error:"Evento non trovato."},404)
 }
@@ -36,10 +37,10 @@ export async function POST(request:Request){
   if(!(await authenticated()))return reply({error:"Accesso non valido."},401)
   if(request.headers.get("origin")!==new URL(request.url).origin)return reply({error:"Richiesta non valida."},403)
   let body:Record<string,unknown>;try{body=await request.json()}catch{return reply({error:"Dati non validi."},400)}
-  const code=clean(body.code,24).toLowerCase(),name=clean(body.name,100),venue=clean(body.venue,160),description=clean(body.description,1000),timezone=clean(body.timezone,60)||"Europe/Rome",startsAt=date(body.starts_at),endsAt=date(body.ends_at)
-  if(!/^[a-z0-9][a-z0-9_-]{2,23}$/.test(code)||name.length<3||startsAt===undefined||endsAt===undefined)return reply({error:"Controlla nome, codice e orari."},400)
+  const code=clean(body.code,24).toLowerCase(),name=clean(body.name,100),venue=clean(body.venue,160),description=clean(body.description,1000),timezone=clean(body.timezone,60)||"Europe/Rome",experienceMode=clean(body.experience_mode,20)||"standard",startsAt=date(body.starts_at),endsAt=date(body.ends_at)
+  if(!/^[a-z0-9][a-z0-9_-]{2,23}$/.test(code)||name.length<3||!EXPERIENCE_MODES.has(experienceMode)||startsAt===undefined||endsAt===undefined)return reply({error:"Controlla nome, codice, tipo di esperienza e orari."},400)
   if(startsAt&&endsAt&&new Date(startsAt)>=new Date(endsAt))return reply({error:"La chiusura deve essere successiva all'apertura."},400)
-  const {data,error}=await getSupabaseAdmin().from("events").insert({code,name,venue:venue||null,description,timezone,starts_at:startsAt,ends_at:endsAt,status:"draft",updated_at:new Date().toISOString()} as never).select("code,name,status").single()
+  const {data,error}=await getSupabaseAdmin().from("events").insert({code,name,venue:venue||null,description,timezone,experience_mode:experienceMode,starts_at:startsAt,ends_at:endsAt,status:"draft",updated_at:new Date().toISOString()} as never).select("code,name,status,experience_mode").single()
   if(error){if(error.code==="23505")return reply({error:"Questo codice evento è già utilizzato."},409);return reply({error:"Creazione evento non riuscita."},500)}
   return reply({event:data},201)
 }
