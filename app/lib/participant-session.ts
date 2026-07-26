@@ -15,6 +15,39 @@ type ParticipantRpcRow = {
   id?: string
   recovery_code?: string | null
   completed_test?: boolean | null
+  error?: string
+  retry_after_seconds?: number
+}
+
+export class ParticipantRecoveryError extends Error {
+  code: string
+  retryAfterSeconds?: number
+
+  constructor(code: string, retryAfterSeconds?: number) {
+    super(code)
+    this.name = "ParticipantRecoveryError"
+    this.code = code
+    this.retryAfterSeconds = retryAfterSeconds
+  }
+}
+
+export function recoveryErrorMessage(error: unknown) {
+  if (error instanceof ParticipantRecoveryError) {
+    if (error.code === "rate_limited") {
+      const minutes = Math.max(
+        1,
+        Math.ceil((error.retryAfterSeconds ?? 900) / 60)
+      )
+
+      return `Troppi tentativi. Riprova tra circa ${minutes} minuti.`
+    }
+
+    if (error.code === "account_has_participant") {
+      return "Questo browser ha già un profilo per l’evento. Apri il profilo esistente oppure usa un browser diverso."
+    }
+  }
+
+  return "Codice non riconosciuto per questo evento."
 }
 
 type SupabaseErrorLike = {
@@ -187,16 +220,16 @@ export async function recoverParticipantProfile(input: {
   if (error) throw error
 
   const row = firstRow(data)
+
+  if (row?.error) {
+    throw new ParticipantRecoveryError(
+      row.error,
+      row.retry_after_seconds
+    )
+  }
+
   const participantId = requiredParticipantId(row)
   const recoveryCode = row?.recovery_code ?? input.recoveryCode
-
-  const { data: participant, error: participantError } = await supabase
-    .from("participants")
-    .select("completed_test")
-    .eq("id", participantId)
-    .single()
-
-  if (participantError) throw participantError
 
   saveParticipantSession({ participantId, eventCode: input.eventCode })
   localStorage.setItem("recovery_code", recoveryCode)
@@ -205,7 +238,7 @@ export async function recoverParticipantProfile(input: {
     participantId,
     eventCode: input.eventCode,
     recoveryCode,
-    completedTest: Boolean(participant.completed_test),
+    completedTest: Boolean(row?.completed_test),
   }
 }
 

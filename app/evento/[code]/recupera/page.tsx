@@ -2,7 +2,10 @@
 
 import { FormEvent, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { recoverParticipantProfile } from "@/app/lib/participant-session"
+import {
+  recoverParticipantProfile,
+  recoveryErrorMessage,
+} from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
 export default function RecuperaProfiloPage() {
@@ -36,7 +39,7 @@ export default function RecuperaProfiloPage() {
       })
     } catch (recoveryError) {
       console.error("Errore recupero profilo:", recoveryError)
-      setErrore("Codice non riconosciuto per questo evento.")
+      setErrore(recoveryErrorMessage(recoveryError))
       setLoading(false)
       return
     }
