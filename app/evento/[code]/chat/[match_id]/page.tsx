@@ -110,6 +110,7 @@ export default function ChatPage() {
   const [drinkOffer, setDrinkOffer] = useState<DrinkOffer | null>(null)
   const [drinkBusy, setDrinkBusy] = useState(false)
   const [drinkOpen, setDrinkOpen] = useState(false)
+  const [drinkConfirmOpen, setDrinkConfirmOpen] = useState(false)
   const [profiloControllato, setProfiloControllato] =
     useState(false)
 
@@ -654,6 +655,7 @@ export default function ChatPage() {
     try {
       const { data, error } = await supabase.rpc("send_drink_offer", { p_match_id: matchId })
       if (error) throw error
+      setDrinkConfirmOpen(false)
       setDrinkOffer(data as DrinkOffer); setDrinkOpen(true)
     } catch (error) {
       console.error("Errore offerta drink", error)
@@ -942,7 +944,7 @@ export default function ChatPage() {
 
           <button
             type="button"
-            onClick={() => drinkOffer ? setDrinkOpen(true) : void inviaDrink()}
+            onClick={() => drinkOffer ? setDrinkOpen(true) : setDrinkConfirmOpen(true)}
             disabled={drinkBusy || chatBloccata}
             className="premium-cta hidden shrink-0 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-4 py-3 text-xs font-black text-white disabled:opacity-50 sm:block"
           >
@@ -1013,7 +1015,7 @@ export default function ChatPage() {
               della storia è tutto da scrivere.
             </p>
 
-            <button type="button" onClick={() => drinkOffer ? setDrinkOpen(true) : void inviaDrink()} disabled={drinkBusy || chatBloccata} className="mt-4 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-5 py-3 text-xs font-black text-white disabled:opacity-50 sm:hidden">
+            <button type="button" onClick={() => drinkOffer ? setDrinkOpen(true) : setDrinkConfirmOpen(true)} disabled={drinkBusy || chatBloccata} className="mt-4 rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-5 py-3 text-xs font-black text-white disabled:opacity-50 sm:hidden">
               {drinkOffer?.status === "accepted" || drinkOffer?.status === "redeemed" ? "🍹 APRI COUPON" : drinkOffer ? "🍹 VEDI OFFERTA" : "🍹 OFFRI DRINK"}
             </button>
 
@@ -1232,6 +1234,26 @@ export default function ChatPage() {
           </form>
         </div>
       </footer>
+
+      {drinkConfirmOpen && !drinkOffer && (
+        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
+          <div role="dialog" aria-modal="true" aria-label="Conferma offerta drink" className="premium-glass w-full max-w-md rounded-[2rem] bg-[#0b070d]/95 p-6 text-center">
+            <button type="button" onClick={() => setDrinkConfirmOpen(false)} disabled={drinkBusy} className="float-right flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-xl disabled:opacity-50">×</button>
+            <div className="text-6xl">🍹</div>
+            <p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-pink-300">Offri drink</p>
+            <h2 className="mt-2 text-2xl font-black">Invia l&apos;offerta a {persona?.nickname || "questa persona"}?</h2>
+            <p className="mt-3 text-sm leading-6 text-gray-400">
+              Se accetta, riceverai un coupon personale da 2 € di sconto sul secondo drink. Se rifiuta, non verrà creato alcun coupon.
+            </p>
+            <div className="mt-6 grid grid-cols-2 gap-3">
+              <button type="button" disabled={drinkBusy} onClick={() => setDrinkConfirmOpen(false)} className="rounded-xl border border-white/10 px-4 py-3 font-black disabled:opacity-50">ANNULLA</button>
+              <button type="button" disabled={drinkBusy} onClick={() => void inviaDrink()} className="rounded-xl bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-4 py-3 font-black text-white disabled:opacity-50">
+                {drinkBusy ? "INVIO..." : "INVIA OFFERTA"}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {drinkOpen && drinkOffer && (
         <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
