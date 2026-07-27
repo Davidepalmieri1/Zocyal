@@ -45,6 +45,12 @@ const menu: MenuItem[] = [
     description: "Missioni e ricompense",
   },
   {
+    name: "Banco",
+    icon: "◇",
+    path: "banco",
+    description: "Verifica coupon drink",
+  },
+  {
     name: "Analytics",
     icon: "📈",
     path: "analytics",
