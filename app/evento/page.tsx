@@ -1,18 +1,17 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useRef, useState } from "react"
 import { useRouter } from "next/navigation"
-import { Html5QrcodeScanner } from "html5-qrcode"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 
 export default function EventoPage() {
   const router = useRouter()
-  const scannerRef = useRef<Html5QrcodeScanner | null>(null)
+  const codeInputRef = useRef<HTMLInputElement | null>(null)
 
   const [code, setCode] = useState("")
   const [errore, setErrore] = useState("")
-  const [scannerAperto, setScannerAperto] = useState(false)
+  const [guidaQrAperta, setGuidaQrAperta] = useState(false)
 
   function entraEvento() {
     const codicePulito = code.trim().toLowerCase()
@@ -25,97 +24,10 @@ export default function EventoPage() {
     router.push(`/evento/${codicePulito}`)
   }
 
-  function estraiCodiceDaQr(testoQr: string) {
-    try {
-      const url = new URL(testoQr)
-      const parti = url.pathname.split("/").filter(Boolean)
-
-      if (parti[0] === "evento" && parti[1]) {
-        return parti[1].toLowerCase()
-      }
-    } catch {
-      const testoPulito = testoQr.trim().toLowerCase()
-
-      if (testoPulito && !testoPulito.includes("/")) {
-        return testoPulito
-      }
-    }
-
-    return null
+  function tornaAlCodiceManuale() {
+    setGuidaQrAperta(false)
+    window.setTimeout(() => codeInputRef.current?.focus(), 0)
   }
-
-  function apriScanner() {
-    setErrore("")
-    setScannerAperto(true)
-  }
-
-  async function chiudiScanner() {
-    if (scannerRef.current) {
-      try {
-        await scannerRef.current.clear()
-      } catch (error) {
-        console.error("Errore chiusura scanner:", error)
-      }
-
-      scannerRef.current = null
-    }
-
-    setScannerAperto(false)
-  }
-
-  useEffect(() => {
-    if (!scannerAperto) {
-      return
-    }
-
-    const scanner = new Html5QrcodeScanner(
-      "zocyal-qr-reader",
-      {
-        fps: 10,
-        qrbox: {
-          width: 240,
-          height: 240,
-        },
-        rememberLastUsedCamera: true,
-        showTorchButtonIfSupported: true,
-      },
-      false
-    )
-
-    scannerRef.current = scanner
-
-    scanner.render(
-      async (decodedText) => {
-        const codiceEvento = estraiCodiceDaQr(decodedText)
-
-        if (!codiceEvento) {
-          setErrore("Il QR scansionato non appartiene a un evento Zocyal.")
-          return
-        }
-
-        try {
-          await scanner.clear()
-        } catch {
-          // Lo scanner potrebbe essere già stato chiuso.
-        }
-
-        scannerRef.current = null
-        setScannerAperto(false)
-        router.push(`/evento/${codiceEvento}`)
-      },
-      () => {
-        // Gli errori di scansione continui non vengono mostrati.
-      }
-    )
-
-    return () => {
-      scanner
-        .clear()
-        .catch(() => undefined)
-
-      scannerRef.current = null
-    }
-  }, [scannerAperto, router])
 
   return (
     <main className="premium-page px-5 text-white sm:px-6">
@@ -134,8 +46,8 @@ export default function EventoPage() {
         </h2>
 
         <p className="mt-3 max-w-sm text-base leading-7 text-gray-400">
-          Inserisci il codice mostrato dal locale oppure scansiona il QR
-          dell&apos;evento.
+          Inserisci il codice mostrato dal locale. Se hai un QR, puoi
+          inquadrarlo direttamente con la fotocamera del telefono.
         </p>
 
         <div className="premium-glass premium-enter premium-enter-delay-2 mt-9 w-full rounded-[2rem] p-5 text-left sm:p-7">
@@ -147,6 +59,7 @@ export default function EventoPage() {
           </label>
 
           <input
+            ref={codeInputRef}
             id="event-code"
             type="text"
             value={code}
@@ -181,10 +94,11 @@ export default function EventoPage() {
 
           <button
             type="button"
-            onClick={apriScanner}
-            className="mt-3 w-full rounded-full border border-white/10 bg-white/[0.04] px-8 py-4 text-sm font-black uppercase tracking-[.1em] text-white/75 transition hover:border-pink-400/30 hover:bg-pink-500/10 hover:text-white"
+            onClick={() => setGuidaQrAperta(true)}
+            aria-haspopup="dialog"
+            className="mt-3 w-full rounded-full border border-pink-400/30 bg-pink-500/10 px-6 py-4 text-sm font-black uppercase tracking-[.08em] text-white transition hover:border-pink-300/60 hover:bg-pink-500/15 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-500/30"
           >
-            📷 SCANSIONA IL QR
+            INQUADRA IL QR CON LA FOTOCAMERA DEL TELEFONO
           </button>
         </div>
 
@@ -197,33 +111,69 @@ export default function EventoPage() {
         </button>
       </div>
 
-      {scannerAperto && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-5">
-          <div className="premium-glass w-full max-w-md rounded-[2rem] bg-zinc-950/90 p-5">
-            <div className="mb-5 flex items-center justify-between">
+      {guidaQrAperta && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-5"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="guida-qr-titolo"
+          aria-describedby="guida-qr-descrizione"
+        >
+          <div className="premium-glass w-full max-w-md rounded-[2rem] bg-zinc-950/95 p-6 sm:p-7">
+            <div className="mb-6 flex items-start justify-between gap-4">
               <div className="text-left">
-                <h2 className="text-xl font-black">
-                  Scansiona il QR
+                <p className="premium-eyebrow">Accesso rapido</p>
+                <h2 id="guida-qr-titolo" className="mt-2 text-2xl font-black">
+                  Inquadra il QR
                 </h2>
 
-                <p className="mt-1 text-sm text-gray-400">
-                  Inquadra il codice mostrato dal locale.
+                <p
+                  id="guida-qr-descrizione"
+                  className="mt-2 text-sm leading-6 text-gray-400"
+                >
+                  Non serve scansionarlo dentro Zocyal.
                 </p>
               </div>
 
               <button
                 type="button"
-                onClick={chiudiScanner}
-                className="flex h-10 w-10 items-center justify-center rounded-full bg-white/10 text-xl"
+                onClick={() => setGuidaQrAperta(false)}
+                aria-label="Chiudi la guida QR"
+                className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-white/10 text-xl transition hover:bg-white/15 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-pink-500/30"
               >
                 ×
               </button>
             </div>
 
-            <div
-              id="zocyal-qr-reader"
-              className="overflow-hidden rounded-2xl bg-white text-black"
-            />
+            <div className="space-y-3 text-left">
+              <div className="rounded-2xl border border-white/10 bg-white/[.055] p-4">
+                <p className="font-black text-white">Su iPhone</p>
+                <p className="mt-1 text-sm leading-6 text-gray-300">
+                  Apri l&apos;app Fotocamera, inquadra il QR e tocca il link che
+                  compare.
+                </p>
+              </div>
+
+              <div className="rounded-2xl border border-white/10 bg-white/[.055] p-4">
+                <p className="font-black text-white">Su Android</p>
+                <p className="mt-1 text-sm leading-6 text-gray-300">
+                  Apri Fotocamera o Google Lens, inquadra il QR e tocca il link
+                  che compare.
+                </p>
+              </div>
+            </div>
+
+            <p className="mt-5 text-center text-sm leading-6 text-gray-400">
+              Il link ti porterà direttamente nella serata.
+            </p>
+
+            <button
+              type="button"
+              onClick={tornaAlCodiceManuale}
+              className="premium-cta mt-5 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 text-sm font-black uppercase tracking-[.1em] text-white"
+            >
+              TORNA AL CODICE MANUALE
+            </button>
           </div>
         </div>
       )}
