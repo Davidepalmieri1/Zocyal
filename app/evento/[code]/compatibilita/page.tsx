@@ -58,6 +58,8 @@ export default function CompatibilitaPage() {
   const [azioneInCorso, setAzioneInCorso] = useState<string | null>(null)
   const [mioId, setMioId] = useState<string | null>(null)
   const [indiceAttivo, setIndiceAttivo] = useState(0)
+  const [inclusiveMode, setInclusiveMode] = useState(false)
+  const [inclusiveSetupRequired, setInclusiveSetupRequired] = useState(false)
 
   const mieRisposteRef = useRef<Risposte | null>(null)
   const likesRef = useRef<LikeRecord[]>([])
@@ -303,47 +305,35 @@ export default function CompatibilitaPage() {
     setErrore("")
 
     try {
-      const { error: likeError } = await supabase.from("likes").insert({
-        from_participant: participantId,
-        to_participant: person.id,
-      })
+      const { data, error: interestError } = await supabase.rpc(
+        "send_interest",
+        { p_to_participant: person.id }
+      )
 
-      if (likeError && likeError.code !== "23505") {
-        setErrore(`Errore durante l’invio dell’interesse: ${likeError.message}`)
+      if (interestError) {
+        if (interestError.message.includes("Inclusive matching preferences required")) {
+          setInclusiveSetupRequired(true)
+          setErrore("Completa le preferenze private per usare i match inclusivi.")
+        } else {
+          setErrore(`Errore durante l’invio dell’interesse: ${interestError.message}`)
+        }
         return
       }
 
-      if (
-        !likesRef.current.some(
-          (like) =>
-            like.from_participant === participantId &&
-            like.to_participant === person.id
-        )
-      ) {
+      const result = (data || {}) as {
+        mutual?: boolean
+        match_id?: string | null
+      }
+      const matchId = result.match_id || null
+
+      if (!likesRef.current.some((like) => like.from_participant === participantId && like.to_participant === person.id)) {
         likesRef.current = [
           ...likesRef.current,
-          {
-            from_participant: participantId,
-            to_participant: person.id,
-          },
+          { from_participant: participantId, to_participant: person.id },
         ]
       }
 
-      const { data: reverseLike, error: reverseLikeError } = await supabase
-        .from("likes")
-        .select("id")
-        .eq("from_participant", person.id)
-        .eq("to_participant", participantId)
-        .maybeSingle()
-
-      if (reverseLikeError) {
-        setErrore(
-          `Errore durante il controllo del match: ${reverseLikeError.message}`
-        )
-        return
-      }
-
-      if (!reverseLike) {
+      if (!result.mutual) {
         setMatches((attuali) =>
           attuali.map((persona) =>
             persona.id === person.id
@@ -354,43 +344,9 @@ export default function CompatibilitaPage() {
         return
       }
 
-      const { data: matchEsistente, error: matchEsistenteError } =
-        await supabase
-          .from("matches")
-          .select("id")
-          .or(
-            `and(user_one.eq.${participantId},user_two.eq.${person.id}),and(user_one.eq.${person.id},user_two.eq.${participantId})`
-          )
-          .maybeSingle()
-
-      if (matchEsistenteError) {
-        setErrore(
-          `Errore durante la ricerca del match: ${matchEsistenteError.message}`
-        )
-        return
-      }
-
-      let matchId = matchEsistente?.id || null
-
       if (!matchId) {
-        const { data: nuovoMatch, error: matchInsertError } = await supabase
-          .from("matches")
-          .insert({
-            user_one: participantId,
-            user_two: person.id,
-            status: "matched",
-          })
-          .select("id")
-          .single()
-
-        if (matchInsertError) {
-          setErrore(
-            `Il like è stato inviato, ma il match non è stato creato: ${matchInsertError.message}`
-          )
-          return
-        }
-
-        matchId = nuovoMatch.id
+        setErrore("L’interesse è reciproco, ma il match non è ancora disponibile.")
+        return
       }
 
       if (
@@ -459,6 +415,42 @@ export default function CompatibilitaPage() {
       setIndiceAttivo(0)
       setProssimoIndice(0)
       setHaAltriProfili(true)
+      setInclusiveSetupRequired(false)
+
+      const { data: eventData, error: eventError } = await supabase
+        .from("events")
+        .select("experience_mode")
+        .eq("code", eventCode)
+        .maybeSingle()
+
+      if (eventError || !eventData) {
+        setErrore("Non siamo riusciti a caricare la configurazione dell’evento.")
+        setLoading(false)
+        return
+      }
+
+      const isInclusive = eventData.experience_mode === "inclusive"
+      setInclusiveMode(isInclusive)
+
+      if (isInclusive) {
+        const { data: settingsData, error: settingsError } = await supabase.rpc(
+          "get_inclusive_matching_settings",
+          { p_event_code: eventCode }
+        )
+
+        if (settingsError) {
+          setErrore("Non siamo riusciti a verificare le preferenze private.")
+          setLoading(false)
+          return
+        }
+
+        const settings = (settingsData || {}) as { complete?: boolean }
+        if (!settings.complete) {
+          setInclusiveSetupRequired(true)
+          setLoading(false)
+          return
+        }
+      }
 
       const [risposteResult, likesResult, matchesResult] = await Promise.all([
         supabase
@@ -619,8 +611,9 @@ export default function CompatibilitaPage() {
           </h1>
 
           <p className="mt-3 leading-7 text-gray-400">
-            Mostriamo massimo 20 nuovi profili alla volta,
-            così la pagina resta veloce anche nelle serate più grandi.
+            {inclusiveMode
+              ? "Mostriamo soltanto profili con preferenze di connessione reciproche, senza rendere pubbliche le vostre scelte."
+              : "Mostriamo massimo 20 nuovi profili alla volta, così la pagina resta veloce anche nelle serate più grandi."}
           </p>
 
           {matches.length > 0 && (
@@ -636,7 +629,18 @@ export default function CompatibilitaPage() {
           </p>
         )}
 
-        {matches.length === 0 ? (
+        {inclusiveSetupRequired ? (
+          <div className="mt-8 rounded-3xl border border-pink-400/25 bg-pink-400/[.07] p-8 text-center backdrop-blur-xl">
+            <span className="text-5xl">🫶</span>
+            <h2 className="mt-5 text-2xl font-black">Completa le preferenze private</h2>
+            <p className="mt-3 leading-7 text-gray-300">
+              Per mostrarti match inclusivi dobbiamo verificare che le preferenze siano reciproche. Le tue scelte non saranno mostrate agli altri partecipanti o allo staff.
+            </p>
+            <button type="button" onClick={() => router.push(`/evento/${params.code}/preferenze`)} className="mt-7 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white">
+              COMPLETA LE PREFERENZE
+            </button>
+          </div>
+        ) : matches.length === 0 ? (
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.05] p-8 text-center backdrop-blur-xl">
             <span className="text-5xl">✨</span>
 

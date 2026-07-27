@@ -174,17 +174,37 @@ export async function createParticipantProfile(input: {
   gender: string
   goal: string
   avatarUrl: string
+  inclusivePreferences?: {
+    identityCategory: string
+    pronouns: string
+    connectionPreferences: string[]
+    consent: boolean
+  }
 }): Promise<ParticipantProfileResult> {
   await ensureAnonymousSession()
 
-  const { data, error } = await supabase.rpc("create_participant", {
-    p_event_code: input.eventCode,
-    p_nickname: input.nickname,
-    p_age: input.age,
-    p_gender: input.gender,
-    p_goal: input.goal,
-    p_avatar_url: input.avatarUrl || null,
-  })
+  const { data, error } = input.inclusivePreferences
+    ? await supabase.rpc("create_inclusive_participant", {
+        p_event_code: input.eventCode,
+        p_nickname: input.nickname,
+        p_age: input.age,
+        p_goal: input.goal,
+        p_avatar_url: input.avatarUrl || null,
+        p_identity_category:
+          input.inclusivePreferences.identityCategory || null,
+        p_pronouns: input.inclusivePreferences.pronouns || null,
+        p_connection_preferences:
+          input.inclusivePreferences.connectionPreferences,
+        p_consent: input.inclusivePreferences.consent,
+      })
+    : await supabase.rpc("create_participant", {
+        p_event_code: input.eventCode,
+        p_nickname: input.nickname,
+        p_age: input.age,
+        p_gender: input.gender,
+        p_goal: input.goal,
+        p_avatar_url: input.avatarUrl || null,
+      })
 
   if (error) throw error
 

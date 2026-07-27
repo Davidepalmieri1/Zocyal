@@ -21,6 +21,7 @@ export default function MioProfiloPage() {
   const router = useRouter()
 
   const [profilo, setProfilo] = useState<Profilo | null>(null)
+  const [inclusiveMode, setInclusiveMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
 
@@ -63,6 +64,13 @@ export default function MioProfiloPage() {
         setLoading(false)
         return
       }
+
+      const { data: eventData } = await supabase
+        .from("events")
+        .select("experience_mode")
+        .eq("code", eventCode)
+        .maybeSingle()
+      setInclusiveMode(eventData?.experience_mode === "inclusive")
 
       setProfilo({
         ...(data as Profilo),
@@ -167,7 +175,7 @@ export default function MioProfiloPage() {
 
                 <div className="p-6">
                   <div className="grid gap-3">
-                    <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
+                    {!inclusiveMode && <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
                       <p className="text-xs font-black uppercase tracking-[0.15em] text-gray-500">
                         Genere
                       </p>
@@ -175,7 +183,7 @@ export default function MioProfiloPage() {
                       <p className="mt-2 font-bold text-white">
                         {profilo.gender || "Non indicato"}
                       </p>
-                    </div>
+                    </div>}
 
                     <div className="rounded-2xl border border-white/10 bg-black/30 p-4">
                       <p className="text-xs font-black uppercase tracking-[0.15em] text-gray-500">
@@ -209,6 +217,15 @@ export default function MioProfiloPage() {
               >
                 TORNA ALLA SERATA
               </button>
+              {inclusiveMode && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/evento/${params.code}/preferenze`)}
+                  className="mt-3 w-full rounded-full border border-pink-400/30 bg-pink-400/10 px-6 py-4 font-black text-pink-100"
+                >
+                  GESTISCI PREFERENZE PRIVATE
+                </button>
+              )}
             </>
           )
         )}

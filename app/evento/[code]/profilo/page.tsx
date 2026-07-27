@@ -10,6 +10,13 @@ import {
 } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
+const inclusiveOptions = [
+  { value: "woman", label: "Donne" },
+  { value: "man", label: "Uomini" },
+  { value: "non_binary", label: "Persone non binarie" },
+  { value: "other", label: "Altre identità" },
+]
+
 export default function ProfiloPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
@@ -18,10 +25,31 @@ export default function ProfiloPage() {
   const [age, setAge] = useState("")
   const [gender, setGender] = useState("")
   const [goal, setGoal] = useState("")
+  const [eventMode, setEventMode] = useState<"standard" | "inclusive" | null>(null)
+  const [identityCategory, setIdentityCategory] = useState("")
+  const [pronouns, setPronouns] = useState("")
+  const [connectionPreferences, setConnectionPreferences] = useState<string[]>([])
+  const [matchingConsent, setMatchingConsent] = useState(false)
   const [photo, setPhoto] = useState<File | null>(null)
   const [photoPreview, setPhotoPreview] = useState("")
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState("")
+
+  useEffect(() => {
+    const eventCode = params.code.trim().toLowerCase()
+    void supabase
+      .from("events")
+      .select("experience_mode")
+      .eq("code", eventCode)
+      .maybeSingle()
+      .then(({ data, error }) => {
+        if (error || !data) {
+          setErrore("Non siamo riusciti a caricare la configurazione dell’evento.")
+          return
+        }
+        setEventMode(data.experience_mode === "inclusive" ? "inclusive" : "standard")
+      })
+  }, [params.code])
 
   useEffect(() => {
     return () => {
@@ -81,7 +109,7 @@ export default function ProfiloPage() {
       return
     }
 
-    if (!gender) {
+    if (eventMode === "standard" && !gender) {
       setErrore("Seleziona il tuo genere.")
       return
     }
@@ -103,6 +131,16 @@ export default function ProfiloPage() {
       console.error("Errore sessione partecipante:", sessionError)
       setErrore(participantErrorMessage(sessionError))
       setLoading(false)
+      return
+    }
+
+    if (eventMode === "inclusive" && matchingConsent && (!identityCategory || connectionPreferences.length === 0)) {
+      setErrore("Per usare i match inclusivi, indica una categoria e almeno una preferenza di connessione.")
+      return
+    }
+
+    if (!eventMode) {
+      setErrore("Attendi il caricamento della configurazione dell’evento.")
       return
     }
 
@@ -151,6 +189,12 @@ export default function ProfiloPage() {
         gender,
         goal,
         avatarUrl,
+        inclusivePreferences: eventMode === "inclusive" ? {
+          identityCategory,
+          pronouns: pronouns.trim(),
+          connectionPreferences,
+          consent: matchingConsent,
+        } : undefined,
       })
     } catch (profileError) {
       console.error("Errore salvataggio profilo:", profileError)
@@ -369,29 +413,78 @@ export default function ProfiloPage() {
               />
             </div>
 
-            <div>
-              <label
-                htmlFor="gender"
-                className="mb-2 block text-sm font-bold text-gray-300"
-              >
-                Genere
-              </label>
+            {eventMode === "standard" && (
+              <div>
+                <label htmlFor="gender" className="mb-2 block text-sm font-bold text-gray-300">
+                  Genere
+                </label>
+                <select
+                  id="gender"
+                  value={gender}
+                  onChange={(event) => {
+                    setGender(event.target.value)
+                    setErrore("")
+                  }}
+                  className="w-full rounded-2xl border border-white/10 bg-white px-5 py-4 font-semibold text-black outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20"
+                >
+                  <option value="">Seleziona</option>
+                  <option value="Uomo">Uomo</option>
+                  <option value="Donna">Donna</option>
+                  <option value="Altro">Altro</option>
+                </select>
+              </div>
+            )}
 
-              <select
-                id="gender"
-                value={gender}
-                onChange={(event) => {
-                  setGender(event.target.value)
-                  setErrore("")
-                }}
-                className="w-full rounded-2xl border border-white/10 bg-white px-5 py-4 font-semibold text-black outline-none transition focus:border-pink-500 focus:ring-4 focus:ring-pink-500/20"
-              >
-                <option value="">Seleziona</option>
-                <option value="Uomo">Uomo</option>
-                <option value="Donna">Donna</option>
-                <option value="Altro">Altro</option>
-              </select>
-            </div>
+            {eventMode === "inclusive" && (
+              <fieldset className="rounded-3xl border border-pink-400/20 bg-pink-400/[0.06] p-5">
+                <legend className="px-2 text-sm font-black text-pink-200">Preferenze private per i match</legend>
+                <p className="mt-1 text-xs leading-5 text-gray-400">
+                  Queste informazioni non appariranno sul tuo profilo.
+                </p>
+
+                <label className="mt-5 block text-sm font-bold text-gray-300">
+                  Categoria con cui ti riconosci <span className="font-normal text-gray-500">(facoltativa)</span>
+                  <select value={identityCategory} onChange={(event) => setIdentityCategory(event.target.value)} className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-black">
+                    <option value="">Preferisco non indicarla</option>
+                    <option value="woman">Donna</option>
+                    <option value="man">Uomo</option>
+                    <option value="non_binary">Persona non binaria</option>
+                    <option value="other">Altra identità</option>
+                  </select>
+                </label>
+
+                <label className="mt-4 block text-sm font-bold text-gray-300">
+                  Pronomi o preferenza di riferimento <span className="font-normal text-gray-500">(facoltativi)</span>
+                  <input value={pronouns} onChange={(event) => setPronouns(event.target.value)} maxLength={40} placeholder="Es. lei, lui, loro o il tuo nome" className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-black" />
+                </label>
+
+                <div className="mt-5">
+                  <p className="text-sm font-bold text-gray-300">Con chi sei disponibile a creare connessioni?</p>
+                  <p className="mt-1 text-xs text-gray-500">Puoi scegliere più opzioni.</p>
+                  <div className="mt-3 grid gap-2 sm:grid-cols-2">
+                    {inclusiveOptions.map((option) => (
+                      <label key={option.value} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm">
+                        <input
+                          type="checkbox"
+                          checked={connectionPreferences.includes(option.value)}
+                          onChange={(event) => setConnectionPreferences((current) => event.target.checked ? [...current, option.value] : current.filter((value) => value !== option.value))}
+                          className="h-4 w-4 accent-pink-500"
+                        />
+                        {option.label}
+                      </label>
+                    ))}
+                  </div>
+                </div>
+
+                <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/35 p-4 text-xs leading-5 text-gray-300">
+                  <input type="checkbox" checked={matchingConsent} onChange={(event) => setMatchingConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-pink-500" />
+                  <span>
+                    Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.
+                  </span>
+                </label>
+                {!matchingConsent && <p className="mt-3 text-xs leading-5 text-amber-200">Puoi continuare senza consenso, ma la funzione match inclusiva resterà disattivata finché non completerai queste preferenze.</p>}
+              </fieldset>
+            )}
 
             <div>
               <label
