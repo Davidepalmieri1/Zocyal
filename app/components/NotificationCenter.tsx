@@ -17,13 +17,17 @@ export default function NotificationCenter() {
   const [permission,setPermission]=useState<NotificationPermission|"unsupported">("unsupported")
   const knownIds=useRef<Set<string>>(new Set())
   const initialized=useRef(false)
+  const participantIdRef=useRef("")
+  const matchIdsRef=useRef<Set<string>>(new Set())
 
   const load=useCallback(async()=>{
     const participantId=await resolveCurrentParticipant(code)
     if(!participantId){setNotices([]);return}
+    participantIdRef.current=participantId
     const matchesResult=await supabase.from("matches").select("id,user_one,user_two,created_at").or(`user_one.eq.${participantId},user_two.eq.${participantId}`).neq("status","blocked").order("created_at",{ascending:false}).limit(10)
     const matches=(matchesResult.data||[]) as MatchRow[]
     const matchIds=matches.map(match=>match.id)
+    matchIdsRef.current=new Set(matchIds)
     const [messagesResult,invitesResult,rewardsResult]=await Promise.all([
       matchIds.length?supabase.from("messages").select("id,match_id,message,sender_id").in("match_id",matchIds).neq("sender_id",participantId).is("read_at",null).order("created_at",{ascending:false}).limit(20):Promise.resolve({data:[],error:null}),
       supabase.from("game_table_invitations").select("id,table:game_tables(name,game)").eq("participant_id",participantId).eq("status","pending").order("invited_at",{ascending:false}),
@@ -42,7 +46,44 @@ export default function NotificationCenter() {
     knownIds.current=new Set(next.map(item=>item.id));initialized.current=true;setNotices(next)
   },[code])
 
-  useEffect(()=>{const initial=window.setTimeout(()=>{setPermission("Notification" in window?Notification.permission:"unsupported");void load()},0);const id=window.setInterval(()=>void load(),10000);const channel=supabase.channel(`notification-center-${code}`).on("postgres_changes",{event:"*",schema:"public",table:"matches"},()=>void load()).on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations"},()=>void load()).on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions"},()=>void load()).subscribe();return()=>{window.clearTimeout(initial);window.clearInterval(id);void supabase.removeChannel(channel)}},[code,load])
+  useEffect(()=>{
+    const refresh=()=>{if(!document.hidden)void load()}
+    const initial=window.setTimeout(()=>{setPermission("Notification" in window?Notification.permission:"unsupported");void load()},0)
+    // Same resilient fallback used by “Le tue connessioni”: realtime remains
+    // immediate, polling covers suspended mobile sockets and network changes.
+    const id=window.setInterval(refresh,2000)
+    const channel=supabase
+      .channel(`notification-center-${code}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"matches"},payload=>{
+        const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
+        if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);void load()}
+      })
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+        const message=payload.new as {id?:string;match_id?:string;message?:string;sender_id?:string}
+        if(!message.id||!message.match_id||message.sender_id===participantIdRef.current||!matchIdsRef.current.has(message.match_id))return
+        const notice:Notice={id:`message-${message.id}`,kind:"message",title:"Nuovo messaggio",detail:message.message||"Apri la chat per leggerlo.",href:`/evento/${code}/chat/${message.match_id}`}
+        knownIds.current.add(notice.id)
+        setNotices(current=>current.some(item=>item.id===notice.id)?current:[notice,...current])
+        if("Notification" in window&&Notification.permission==="granted")new Notification(notice.title,{body:notice.detail})
+        window.setTimeout(()=>void load(),100)
+      })
+      .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations"},payload=>{
+        const invitation=(payload.new||payload.old) as {participant_id?:string}
+        if(invitation.participant_id===participantIdRef.current)void load()
+      })
+      .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions"},()=>void load())
+      .subscribe()
+    document.addEventListener("visibilitychange",refresh)
+    window.addEventListener("focus",refresh)
+    window.addEventListener("online",refresh)
+    return()=>{
+      window.clearTimeout(initial);window.clearInterval(id)
+      document.removeEventListener("visibilitychange",refresh)
+      window.removeEventListener("focus",refresh)
+      window.removeEventListener("online",refresh)
+      void supabase.removeChannel(channel)
+    }
+  },[code,load])
   const count=notices.length
   const grouped=useMemo(()=>notices.slice(0,30),[notices])
   async function enable(){if(!("Notification" in window))return;const result=await Notification.requestPermission();setPermission(result);localStorage.setItem("zocyal_chat_notifications",String(result==="granted"))}
