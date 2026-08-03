@@ -5,7 +5,7 @@ import { motion } from "framer-motion"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import Logo from "@/app/components/Logo"
-import { ensureAnonymousSession } from "@/app/lib/participant-session"
+import { ensureAnonymousSession, resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
 type Missione = {
@@ -194,9 +194,8 @@ export default function MissioniPage() {
   const caricaDashboard = useCallback(async () => {
     await ensureAnonymousSession()
 
-    const savedEventCode = localStorage.getItem("event_code")
-    const participantId = localStorage.getItem("participant_id")
-    if (!participantId || savedEventCode !== eventCode) {
+    const participantId = await resolveCurrentParticipant(eventCode)
+    if (!participantId) {
       throw new Error("Participant authentication required")
     }
 

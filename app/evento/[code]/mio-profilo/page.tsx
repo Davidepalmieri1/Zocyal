@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
-import { ensureAnonymousSession } from "@/app/lib/participant-session"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
 type Profilo = {
@@ -27,8 +27,14 @@ export default function MioProfiloPage() {
 
   useEffect(() => {
     async function caricaProfilo() {
+      let participantId: string | null = null
       try {
-        await ensureAnonymousSession()
+        participantId = await resolveCurrentParticipant(params.code)
+        if (!participantId) {
+          setErrore("Profilo non trovato.")
+          setLoading(false)
+          return
+        }
       } catch (sessionError) {
         console.error("Errore sessione partecipante:", sessionError)
         setErrore("Sessione partecipante non disponibile.")
@@ -36,15 +42,7 @@ export default function MioProfiloPage() {
         return
       }
 
-      const participantId = localStorage.getItem("participant_id")
       const eventCode = params.code.trim().toLowerCase()
-      const savedEventCode = localStorage.getItem("event_code")
-
-      if (!participantId || savedEventCode !== eventCode) {
-        setErrore("Profilo non trovato.")
-        setLoading(false)
-        return
-      }
 
       const { data, error } = await supabase
         .from("participants")

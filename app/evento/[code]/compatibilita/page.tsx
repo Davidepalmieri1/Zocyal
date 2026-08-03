@@ -265,7 +265,7 @@ export default function CompatibilitaPage() {
   }
 
   async function apriChat(person: PersonaMatch) {
-    const participantId = localStorage.getItem("participant_id")
+    const participantId = mioId
 
     if (!participantId) {
       setErrore("Profilo non trovato.")
@@ -303,7 +303,7 @@ export default function CompatibilitaPage() {
   async function inviaInteresse(person: PersonaMatch) {
     if (person.stato !== "none" && person.stato !== "received_like") return
 
-    const participantId = localStorage.getItem("participant_id")
+    const participantId = mioId
 
     if (!participantId) {
       setErrore("Profilo non trovato.")

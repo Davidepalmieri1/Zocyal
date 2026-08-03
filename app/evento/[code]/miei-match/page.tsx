@@ -5,6 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type PersonaMatch = {
   id: string
@@ -56,7 +57,7 @@ export default function MieiMatchPage() {
 
   useEffect(() => {
     async function caricaChat() {
-      const mioId = localStorage.getItem("participant_id")
+      const mioId = await resolveCurrentParticipant(params.code)
 
       if (!mioId) {
         setErrore("Profilo non trovato.")
@@ -206,7 +207,7 @@ export default function MieiMatchPage() {
     }
 
     caricaChat()
-  }, [])
+  }, [params.code])
 
   function formattaOrario(data: string | null) {
     if (!data) return ""

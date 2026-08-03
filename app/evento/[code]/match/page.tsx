@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { motion } from "framer-motion"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
-import { ensureAnonymousSession } from "@/app/lib/participant-session"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
 type MatchRecord = {
@@ -57,15 +57,13 @@ export default function MatchPage() {
     let active = true
 
     async function findMatch() {
-      const myId = localStorage.getItem("participant_id")
+      const myId = await resolveCurrentParticipant(code)
       if (!myId) {
         router.replace(`/evento/${code}/codice-accesso`)
         return
       }
 
       try {
-        await ensureAnonymousSession()
-
         const { data: matchData, error: matchError } = await supabase
           .from("matches")
           .select("id,user_one,user_two")
