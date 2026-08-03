@@ -29,13 +29,13 @@ export default function NotificationCenter() {
     const matchIds=matches.map(match=>match.id)
     matchIdsRef.current=new Set(matchIds)
     const [messagesResult,invitesResult,rewardsResult]=await Promise.all([
-      matchIds.length?supabase.from("messages").select("id,match_id,message,sender_id").in("match_id",matchIds).neq("sender_id",participantId).is("read_at",null).order("created_at",{ascending:false}).limit(20):Promise.resolve({data:[],error:null}),
+      supabase.rpc("get_unread_notification_messages",{p_event_code:code}),
       supabase.from("game_table_invitations").select("id,table:game_tables(name,game)").eq("participant_id",participantId).eq("status","pending").order("invited_at",{ascending:false}),
       supabase.rpc("get_missions_rewards_for_event",{p_event_code:code}),
     ])
     const seenAt=Number(localStorage.getItem(`zocyal_matches_seen_${code}`)||0)
     const matchNotices=matches.filter(match=>new Date(match.created_at||0).getTime()>seenAt).map(match=>({id:`match-${match.id}`,kind:"match" as const,title:"Nuovo match",detail:"Hai una nuova connessione.",href:`/evento/${code}/miei-match`}))
-    const messageNotices=(messagesResult.data||[]).map(message=>({id:`message-${message.id}`,kind:"message" as const,title:"Nuovo messaggio",detail:String(message.message||"Apri la chat per leggerlo."),href:`/evento/${code}/chat/${message.match_id}`}))
+    const messageNotices=((messagesResult.data||[]) as Array<{id:string;match_id:string;message:string|null}>).map(message=>({id:`message-${message.id}`,kind:"message" as const,title:"Nuovo messaggio",detail:String(message.message||"Apri la chat per leggerlo."),href:`/evento/${code}/chat/${message.match_id}`}))
     const inviteNotices=(invitesResult.data||[]).map(invite=>{const table=invite.table as unknown as {name?:string;game?:string}|null;return{id:`table-${invite.id}`,kind:"table" as const,title:"Invito al tavolo",detail:table?.name||table?.game||"Hai un nuovo invito.",href:`/evento/${code}/tavoli`}})
     const rewards=((rewardsResult.data as {rewards?:Array<{id:string;name:string;redeemed:boolean;redemption_status?:string}>}|null)?.rewards||[]).filter(reward=>reward.redeemed&&reward.redemption_status==="redeemed").map(reward=>({id:`reward-${reward.id}`,kind:"reward" as const,title:"Premio da ritirare",detail:reward.name||"Mostra il codice allo staff.",href:`/evento/${code}/missioni`}))
     const next=[...messageNotices,...matchNotices,...inviteNotices,...rewards]
