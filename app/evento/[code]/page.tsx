@@ -67,7 +67,24 @@ export default async function EventoPage({
         <div className="premium-glass premium-enter relative mt-8 w-full overflow-hidden rounded-[2.25rem] p-8">
           {event.venue_poster_url && <div className="absolute inset-0"><img src={event.venue_poster_url} alt="Locandina della serata" className="h-full w-full scale-105 object-cover opacity-35" /><div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/65 to-black/95" /></div>}
           <div className="relative">
-          {event.venue_logo_url && <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[1.75rem] border border-white/25 bg-gradient-to-br from-zinc-700 to-black p-3 shadow-[0_0_0_1px_rgba(255,255,255,.06),0_18px_60px_rgba(0,0,0,.65),0_0_35px_rgba(236,72,153,.18)]"><img src={event.venue_logo_url} alt={`Logo ${event.venue || "locale"}`} className="max-h-full max-w-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,.8)]" /></div>}
+          {event.venue_logo_url && (
+            <div className="relative mx-auto mb-8 w-full max-w-[17rem] pt-3">
+              <div className="absolute inset-x-8 -top-3 h-24 rounded-full bg-fuchsia-500/25 blur-3xl" />
+              <div className="relative overflow-hidden rounded-[2rem] border border-white/30 bg-black/75 p-[1px] shadow-[0_24px_70px_rgba(0,0,0,.7),0_0_45px_rgba(236,72,153,.22)] backdrop-blur-xl">
+                <div className="relative flex min-h-36 items-center justify-center overflow-hidden rounded-[1.95rem] bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,.18),rgba(24,24,27,.92)_52%,rgba(0,0,0,.98))] px-7 py-6">
+                  <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
+                  <img
+                    src={event.venue_logo_url}
+                    alt={`Logo ${event.venue || "locale"}`}
+                    className="relative max-h-24 w-full object-contain drop-shadow-[0_5px_16px_rgba(0,0,0,.95)]"
+                  />
+                </div>
+              </div>
+              <p className="relative mt-3 text-[10px] font-black uppercase tracking-[0.3em] text-white/55">
+                Location partner
+              </p>
+            </div>
+          )}
           <p className="premium-eyebrow">
             Evento attivo
           </p>
