@@ -421,13 +421,7 @@ export default function ChatPage() {
       const {
         data: messaggi,
         error: messaggiError,
-      } = await supabase
-        .from("messages")
-        .select("*")
-        .eq("match_id", matchId)
-        .order("created_at", {
-          ascending: true,
-        })
+      } = await supabase.rpc("get_messages_for_match", { p_match_id: matchId })
 
       if (messaggiError) {
         console.error(
@@ -541,11 +535,16 @@ export default function ChatPage() {
     caricaChat()
 
     const fallbackRealtime = window.setInterval(async () => {
-      const { data } = await supabase.from("messages").select("*").eq("match_id", matchId).order("created_at", { ascending: true })
+      const { data, error } = await supabase.rpc("get_messages_for_match", { p_match_id: matchId })
+      if (error) {
+        console.error("Sincronizzazione chat non disponibile:", error)
+        return
+      }
       if (data) {
+        const syncedMessages = data as Messaggio[]
         setMessages((current) => {
-          const changed = data.length !== current.length || data.some((message, index) => message.id !== current[index]?.id || message.read_at !== current[index]?.read_at)
-          return changed ? data as Messaggio[] : current
+          const changed = syncedMessages.length !== current.length || syncedMessages.some((message, index) => message.id !== current[index]?.id || message.read_at !== current[index]?.read_at)
+          return changed ? syncedMessages : current
         })
         if (!document.hidden) void segnaMessaggiComeLetti()
       }
