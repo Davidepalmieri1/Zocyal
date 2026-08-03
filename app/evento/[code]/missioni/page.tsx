@@ -202,7 +202,9 @@ export default function MissioniPage() {
 
     const [dashboardResult, leaderboardResult, redemptionsResult, pointsResult] = await Promise.all([
       supabase.rpc("get_missions_rewards"),
-      supabase.rpc("get_event_leaderboard"),
+      supabase.rpc("get_event_leaderboard_for_event", {
+        p_event_code: eventCode,
+      }),
       supabase.from("reward_redemptions").select("reward_id,status"),
       supabase.rpc("get_participant_points_for_event", {
         p_event_code: eventCode,
@@ -260,9 +262,6 @@ export default function MissioniPage() {
   const progresso = totaleMissioni > 0
     ? Math.round((completate / totaleMissioni) * 100)
     : 0
-  const premiPodio = dashboard?.rewards
-    .filter((premio) => premio.rewardType === "podium_position")
-    .sort((a, b) => (a.podiumPosition ?? 99) - (b.podiumPosition ?? 99)) ?? []
   const premiSoglia = dashboard?.rewards
     .filter((premio) => premio.rewardType !== "podium_position") ?? []
 
@@ -398,37 +397,6 @@ export default function MissioniPage() {
             <p className="mt-6 text-center text-sm text-gray-400">La classifica apparirà dopo i primi punti assegnati.</p>
           )}
         </section>
-
-        {premiPodio.length > 0 && (
-          <section className="mt-10 overflow-hidden rounded-[30px] border border-amber-300/20 bg-gradient-to-br from-amber-300/15 via-fuchsia-500/10 to-orange-500/10 p-6 backdrop-blur-xl">
-            <div className="text-center">
-              <span className="text-5xl">🏆</span>
-              <p className="mt-4 text-xs font-black uppercase tracking-[0.2em] text-amber-300">Premi finali</p>
-              <h2 className="mt-2 text-3xl font-black">Scala il podio. Vinci davvero.</h2>
-              <p className="mx-auto mt-3 max-w-xl text-sm leading-6 text-gray-300">Completa le missioni, supera gli altri partecipanti e conquista uno dei premi riservati ai primi tre.</p>
-            </div>
-            <div className="mt-7 grid gap-3 sm:grid-cols-3">
-              {premiPodio.map((premio) => {
-                const position = premio.podiumPosition ?? 0
-                const leader = dashboard?.leaderboard.find((entry) => entry.position === position)
-                const isMine = dashboard?.myPosition === position
-                return (
-                  <article key={premio.id} className={`relative overflow-hidden rounded-3xl border p-5 text-center ${position === 1 ? "border-amber-300/40 bg-amber-300/15 sm:-translate-y-2" : "border-white/10 bg-black/30"}`}>
-                    <p className="text-4xl">{position === 1 ? "🥇" : position === 2 ? "🥈" : "🥉"}</p>
-                    <p className="mt-3 text-xs font-black uppercase tracking-[0.18em] text-amber-300">{position}° classificato</p>
-                    <h3 className="mt-3 text-xl font-black">{premio.title}</h3>
-                    {premio.description && <p className="mt-2 text-sm leading-6 text-gray-400">{premio.description}</p>}
-                    <div className={`mt-5 rounded-2xl px-3 py-3 text-sm font-black ${isMine ? "bg-green-400 text-black" : "border border-white/10 bg-black/30 text-white"}`}>
-                      {isMine ? "SEI TU IN QUESTA POSIZIONE 🔥" : leader ? `Ora: ${leader.nickname} · ${leader.points} pt` : "QUESTA POSIZIONE È LIBERA"}
-                    </div>
-                    <p className="mt-3 text-[11px] font-bold uppercase tracking-wider text-gray-400">Assegnato alla chiusura dell&apos;evento</p>
-                  </article>
-                )
-              })}
-            </div>
-            <p className="mt-6 text-center text-sm font-black text-pink-200">Ogni missione può cambiare la classifica: continua a guadagnare punti.</p>
-          </section>
-        )}
 
         <section className="mt-10 grid gap-5 sm:grid-cols-2">
           {dashboard?.missions.map((missione, index) => (

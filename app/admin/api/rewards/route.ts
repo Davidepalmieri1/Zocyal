@@ -66,15 +66,13 @@ export async function POST(request: Request) {
       const name = cleanText(body.name, 120)
       const quantity = number(body.quantity_total, 1, 100000)
       const cost = number(body.points_cost, 0, 1000000)
-      const type = body.reward_type === "podium_position" ? "podium_position" : "threshold"
-      const position = type === "podium_position" ? number(body.podium_position, 1, 3) : null
-      const threshold = type === "threshold" ? number(body.threshold_points, 0, 1000000) : null
-      if (!name || quantity === null || cost === null || (type === "podium_position" ? position === null : threshold === null)) return reply({ error: "Compila tutti i campi." }, 400)
+      const threshold = number(body.threshold_points, 0, 1000000)
+      if (!name || quantity === null || cost === null || threshold === null) return reply({ error: "Compila tutti i campi." }, 400)
       const { data, error } = await supabase.from("rewards").insert({
         event_code: code, code: `reward-${crypto.randomUUID()}`, name,
         description: cleanText(body.description, 1000), points_cost: cost,
-        quantity_total: quantity, reward_type: type, threshold_points: threshold,
-        podium_position: position, starts_at: type === "podium_position" ? new Date().toISOString() : null,
+        quantity_total: quantity, reward_type: "threshold", threshold_points: threshold,
+        podium_position: null, starts_at: null,
         active: true,
       } as never).select("*").single()
       if (error) throw error
@@ -121,25 +119,7 @@ export async function PATCH(request: Request) {
   let changes: Record<string, unknown>
 
   if (table === "rewards" && body?.action === "assign_podium") {
-    const position = number(body.podium_position, 1, 3)
-    if (position === null) return reply({ error: "Posizione non valida." }, 400)
-
-    const { error: conflictError } = await supabase
-      .from("rewards")
-      .update({ active: false } as never)
-      .eq("event_code", code)
-      .eq("reward_type", "podium_position")
-      .eq("podium_position", position)
-      .neq("id", id)
-    if (conflictError) return reply({ error: "Assegnazione non riuscita." }, 500)
-
-    changes = {
-      reward_type: "podium_position",
-      podium_position: position,
-      threshold_points: null,
-      starts_at: new Date().toISOString(),
-      active: true,
-    }
+    return reply({ error: "I premi finali del podio non sono disponibili." }, 400)
   } else {
     if (typeof body?.active !== "boolean") return reply({ error: "Dati non validi." }, 400)
     changes = { active: body.active }
