@@ -15,7 +15,7 @@ export default function SettingsPage(){
   const [publicLink,setPublicLink]=useState("")
   const qrRef=useRef<HTMLDivElement>(null)
   const load=useCallback(async()=>{const response=await fetch(`/admin/api/settings?code=${encodeURIComponent(code)}`,{credentials:"same-origin",cache:"no-store"});const data=await response.json();if(!response.ok)throw new Error(data.error||"Impossibile caricare le impostazioni.");setEvent(data.event)},[code])
-  useEffect(()=>{setPublicLink(`${window.location.origin}/evento/${code}`);void load().catch(e=>setError(e instanceof Error?e.message:"Errore inatteso."))},[load,code])
+  useEffect(()=>{const initial=window.setTimeout(()=>{setPublicLink(`${window.location.origin}/evento/${code}`);void load().catch(e=>setError(e instanceof Error?e.message:"Errore inatteso."))},0);return()=>window.clearTimeout(initial)},[load,code])
 
   async function save(e:FormEvent<HTMLFormElement>){
     e.preventDefault();if(!event)return;setBusy(true);setError("");setSuccess("")

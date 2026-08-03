@@ -9,7 +9,7 @@ import {
 } from "next/navigation"
 import Logo from "@/app/components/Logo"
 
-type AttivitaId = "match" | "social" | "missioni"
+type AttivitaId = "match" | "social" | "missioni" | "tavoli"
 
 type VoceMenu = {
   id: AttivitaId
@@ -20,6 +20,13 @@ type VoceMenu = {
 }
 
 const vociMenu: VoceMenu[] = [
+  {
+    id: "tavoli",
+    icon: "🎲",
+    title: "Tavoli gioco",
+    description: "Controlla gli inviti e prenota il tuo posto.",
+    badge: "Live",
+  },
   {
     id: "match",
     icon: "❤️",
@@ -65,20 +72,27 @@ export default function ExperienceSidebar() {
   const eventCode = params.code
 
   useEffect(() => {
-    const notificheSalvate =
-      localStorage.getItem("zocyal_chat_notifications") ===
-      "true"
+    const timer = window.setTimeout(() => {
+      const notificheSalvate =
+        localStorage.getItem("zocyal_chat_notifications") ===
+        "true"
+      setNotificheAttive(notificheSalvate)
+      setPermessoNotifiche(
+        "Notification" in window ? Notification.permission : "unsupported"
+      )
+    }, 0)
 
-    setNotificheAttive(notificheSalvate)
-
-    if ("Notification" in window) {
-      setPermessoNotifiche(Notification.permission)
-    } else {
-      setPermessoNotifiche("unsupported")
-    }
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
+    const timer = window.setTimeout(() => {
+    if (pathname.includes("/tavoli")) {
+      setAttivitaAttuale("tavoli")
+      localStorage.setItem("zocyal_activity", "tavoli")
+      return
+    }
+
     if (pathname.includes("/missioni")) {
       setAttivitaAttuale("missioni")
       localStorage.setItem("zocyal_activity", "missioni")
@@ -110,13 +124,18 @@ export default function ExperienceSidebar() {
       attivitaSalvata === "match" ||
       attivitaSalvata === "social" ||
       attivitaSalvata === "missioni"
+      || attivitaSalvata === "tavoli"
     ) {
       setAttivitaAttuale(attivitaSalvata)
     }
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [pathname])
 
   useEffect(() => {
-    setAperto(false)
+    const timer = window.setTimeout(() => setAperto(false), 0)
+    return () => window.clearTimeout(timer)
   }, [pathname])
 
   useEffect(() => {
@@ -202,6 +221,11 @@ export default function ExperienceSidebar() {
     setAttivitaAttuale(attivita)
     localStorage.setItem("zocyal_activity", attivita)
     setAperto(false)
+
+    if (attivita === "tavoli") {
+      router.push(`/evento/${eventCode}/tavoli`)
+      return
+    }
 
     if (attivita === "match") {
       router.push(`/evento/${eventCode}/compatibilita`)

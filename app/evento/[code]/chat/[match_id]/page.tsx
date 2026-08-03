@@ -100,7 +100,9 @@ export default function ChatPage() {
   const [persona, setPersona] = useState<Persona | null>(null)
   const [typing, setTyping] = useState(false)
   const [errore, setErrore] = useState("")
-  const [online, setOnline] = useState(true)
+  const [online, setOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine
+  )
   const [chatBloccata, setChatBloccata] = useState(false)
   const [sicurezzaAperta, setSicurezzaAperta] = useState(false)
   const [motivoSegnalazione, setMotivoSegnalazione] = useState("")
@@ -151,21 +153,6 @@ export default function ChatPage() {
   }, [drinkOffer, mioId])
 
   useEffect(() => {
-    const notificheSalvate =
-      localStorage.getItem("zocyal_chat_notifications")
-
-    if ("Notification" in window) {
-      setPermessoNotifiche(Notification.permission)
-
-      const devonoEssereAttive =
-        notificheSalvate === "true"
-
-      setNotificheAttive(devonoEssereAttive)
-      notificheAttiveRef.current = devonoEssereAttive
-    } else {
-      setPermessoNotifiche("unsupported")
-    }
-
     async function identificaProfilo() {
       try {
         const participantId = await resolveCurrentParticipant(eventCode)
@@ -183,12 +170,26 @@ export default function ChatPage() {
       }
     }
 
-    void identificaProfilo()
+    const timer = window.setTimeout(() => {
+      const notificheSalvate =
+        localStorage.getItem("zocyal_chat_notifications")
+
+      if ("Notification" in window) {
+        setPermessoNotifiche(Notification.permission)
+        const devonoEssereAttive = notificheSalvate === "true"
+        setNotificheAttive(devonoEssereAttive)
+        notificheAttiveRef.current = devonoEssereAttive
+      } else {
+        setPermessoNotifiche("unsupported")
+      }
+
+      void identificaProfilo()
+    }, 0)
+
+    return () => window.clearTimeout(timer)
   }, [eventCode])
 
   useEffect(() => {
-    setOnline(navigator.onLine)
-
     function handleOffline() {
       setOnline(false)
       setErrore(

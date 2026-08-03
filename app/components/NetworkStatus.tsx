@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react"
 
 export default function NetworkStatus() {
-  const [online, setOnline] = useState(true)
+  const [online, setOnline] = useState(() =>
+    typeof navigator === "undefined" ? true : navigator.onLine
+  )
   const [showBackOnline, setShowBackOnline] = useState(false)
 
   useEffect(() => {
-    setOnline(navigator.onLine)
-
     function handleOffline() {
       setOnline(false)
       setShowBackOnline(false)

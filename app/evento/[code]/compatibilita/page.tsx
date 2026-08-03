@@ -143,7 +143,11 @@ export default function CompatibilitaPage() {
     indiceIniziale: number,
     reset = false
   ) {
-    reset ? setLoading(true) : setLoadingAltri(true)
+    if (reset) {
+      setLoading(true)
+    } else {
+      setLoadingAltri(true)
+    }
     setErrore("")
 
     try {
@@ -161,7 +165,7 @@ export default function CompatibilitaPage() {
       if (partecipantiError) {
         console.error("Errore caricamento partecipanti:", partecipantiError)
         setErrore("Non siamo riusciti a caricare le affinità.")
-        return
+        return 0
       }
 
       const partecipanti = altriPartecipanti || []
@@ -217,9 +221,11 @@ export default function CompatibilitaPage() {
 
       setProssimoIndice(indiceIniziale + partecipanti.length)
       setHaAltriProfili(partecipanti.length === PROFILI_PER_PAGINA)
+      return partecipanti.length
     } catch (error) {
       console.error("Errore imprevisto caricamento profili:", error)
       setErrore("Si è verificato un errore durante il caricamento.")
+      return 0
     } finally {
       setLoading(false)
       setLoadingAltri(false)
@@ -227,9 +233,9 @@ export default function CompatibilitaPage() {
   }
 
   async function caricaAltriProfili() {
-    if (!mioId || loadingAltri || !haAltriProfili) return
+    if (!mioId || loadingAltri || !haAltriProfili) return 0
 
-    await caricaBloccoProfili(
+    return caricaBloccoProfili(
       mioId,
       params.code.trim().toLowerCase(),
       prossimoIndice
@@ -244,16 +250,19 @@ export default function CompatibilitaPage() {
 
     if (haAltriProfili && !loadingAltri) {
       const quantiPrima = matches.length
-      await caricaAltriProfili()
-      setIndiceAttivo(quantiPrima)
+      const caricati = await caricaAltriProfili()
+      setIndiceAttivo(caricati > 0 ? quantiPrima : 0)
+      return
     }
+
+    setIndiceAttivo(0)
   }
 
-  useEffect(() => {
-    if (matches.length > 0 && indiceAttivo >= matches.length) {
-      setIndiceAttivo(matches.length - 1)
-    }
-  }, [indiceAttivo, matches.length])
+  function vaiAlProfiloPrecedente() {
+    setIndiceAttivo((indice) =>
+      indice > 0 ? indice - 1 : Math.max(matches.length - 1, 0)
+    )
+  }
 
   async function apriChat(person: PersonaMatch) {
     const participantId = localStorage.getItem("participant_id")
@@ -649,16 +658,29 @@ export default function CompatibilitaPage() {
             </h2>
 
             <p className="mt-3 leading-7 text-gray-400">
-              Aspetta che altre persone completino il profilo e torna tra poco.
+              {inclusiveMode
+                ? "Al momento non ci sono preferenze di connessione reciproche. Puoi aggiornare le tue scelte o tornare più tardi: le preferenze restano sempre private."
+                : "Aspetta che altre persone completino il profilo e torna tra poco."}
             </p>
 
-            <button
-              type="button"
-              onClick={() => window.location.reload()}
-              className="mt-7 w-full rounded-full border border-pink-500/50 bg-pink-500/10 px-6 py-4 font-black text-white transition hover:bg-pink-500/20"
-            >
-              AGGIORNA
-            </button>
+            <div className="mt-7 grid gap-3">
+              {inclusiveMode && (
+                <button
+                  type="button"
+                  onClick={() => router.push(`/evento/${params.code}/preferenze`)}
+                  className="w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white"
+                >
+                  MODIFICA LE PREFERENZE
+                </button>
+              )}
+              <button
+                type="button"
+                onClick={() => window.location.reload()}
+                className="w-full rounded-full border border-pink-500/50 bg-pink-500/10 px-6 py-4 font-black text-white transition hover:bg-pink-500/20"
+              >
+                AGGIORNA
+              </button>
+            </div>
           </div>
         ) : (
           <div className="mt-8 flex flex-col gap-6">
@@ -763,17 +785,6 @@ export default function CompatibilitaPage() {
                             : "❤️ MI INTERESSA"}
                   </button>
 
-                  {person.stato !== "match" && (
-                    <button
-                      type="button"
-                      onClick={() => void vaiAlProssimoProfilo()}
-                      disabled={loadingAltri}
-                      className="mt-3 w-full rounded-full border border-white/10 bg-white/[0.035] px-6 py-4 text-sm font-black text-white/55 transition hover:bg-white/[0.07] hover:text-white disabled:opacity-50"
-                    >
-                      {loadingAltri ? "CARICAMENTO…" : "PASSA AL PROSSIMO"}
-                    </button>
-                  )}
-
                   {person.stato === "match" && (
                     <button
                       type="button"
@@ -783,6 +794,30 @@ export default function CompatibilitaPage() {
                       💬 INIZIA LA CHAT
                     </button>
                   )}
+
+                  <div className="mt-3 grid grid-cols-2 gap-3">
+                    <button
+                      type="button"
+                      onClick={vaiAlProfiloPrecedente}
+                      disabled={matches.length < 2 || loadingAltri}
+                      className="rounded-full border border-white/10 bg-white/[0.035] px-4 py-4 text-sm font-black text-white/55 transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      ‹ PRECEDENTE
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={() => void vaiAlProssimoProfilo()}
+                      disabled={matches.length < 2 || loadingAltri}
+                      className="rounded-full border border-white/10 bg-white/[0.035] px-4 py-4 text-sm font-black text-white/55 transition hover:bg-white/[0.07] hover:text-white disabled:cursor-not-allowed disabled:opacity-35"
+                    >
+                      {loadingAltri
+                        ? "CARICAMENTO…"
+                        : indiceAttivo === matches.length - 1 && !haAltriProfili
+                          ? "RIVEDI DAL PRIMO"
+                          : "PROSSIMO ›"}
+                    </button>
+                  </div>
                 </div>
               </article>
             ))}

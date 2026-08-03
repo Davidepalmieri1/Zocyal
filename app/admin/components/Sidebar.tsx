@@ -45,6 +45,12 @@ const menu: MenuItem[] = [
     description: "Missioni e ricompense",
   },
   {
+    name: "Tavoli gioco",
+    icon: "🎲",
+    path: "tavoli",
+    description: "Inviti e posti al tavolo",
+  },
+  {
     name: "Banco",
     icon: "◇",
     path: "banco",

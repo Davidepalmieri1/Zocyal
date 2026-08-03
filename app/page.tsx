@@ -28,7 +28,7 @@ export default function Home() {
           </div>
 
           <h1 className="premium-title premium-enter premium-enter-delay-1 mt-7 text-[clamp(3.4rem,10vw,7.8rem)] font-black">
-            Non uscire.<br /><span className="premium-gradient-text">Succedi.</span>
+            Vivi la serata.<br /><span className="premium-gradient-text">Connettiti davvero.</span>
           </h1>
 
           <p className="premium-enter premium-enter-delay-2 mt-7 max-w-xl text-lg leading-8 text-white/58 sm:text-xl sm:leading-9">
