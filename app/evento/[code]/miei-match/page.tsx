@@ -216,7 +216,7 @@ export default function MieiMatchPage() {
 
     const fallback = window.setInterval(() => {
       if (!document.hidden) void caricaChat(true)
-    }, 2000)
+    }, 15000)
 
     const channel = supabase
       .channel(`conversations-${params.code}`)

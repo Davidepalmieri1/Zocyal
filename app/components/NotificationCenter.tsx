@@ -19,9 +19,13 @@ export default function NotificationCenter() {
   const initialized=useRef(false)
   const participantIdRef=useRef("")
   const matchIdsRef=useRef<Set<string>>(new Set())
+  const loadingRef=useRef(false)
 
   const load=useCallback(async()=>{
-    const participantId=await resolveCurrentParticipant(code)
+    if(loadingRef.current)return
+    loadingRef.current=true
+    try{
+    const participantId=participantIdRef.current||await resolveCurrentParticipant(code)
     if(!participantId){setNotices([]);return}
     participantIdRef.current=participantId
     const matchesResult=await supabase.from("matches").select("id,user_one,user_two,created_at").or(`user_one.eq.${participantId},user_two.eq.${participantId}`).neq("status","blocked").order("created_at",{ascending:false})
@@ -44,6 +48,7 @@ export default function NotificationCenter() {
       if(fresh.length){const first=fresh[0];new Notification(first.title,{body:fresh.length===1?first.detail:`Hai ${fresh.length} nuove notifiche su ZOCYAL.`})}
     }
     knownIds.current=new Set(next.map(item=>item.id));initialized.current=true;setNotices(next)
+    }finally{loadingRef.current=false}
   },[code])
 
   useEffect(()=>{
@@ -70,40 +75,40 @@ export default function NotificationCenter() {
         knownIds.current.add(notice.id)
         setNotices(current=>current.some(item=>item.id===notice.id)?current:[notice,...current])
         if("Notification" in window&&Notification.permission==="granted")new Notification(notice.title,{body:notice.detail})
-        window.setTimeout(refresh,100)
       }
       channel=supabase
       .channel(`event-notifications-${code}`)
       .on("broadcast",{event:"message:new"},payload=>handleMessage(payload.payload))
       .on("postgres_changes",{event:"*",schema:"public",table:"matches"},payload=>{
         const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
-        if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);void load()}
+        if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);refresh()}
       })
       .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
         handleMessage(payload.new)
       })
       .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations"},payload=>{
         const invitation=(payload.new||payload.old) as {participant_id?:string}
-        if(invitation.participant_id===participantIdRef.current)void load()
+        if(invitation.participant_id===participantIdRef.current)refresh()
       })
-      .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions"},()=>void load())
+      .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions"},refresh)
       .subscribe(status=>{if(status==="SUBSCRIBED")refresh()})
-      // Keep this active even in a background tab. Browsers may throttle it,
-      // but the next available tick still catches anything Realtime missed.
-      id=window.setInterval(refresh,2000)
+      // Realtime handles normal traffic; this is only recovery for suspended
+      // sockets, so it must stay inexpensive when many guests are connected.
+      id=window.setInterval(refresh,30000)
     }
     void start()
     const {data:authListener}=supabase.auth.onAuthStateChange((_event,session)=>{
       if(session?.access_token)supabase.realtime.setAuth(session.access_token)
       refresh()
     })
-    document.addEventListener("visibilitychange",refresh)
+    const refreshWhenVisible=()=>{if(!document.hidden)refresh()}
+    document.addEventListener("visibilitychange",refreshWhenVisible)
     window.addEventListener("focus",refresh)
     window.addEventListener("online",refresh)
     return()=>{
       active=false;window.clearTimeout(initial)
       if(id!==null)window.clearInterval(id)
-      document.removeEventListener("visibilitychange",refresh)
+      document.removeEventListener("visibilitychange",refreshWhenVisible)
       window.removeEventListener("focus",refresh)
       window.removeEventListener("online",refresh)
       authListener.subscription.unsubscribe()

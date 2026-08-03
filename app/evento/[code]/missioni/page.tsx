@@ -239,7 +239,7 @@ export default function MissioniPage() {
     }
 
     aggiornaDashboard()
-    const timer = window.setInterval(aggiornaDashboard, 10_000)
+    const timer = window.setInterval(aggiornaDashboard, 30_000)
 
     return () => {
       active = false

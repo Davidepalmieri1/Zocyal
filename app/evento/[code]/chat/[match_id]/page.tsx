@@ -558,7 +558,7 @@ export default function ChatPage() {
         })
         if (!document.hidden) void segnaMessaggiComeLetti()
       }
-    }, 2000)
+    }, 10000)
 
     const channel = supabase
       .channel(`chat-${matchId}`)
