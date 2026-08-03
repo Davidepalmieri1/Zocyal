@@ -57,13 +57,11 @@ export default function ScegliEsperienzaPage() {
     }
 
     if (scelta === "social") {
-      router.push(`/evento/${params.code}/compatibilita`)
+      router.push(`/evento/${params.code}/social`)
       return
     }
 
-    alert(
-      "La sezione Missioni e premi verrà collegata nel prossimo passaggio."
-    )
+    router.push(`/evento/${params.code}/missioni`)
   }
 
   return (
