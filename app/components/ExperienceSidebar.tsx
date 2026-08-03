@@ -248,13 +248,14 @@ export default function ExperienceSidebar() {
         aria-label="Apri menu attività"
         whileTap={{ scale: 0.92 }}
         whileHover={{ scale: 1.06 }}
-        className={`premium-cta fixed right-4 z-40 flex items-center justify-center rounded-full border border-white/20 bg-gradient-to-br from-fuchsia-600 via-pink-500 to-orange-400 text-white transition-[bottom,width,height] sm:right-6 ${
+        className={`fixed right-3 z-40 flex h-12 w-auto items-center justify-center gap-2 rounded-full border border-white/25 bg-gradient-to-br from-fuchsia-600/90 via-pink-500/90 to-orange-400/90 px-4 text-white opacity-90 shadow-[0_12px_38px_rgba(236,72,153,.3),inset_0_1px_rgba(255,255,255,.35)] backdrop-blur-md transition-[bottom,opacity,transform] hover:opacity-100 focus-visible:opacity-100 sm:right-6 ${
           pathname.includes("/chat/")
-            ? "bottom-24 h-12 w-12 text-xl sm:bottom-28"
-            : "bottom-6 h-14 w-14 text-2xl"
+            ? "bottom-[calc(env(safe-area-inset-bottom)+7rem)] sm:bottom-28"
+            : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:bottom-10"
         }`}
       >
-        ☰
+        <span aria-hidden="true" className="text-lg">☰</span>
+        <span className="text-[11px] font-black uppercase tracking-[.12em]">Attività</span>
       </motion.button>
 
       <AnimatePresence>
