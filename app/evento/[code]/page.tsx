@@ -20,7 +20,7 @@ export default async function EventoPage({
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("name, venue, code, status, starts_at, ends_at")
+    .select("name, venue, code, status, starts_at, ends_at, venue_logo_url, venue_poster_url")
     .eq("code", eventCode)
     .maybeSingle()
 
@@ -64,7 +64,10 @@ export default async function EventoPage({
       <div className="relative mx-auto flex min-h-screen max-w-md flex-col items-center justify-center text-center">
         <Logo size="large" />
 
-        <div className="premium-glass premium-enter mt-8 w-full rounded-[2.25rem] p-8">
+        <div className="premium-glass premium-enter relative mt-8 w-full overflow-hidden rounded-[2.25rem] p-8">
+          {event.venue_poster_url && <div className="absolute inset-0"><img src={event.venue_poster_url} alt="Locandina della serata" className="h-full w-full object-cover opacity-20" /><div className="absolute inset-0 bg-gradient-to-b from-black/45 via-black/75 to-black" /></div>}
+          <div className="relative">
+          {event.venue_logo_url && <div className="mx-auto mb-6 flex h-24 w-24 items-center justify-center rounded-[1.75rem] border border-white/15 bg-white/95 p-3 shadow-[0_18px_60px_rgba(0,0,0,.45)]"><img src={event.venue_logo_url} alt={`Logo ${event.venue || "locale"}`} className="max-h-full max-w-full object-contain" /></div>}
           <p className="premium-eyebrow">
             Evento attivo
           </p>
@@ -90,7 +93,10 @@ export default async function EventoPage({
           </div>
 
           <ExistingProfileActions eventCode={event.code} />
+          </div>
         </div>
+
+        {event.venue_poster_url && <div className="premium-enter mt-5 w-full overflow-hidden rounded-[2rem] border border-white/10 bg-white/[.04] p-2 shadow-[0_25px_90px_rgba(0,0,0,.45)]"><img src={event.venue_poster_url} alt={`Locandina ${event.name}`} className="aspect-[3/4] w-full rounded-[1.55rem] object-cover" /></div>}
 
         <p className="mt-6 text-sm text-gray-500">
           Entra, scegli cosa fare e vivi la serata.

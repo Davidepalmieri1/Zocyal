@@ -8,7 +8,7 @@ import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { fetchAdminData } from "@/app/admin/data-client"
 
 type Dashboard = {
-  event: { name: string | null; venue: string | null; code: string }
+  event: { name: string | null; venue: string | null; code: string; venue_logo_url: string | null; venue_poster_url: string | null }
   totals: { participants: number; matches: number; messages: number; reports: number; drinkOffers: number; drinkAccepted: number; drinkRedeemed: number }
   drinkCoupons: { id: string; coupon_code: string; sender: string; receiver: string; discount_cents: number; status: string }[]
 }
@@ -84,9 +84,10 @@ export default function Page() {
       <main className="relative min-w-0 flex-1 overflow-hidden px-4 pb-10 pt-20 sm:px-6 lg:p-8">
         <PremiumBackdrop orbs={false} />
         <div className="relative mx-auto max-w-[1500px]">
-          <header className="premium-enter flex flex-col justify-between gap-6 border-b border-white/[.07] pb-7 sm:flex-row sm:items-end">
-            <div><div className="flex items-center gap-3"><span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(74,222,128,.7)]" /><p className="premium-eyebrow !text-emerald-300">Evento in tempo reale</p></div><h1 className="premium-title mt-4 text-4xl font-black sm:text-6xl">{data.event.name || "Evento"}</h1><p className="mt-3 text-sm text-white/45">⌖ {data.event.venue || "Luogo non indicato"} · Codice <strong className="text-pink-300">{code}</strong></p></div>
-            <div className="flex flex-wrap gap-2"><a href={`/admin/banco/${code}`} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-black">◇ APRI MODALITÀ BANCO</a><button onClick={() => void load(true)} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-xs font-black text-white/60 hover:bg-white/[.08] hover:text-white">↻ AGGIORNA</button><a href={`/admin/impostazioni/${code}`} className="rounded-xl bg-white px-4 py-3 text-xs font-black text-black">IMPOSTAZIONI</a></div>
+          <header className="premium-enter relative flex flex-col justify-between gap-6 overflow-hidden rounded-[2rem] border border-white/[.07] p-6 sm:flex-row sm:items-end sm:p-8">
+            {data.event.venue_poster_url && <><img src={data.event.venue_poster_url} alt="" className="absolute inset-0 h-full w-full object-cover opacity-20" /><div className="absolute inset-0 bg-gradient-to-r from-black via-black/90 to-black/55" /></>}
+            <div className="relative flex items-center gap-5">{data.event.venue_logo_url && <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] bg-white p-3 shadow-2xl"><img src={data.event.venue_logo_url} alt={`Logo ${data.event.venue || "locale"}`} className="max-h-full max-w-full object-contain" /></div>}<div><div className="flex items-center gap-3"><span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(74,222,128,.7)]" /><p className="premium-eyebrow !text-emerald-300">Evento in tempo reale</p></div><h1 className="premium-title mt-4 text-4xl font-black sm:text-6xl">{data.event.name || "Evento"}</h1><p className="mt-3 text-sm text-white/45">⌖ {data.event.venue || "Luogo non indicato"} · Codice <strong className="text-pink-300">{code}</strong></p></div></div>
+            <div className="relative flex flex-wrap gap-2"><a href={`/admin/banco/${code}`} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-black">◇ APRI MODALITÀ BANCO</a><button onClick={() => void load(true)} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-xs font-black text-white/60 hover:bg-white/[.08] hover:text-white">↻ AGGIORNA</button><a href={`/admin/impostazioni/${code}`} className="rounded-xl bg-white px-4 py-3 text-xs font-black text-black">IMPOSTAZIONI</a></div>
           </header>
 
           {error && <p role="alert" className="mt-5 rounded-2xl border border-red-400/20 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}

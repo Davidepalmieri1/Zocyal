@@ -83,7 +83,7 @@ export async function GET(request: Request) {
     stage = "evento"
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("name, venue, code")
+      .select("name, venue, code, venue_logo_url, venue_poster_url")
       .eq("code", code)
       .maybeSingle()
 
