@@ -11,6 +11,9 @@ type Coupon = {
   event_code: string
   discount_cents: number
   status: string
+  coupon_type: "drink" | "reward"
+  reward_name?: string
+  points_spent?: number
 }
 
 type Result =
@@ -85,7 +88,7 @@ export default function BancoPage() {
         method: "PATCH",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: coupon.id, event_code: eventCode }),
+        body: JSON.stringify({ id: coupon.id, event_code: eventCode, coupon_type: coupon.coupon_type }),
       })
       const body = await response.json()
       if (response.status === 401) {
@@ -129,7 +132,7 @@ export default function BancoPage() {
             <span className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl bg-emerald-400/15 text-3xl">
               ◇
             </span>
-            <h2 className="mt-4 text-2xl font-black">Verifica coupon drink</h2>
+            <h2 className="mt-4 text-2xl font-black">Verifica coupon e premi</h2>
             <p className="mt-2 text-sm leading-6 text-white/45">
               Digita il codice mostrato dal cliente.
             </p>
@@ -187,13 +190,14 @@ export default function BancoPage() {
             <p className="mt-3 text-3xl font-black tracking-[.16em]">
               {result.coupon.coupon_code}
             </p>
+            {result.coupon.reward_name && <p className="mt-3 text-lg font-black text-emerald-200">{result.coupon.reward_name}</p>}
             <div className="mt-5 grid grid-cols-2 gap-3 text-left">
               <div className="rounded-2xl bg-black/20 p-4">
                 <p className="text-[10px] font-black uppercase tracking-wider text-white/35">
-                  Sconto
+                  {result.coupon.coupon_type === "reward" ? "Punti usati" : "Sconto"}
                 </p>
                 <p className="mt-1 text-xl font-black">
-                  {(result.coupon.discount_cents / 100).toLocaleString("it-IT", {
+                  {result.coupon.coupon_type === "reward" ? `${result.coupon.points_spent ?? 0} pt` : (result.coupon.discount_cents / 100).toLocaleString("it-IT", {
                     style: "currency",
                     currency: "EUR",
                   })}
@@ -215,7 +219,7 @@ export default function BancoPage() {
                 onClick={() => void usaCoupon(result.coupon)}
                 className="mt-5 w-full rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-black text-black disabled:opacity-50"
               >
-                {busy ? "CONFERMO…" : "CONFERMA SCONTO E SEGNA UTILIZZATO"}
+                {busy ? "CONFERMO…" : result.coupon.coupon_type === "reward" ? "CONSEGNA PREMIO E SEGNA UTILIZZATO" : "CONFERMA SCONTO E SEGNA UTILIZZATO"}
               </button>
             ) : (
               <button

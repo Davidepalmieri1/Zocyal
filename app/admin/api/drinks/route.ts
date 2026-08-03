@@ -33,7 +33,13 @@ export async function GET(request:Request){
     .eq("coupon_code",couponCode)
     .maybeSingle()
   if(couponResult.error)return privateJson({error:"Verifica non disponibile."},500)
-  if(!couponResult.data)return privateJson({error:"Coupon non trovato per questo evento."},404)
+  if(!couponResult.data){
+    const rewardResult=await supabase.from("reward_redemptions").select("id,claim_code,status,points_spent,reward:rewards!inner(name,event_code)").eq("claim_code",couponCode).eq("reward.event_code",eventCode).maybeSingle()
+    if(rewardResult.error)return privateJson({error:"Verifica non disponibile."},500)
+    if(!rewardResult.data)return privateJson({error:"Coupon non trovato per questo evento."},404)
+    const redemption=rewardResult.data as unknown as {id:string;claim_code:string;status:string;points_spent:number;reward:{name:string;event_code:string}}
+    return privateJson({coupon:{id:redemption.id,coupon_code:redemption.claim_code,event_code:redemption.reward.event_code,discount_cents:0,status:redemption.status==="redeemed"?"accepted":"redeemed",coupon_type:"reward",reward_name:redemption.reward.name,points_spent:redemption.points_spent}})
+  }
   const coupon=couponResult.data as {offer_id:string;coupon_code:string}
 
   const offerResult=await supabase
@@ -53,6 +59,7 @@ export async function GET(request:Request){
       event_code:offer.event_code,
       discount_cents:offer.discount_cents,
       status:offer.status,
+      coupon_type:"drink",
     },
   })
 }
@@ -63,6 +70,14 @@ export async function PATCH(request:Request){
   let body:Record<string,unknown>;try{body=await request.json()}catch{return NextResponse.json({error:"Dati non validi."},{status:400})}
   const id=typeof body.id==="string"?body.id:"",code=typeof body.event_code==="string"?body.event_code.toLowerCase():""
   if(!UUID.test(id)||!code)return NextResponse.json({error:"Dati non validi."},{status:400})
+  if(body.coupon_type==="reward"){
+    const current=await getSupabaseAdmin().from("reward_redemptions").select("id,status,reward:rewards!inner(event_code)").eq("id",id).eq("reward.event_code",code).maybeSingle()
+    if(current.error)return NextResponse.json({error:"Convalida non riuscita."},{status:500})
+    if(!current.data||(current.data as {status:string}).status!=="redeemed")return NextResponse.json({error:"Coupon già utilizzato o non valido."},{status:409})
+    const updated=await getSupabaseAdmin().from("reward_redemptions").update({status:"fulfilled",fulfilled_at:new Date().toISOString(),fulfillment_note:"Convalidato dal banco"} as never).eq("id",id).eq("status","redeemed").select("id").maybeSingle()
+    if(updated.error)return NextResponse.json({error:"Convalida non riuscita."},{status:500})
+    return updated.data?NextResponse.json({ok:true}):NextResponse.json({error:"Coupon già utilizzato o non valido."},{status:409})
+  }
   const {data,error}=await getSupabaseAdmin().from("drink_offers").update({status:"redeemed",redeemed_at:new Date().toISOString()} as never).eq("id",id).eq("event_code",code).eq("status","accepted").select("id").maybeSingle()
   if(error)return NextResponse.json({error:"Convalida non riuscita."},{status:500})
   return data?NextResponse.json({ok:true}):NextResponse.json({error:"Coupon già utilizzato o non valido."},{status:409})
