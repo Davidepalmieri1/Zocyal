@@ -1,9 +1,18 @@
 import {cookies} from "next/headers"
+import {timingSafeEqual} from "node:crypto"
 import {NextResponse} from "next/server"
 import {ADMIN_SESSION_COOKIE,verifyAdminSessionToken} from "@/app/lib/admin-auth"
 import {getSupabaseAdmin} from "@/app/lib/supabase-admin"
 
 export const dynamic="force-dynamic"
+const DELETE_PASSWORD=process.env.ADMIN_EVENT_DELETE_PASSWORD||"1109"
+
+function validDeletePassword(value:unknown){
+  if(typeof value!=="string")return false
+  const received=Buffer.from(value),expected=Buffer.from(DELETE_PASSWORD)
+  return received.length===expected.length&&timingSafeEqual(received,expected)
+}
+
 export async function GET(){
   const token=(await cookies()).get(ADMIN_SESSION_COOKIE)?.value
   if(!verifyAdminSessionToken(token))return NextResponse.json({error:"Accesso non valido."},{status:401})
@@ -17,7 +26,11 @@ export async function DELETE(request:Request){
   if(!verifyAdminSessionToken(token))return NextResponse.json({error:"Accesso non valido."},{status:401})
   if(request.headers.get("origin")!==new URL(request.url).origin)return NextResponse.json({error:"Richiesta non valida."},{status:403})
   let code=""
-  try{const body=await request.json();code=typeof body.code==="string"?body.code.trim().toLowerCase():""}catch{return NextResponse.json({error:"Dati non validi."},{status:400})}
+  try{
+    const body=await request.json()
+    code=typeof body.code==="string"?body.code.trim().toLowerCase():""
+    if(!validDeletePassword(body.password))return NextResponse.json({error:"Password di eliminazione errata."},{status:403})
+  }catch{return NextResponse.json({error:"Dati non validi."},{status:400})}
   if(!/^[a-z0-9_-]{1,64}$/.test(code))return NextResponse.json({error:"Codice evento non valido."},{status:400})
 
   const db=getSupabaseAdmin()

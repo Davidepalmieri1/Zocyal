@@ -35,10 +35,12 @@ export default function EventsPage() {
 
   async function deleteEvent(event:EventItem){
     if(!window.confirm(`Eliminare definitivamente “${event.name}”?\n\nVerranno eliminati anche partecipanti, match, messaggi, tavoli, missioni e premi collegati. Questa operazione non può essere annullata.`))return
+    const password=window.prompt("Inserisci la password amministrativa per confermare l’eliminazione:")
+    if(password===null)return
     setDeleting(event.code)
     setError("")
     try{
-      const response=await fetch("/admin/api/events",{method:"DELETE",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:event.code})})
+      const response=await fetch("/admin/api/events",{method:"DELETE",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:event.code,password})})
       const body=await response.json()
       if(!response.ok)throw new Error(body.error||"Eliminazione non riuscita.")
       setEvents(current=>current.filter(item=>item.code!==event.code))
