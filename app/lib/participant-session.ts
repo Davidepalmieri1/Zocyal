@@ -62,6 +62,14 @@ export function participantErrorMessage(error: unknown) {
   const message = value.message?.toLowerCase() || ""
 
   if (
+    value.code === "23505" ||
+    message.includes("participants_event_nickname_uidx") ||
+    message.includes("duplicate key")
+  ) {
+    return "Questo nome è già utilizzato nell’evento. Scegline un altro."
+  }
+
+  if (
     value.status === 429 ||
     code.includes("rate_limit") ||
     message.includes("rate limit") ||
