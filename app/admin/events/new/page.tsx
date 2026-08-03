@@ -89,7 +89,7 @@ export default function NewEventPage() {
                 <span className="text-xs font-black uppercase tracking-[.14em] text-pink-300">Logo del locale</span>
                 <span className="mt-1 block text-xs text-zinc-500">JPG, PNG o WebP · max 3 MB</span>
                 <input name="venue_logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => preview(event, setLogoPreview)} className="mt-4 block w-full text-xs text-zinc-400 file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:font-black file:text-black" />
-                {logoPreview && <img src={logoPreview} alt="Anteprima logo" className="mt-4 h-28 w-full rounded-xl bg-white/5 object-contain p-3" />}
+                {logoPreview && <img src={logoPreview} alt="Anteprima logo" className="mt-4 h-28 w-full rounded-xl border border-white/15 bg-gradient-to-br from-zinc-700 to-black object-contain p-3" />}
               </label>
               <label className="cursor-pointer rounded-2xl border border-dashed border-white/20 bg-black/25 p-4 transition hover:border-orange-300/60">
                 <span className="text-xs font-black uppercase tracking-[.14em] text-orange-200">Locandina della serata</span>
