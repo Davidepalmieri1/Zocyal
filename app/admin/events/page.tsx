@@ -20,6 +20,7 @@ export default function EventsPage() {
   const [events, setEvents] = useState<EventItem[]>([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
+  const [deleting, setDeleting] = useState("")
 
   useEffect(() => {
     void fetch("/admin/api/events", { credentials: "same-origin", cache: "no-store" })
@@ -31,6 +32,19 @@ export default function EventsPage() {
       .catch((cause) => setError(cause instanceof Error ? cause.message : "Errore inatteso."))
       .finally(() => setLoading(false))
   }, [])
+
+  async function deleteEvent(event:EventItem){
+    if(!window.confirm(`Eliminare definitivamente “${event.name}”?\n\nVerranno eliminati anche partecipanti, match, messaggi, tavoli, missioni e premi collegati. Questa operazione non può essere annullata.`))return
+    setDeleting(event.code)
+    setError("")
+    try{
+      const response=await fetch("/admin/api/events",{method:"DELETE",credentials:"same-origin",headers:{"Content-Type":"application/json"},body:JSON.stringify({code:event.code})})
+      const body=await response.json()
+      if(!response.ok)throw new Error(body.error||"Eliminazione non riuscita.")
+      setEvents(current=>current.filter(item=>item.code!==event.code))
+    }catch(cause){setError(cause instanceof Error?cause.message:"Errore inatteso.")}
+    finally{setDeleting("")}
+  }
 
   return (
     <main className="premium-page px-4 py-8 text-white sm:px-7 lg:py-12">
@@ -64,7 +78,7 @@ export default function EventsPage() {
                 <div className="mt-8 border-t border-white/[.07] pt-5"><p className="text-sm text-white/55">⌖ {event.venue || "Luogo non indicato"}</p><p className="mt-2 text-xs text-white/30">{event.starts_at ? new Date(event.starts_at).toLocaleString("it-IT") : "Apertura non impostata"}</p></div>
                 <p className={`mt-4 rounded-xl border p-3 text-[10px] font-black uppercase tracking-wider ${event.experience_mode === "inclusive" ? "border-pink-400/20 bg-pink-400/[.08] text-pink-300" : "border-white/[.07] bg-white/[.025] text-white/40"}`}>{event.experience_mode === "inclusive" ? "Evento inclusivo" : "Evento standard"}</p>
                 {event.code === "test" && <p className="mt-4 rounded-xl border border-sky-400/15 bg-sky-400/[.07] p-3 text-[10px] font-black uppercase tracking-wider text-sky-300">Ambiente di prova</p>}
-                <div className="mt-6 grid grid-cols-[1fr_auto] gap-2"><a href={`/admin/dashboard/${event.code}`} className="rounded-xl bg-white px-4 py-3 text-center text-sm font-black text-black transition hover:bg-pink-100">GESTISCI</a><a href={`/admin/impostazioni/${event.code}`} aria-label={`Impostazioni ${event.name}`} className="flex w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[.035] text-lg transition hover:border-pink-300/30 hover:bg-pink-400/10">⚙</a></div>
+                <div className="mt-6 grid grid-cols-[1fr_auto_auto] gap-2"><a href={`/admin/dashboard/${event.code}`} className="rounded-xl bg-white px-4 py-3 text-center text-sm font-black text-black transition hover:bg-pink-100">GESTISCI</a><button type="button" onClick={()=>void deleteEvent(event)} disabled={Boolean(deleting)} aria-label={`Elimina ${event.name}`} className="rounded-xl border border-red-400/20 bg-red-400/[.08] px-4 text-[10px] font-black text-red-300 transition hover:border-red-300/50 hover:bg-red-400/15 disabled:cursor-wait disabled:opacity-45">{deleting===event.code?"…":"ELIMINA"}</button><a href={`/admin/impostazioni/${event.code}`} aria-label={`Impostazioni ${event.name}`} className="flex w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[.035] text-lg transition hover:border-pink-300/30 hover:bg-pink-400/10">⚙</a></div>
               </article>
             ))}
             {events.length === 0 && <div className="premium-glass rounded-[2rem] p-10 text-center text-white/45 md:col-span-2 xl:col-span-3">Nessun evento. Creane uno per iniziare.</div>}

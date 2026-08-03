@@ -11,3 +11,23 @@ export async function GET(){
   if(error)return NextResponse.json({error:"Impossibile caricare gli eventi."},{status:500})
   return NextResponse.json({events:data||[]},{headers:{"Cache-Control":"private, no-store"}})
 }
+
+export async function DELETE(request:Request){
+  const token=(await cookies()).get(ADMIN_SESSION_COOKIE)?.value
+  if(!verifyAdminSessionToken(token))return NextResponse.json({error:"Accesso non valido."},{status:401})
+  if(request.headers.get("origin")!==new URL(request.url).origin)return NextResponse.json({error:"Richiesta non valida."},{status:403})
+  let code=""
+  try{const body=await request.json();code=typeof body.code==="string"?body.code.trim().toLowerCase():""}catch{return NextResponse.json({error:"Dati non validi."},{status:400})}
+  if(!/^[a-z0-9_-]{1,64}$/.test(code))return NextResponse.json({error:"Codice evento non valido."},{status:400})
+
+  const db=getSupabaseAdmin()
+  const {data:existing,error:readError}=await db.from("events").select("code").eq("code",code).maybeSingle()
+  if(readError)return NextResponse.json({error:"Impossibile verificare l'evento."},{status:500})
+  if(!existing)return NextResponse.json({error:"Evento non trovato."},{status:404})
+  const {error}=await db.rpc("admin_delete_event",{p_event_code:code} as never)
+  if(error){console.error("Eliminazione evento non riuscita:",error);return NextResponse.json({error:"Eliminazione non riuscita. Riprova."},{status:500})}
+
+  const {data:files}=await db.storage.from("event-assets").list(code,{limit:1000})
+  if(files?.length)await db.storage.from("event-assets").remove(files.map(file=>`${code}/${file.name}`))
+  return NextResponse.json({deleted:true,code},{headers:{"Cache-Control":"private, no-store"}})
+}
