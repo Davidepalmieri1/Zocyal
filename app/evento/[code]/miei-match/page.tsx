@@ -56,8 +56,12 @@ export default function MieiMatchPage() {
   const [filtro, setFiltro] = useState<"tutte" | "non-lette">("tutte")
 
   useEffect(() => {
-    async function caricaChat() {
+    let active = true
+
+    async function caricaChat(silent = false) {
       const mioId = await resolveCurrentParticipant(params.code)
+
+      if (!active) return
 
       if (!mioId) {
         setErrore("Profilo non trovato.")
@@ -65,7 +69,7 @@ export default function MieiMatchPage() {
         return
       }
 
-      setLoading(true)
+      if (!silent) setLoading(true)
       setErrore("")
 
       const { data: mieiMatch, error: matchError } = await supabase
@@ -202,11 +206,46 @@ export default function MieiMatchPage() {
           return dataB - dataA
         })
 
-      setMatches(lista)
-      setLoading(false)
+      if (active) {
+        setMatches(lista)
+        setLoading(false)
+      }
     }
 
-    caricaChat()
+    void caricaChat()
+
+    const fallback = window.setInterval(() => {
+      if (!document.hidden) void caricaChat(true)
+    }, 2000)
+
+    const channel = supabase
+      .channel(`conversations-${params.code}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        () => void caricaChat(true)
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages" },
+        () => void caricaChat(true)
+      )
+      .subscribe()
+
+    const refreshWhenVisible = () => {
+      if (!document.hidden) void caricaChat(true)
+    }
+
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    window.addEventListener("focus", refreshWhenVisible)
+
+    return () => {
+      active = false
+      window.clearInterval(fallback)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+      window.removeEventListener("focus", refreshWhenVisible)
+      void supabase.removeChannel(channel)
+    }
   }, [params.code])
 
   function formattaOrario(data: string | null) {
