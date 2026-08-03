@@ -28,14 +28,7 @@ export default async function EventoPage({
     console.error("Errore caricamento evento:", error)
   }
 
-  const now = Date.now()
-  const unavailable = event && (
-    event.status !== "open" ||
-    (event.starts_at && new Date(event.starts_at).getTime() > now) ||
-    (event.ends_at && new Date(event.ends_at).getTime() <= now)
-  )
-
-  if (!event || unavailable) {
+  if (!event) {
     return (
       <main className="premium-page px-6 text-white">
         <PremiumBackdrop />
@@ -45,11 +38,12 @@ export default async function EventoPage({
 
           <p className="premium-eyebrow mt-8">Stato evento</p>
           <h1 className="premium-title mt-4 text-4xl font-black">
-            {event ? "Evento non disponibile" : "Evento non trovato"}
+            Evento non disponibile
           </h1>
 
           <p className="mt-3 leading-7 text-gray-400">
-            {event?.status === "draft" ? "L'evento non è ancora aperto ai partecipanti." : event ? "L'evento è terminato oppure si trova fuori dall'orario previsto." : "Il codice inserito non esiste oppure l'evento non è più disponibile."}
+            Il codice inserito non esiste oppure l&apos;evento non è
+            disponibile in questo momento.
           </p>
 
           <Link

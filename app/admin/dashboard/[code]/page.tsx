@@ -39,9 +39,9 @@ export default function Page() {
   }, [code])
 
   useEffect(() => {
-    void load()
+    const initial = window.setTimeout(() => void load(), 0)
     const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(true) }, 10000)
-    return () => window.clearInterval(timer)
+    return () => { window.clearTimeout(initial); window.clearInterval(timer) }
   }, [load])
 
   async function redeemCoupon(id: string) {

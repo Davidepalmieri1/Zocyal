@@ -15,16 +15,14 @@ export default function ExistingProfileActions({
   const [profiloTrovato, setProfiloTrovato] = useState(false)
 
   useEffect(() => {
-    const participantId = localStorage.getItem("participant_id")
-    const savedEventCode = localStorage.getItem("event_code")
-
-    if (!participantId || savedEventCode !== eventCode) {
-      setProfiloTrovato(false)
-      setLoading(false)
-      return
-    }
-
-    async function controllaProfilo() {
+    let active = true
+    const timer = window.setTimeout(async () => {
+      const participantId = localStorage.getItem("participant_id")
+      const savedEventCode = localStorage.getItem("event_code")
+      if (!participantId || savedEventCode !== eventCode) {
+        if (active) { setProfiloTrovato(false); setLoading(false) }
+        return
+      }
       const { data, error } = await supabase
         .from("participants")
         .select("id")
@@ -36,16 +34,12 @@ export default function ExistingProfileActions({
         localStorage.removeItem("participant_id")
         localStorage.removeItem("event_code")
         localStorage.removeItem("recovery_code")
-        setProfiloTrovato(false)
-        setLoading(false)
+        if (active) { setProfiloTrovato(false); setLoading(false) }
         return
       }
-
-      setProfiloTrovato(true)
-      setLoading(false)
-    }
-
-    controllaProfilo()
+      if (active) { setProfiloTrovato(true); setLoading(false) }
+    }, 0)
+    return () => { active = false; window.clearTimeout(timer) }
   }, [eventCode])
 
   if (loading) {

@@ -14,7 +14,7 @@ export default function Page(){
   const {code:rawCode}=useParams<{code:string}>(); const code=rawCode.trim().toLowerCase()
   const [participants,setParticipants]=useState<Participant[]>([]),[search,setSearch]=useState(""),[filter,setFilter]=useState<Filter>("all"),[loading,setLoading]=useState(true),[error,setError]=useState("")
   const load=useCallback(async(silent=false)=>{if(!silent)setLoading(true);try{const data=await fetchAdminData<{participants:Participant[]}>("participants",code);setParticipants(data.participants);setError("")}catch(cause){setError(cause instanceof Error?cause.message:"Errore inatteso.")}finally{if(!silent)setLoading(false)}},[code])
-  useEffect(()=>{void load();const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load(true)},15000);return()=>window.clearInterval(timer)},[load])
+  useEffect(()=>{const initial=window.setTimeout(()=>void load(),0);const timer=window.setInterval(()=>{if(document.visibilityState==="visible")void load(true)},15000);return()=>{window.clearTimeout(initial);window.clearInterval(timer)}},[load])
   const filtered=useMemo(()=>participants.filter(person=>`${person.nickname||""} ${person.goal||""}`.toLowerCase().includes(search.toLowerCase())&&(filter==="all"||(filter==="complete"?person.completed_test:!person.completed_test))),[participants,search,filter])
   const completed=participants.filter(person=>person.completed_test).length
   return <div className="flex min-h-screen bg-[#050306] text-white"><Sidebar/><main className="relative min-w-0 flex-1 overflow-hidden px-4 pb-10 pt-20 sm:px-6 lg:p-8"><PremiumBackdrop orbs={false}/><div className="relative mx-auto max-w-7xl">

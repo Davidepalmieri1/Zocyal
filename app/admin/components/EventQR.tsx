@@ -17,11 +17,11 @@ export default function EventQR({
   const [url, setUrl] = useState("")
 
   useEffect(() => {
-    if (!code) {
-      return
-    }
-
-    setUrl(`${window.location.origin}/evento/${code}`)
+    if (!code) return
+    const timer = window.setTimeout(() => {
+      setUrl(`${window.location.origin}/evento/${code}`)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [code])
 
   function stampaQR() {

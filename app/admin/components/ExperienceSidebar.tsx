@@ -56,18 +56,16 @@ export default function ExperienceSidebar() {
   const eventCode = params.code
 
   useEffect(() => {
-    const attivitaSalvata =
-      localStorage.getItem("zocyal_activity") as
-        | AttivitaId
-        | null
-
-    if (attivitaSalvata) {
-      setAttivitaAttuale(attivitaSalvata)
-    }
+    const timer = window.setTimeout(() => {
+      const attivitaSalvata = localStorage.getItem("zocyal_activity") as AttivitaId | null
+      if (attivitaSalvata) setAttivitaAttuale(attivitaSalvata)
+    }, 0)
+    return () => window.clearTimeout(timer)
   }, [])
 
   useEffect(() => {
-    setAperto(false)
+    const timer = window.setTimeout(() => setAperto(false), 0)
+    return () => window.clearTimeout(timer)
   }, [pathname])
 
   useEffect(() => {
