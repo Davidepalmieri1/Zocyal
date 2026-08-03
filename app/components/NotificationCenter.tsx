@@ -47,13 +47,21 @@ export default function NotificationCenter() {
   },[code])
 
   useEffect(()=>{
-    const refresh=()=>{if(!document.hidden)void load()}
-    const initial=window.setTimeout(()=>{setPermission("Notification" in window?Notification.permission:"unsupported");void load()},0)
-    // Same resilient fallback used by “Le tue connessioni”: realtime remains
-    // immediate, polling covers suspended mobile sockets and network changes.
-    const id=window.setInterval(refresh,2000)
-    const channel=supabase
-      .channel(`notification-center-${code}`)
+    let active=true
+    let id:number|null=null
+    let channel:ReturnType<typeof supabase.channel>|null=null
+    const refresh=()=>{void load().catch(error=>console.error("Sincronizzazione notifiche non riuscita:",error))}
+    const initial=window.setTimeout(()=>setPermission("Notification" in window?Notification.permission:"unsupported"),0)
+
+    const start=async()=>{
+      // Resolve the participant first: subscribing before auth restoration made
+      // Realtime stay anonymous on pages that did not query chat data themselves.
+      try{await load()}catch(error){console.error("Avvio notifiche non riuscito:",error)}
+      const {data:{session}}=await supabase.auth.getSession()
+      if(!active)return
+      if(session?.access_token)supabase.realtime.setAuth(session.access_token)
+      channel=supabase
+      .channel(`notification-center-${code}-${participantIdRef.current}`)
       .on("postgres_changes",{event:"*",schema:"public",table:"matches"},payload=>{
         const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
         if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);void load()}
@@ -72,16 +80,27 @@ export default function NotificationCenter() {
         if(invitation.participant_id===participantIdRef.current)void load()
       })
       .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions"},()=>void load())
-      .subscribe()
+      .subscribe(status=>{if(status==="SUBSCRIBED")refresh()})
+      // Keep this active even in a background tab. Browsers may throttle it,
+      // but the next available tick still catches anything Realtime missed.
+      id=window.setInterval(refresh,2000)
+    }
+    void start()
+    const {data:authListener}=supabase.auth.onAuthStateChange((_event,session)=>{
+      if(session?.access_token)supabase.realtime.setAuth(session.access_token)
+      refresh()
+    })
     document.addEventListener("visibilitychange",refresh)
     window.addEventListener("focus",refresh)
     window.addEventListener("online",refresh)
     return()=>{
-      window.clearTimeout(initial);window.clearInterval(id)
+      active=false;window.clearTimeout(initial)
+      if(id!==null)window.clearInterval(id)
       document.removeEventListener("visibilitychange",refresh)
       window.removeEventListener("focus",refresh)
       window.removeEventListener("online",refresh)
-      void supabase.removeChannel(channel)
+      authListener.subscription.unsubscribe()
+      if(channel)void supabase.removeChannel(channel)
     }
   },[code,load])
   const count=notices.length
