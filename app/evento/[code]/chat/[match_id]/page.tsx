@@ -540,6 +540,17 @@ export default function ChatPage() {
 
     caricaChat()
 
+    const fallbackRealtime = window.setInterval(async () => {
+      const { data } = await supabase.from("messages").select("*").eq("match_id", matchId).order("created_at", { ascending: true })
+      if (data) {
+        setMessages((current) => {
+          const changed = data.length !== current.length || data.some((message, index) => message.id !== current[index]?.id || message.read_at !== current[index]?.read_at)
+          return changed ? data as Messaggio[] : current
+        })
+        if (!document.hidden) void segnaMessaggiComeLetti()
+      }
+    }, 2000)
+
     const channel = supabase
       .channel(`chat-${matchId}`)
 
@@ -641,6 +652,7 @@ export default function ChatPage() {
     channelRef.current = channel
 
     return () => {
+      window.clearInterval(fallbackRealtime)
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current)
       }
@@ -801,7 +813,7 @@ export default function ChatPage() {
 
     await mandaTyping(false)
 
-    const { error } = await supabase.rpc("create_message", {
+    const { data, error } = await supabase.rpc("create_message", {
       p_match_id: matchId,
       p_message: messaggioPulito,
     })
@@ -818,6 +830,11 @@ export default function ChatPage() {
 
       setSending(false)
       return
+    }
+
+    const sent = data as Messaggio | null
+    if (sent) {
+      setMessages((current) => current.some((message) => message.id === sent.id) ? current : [...current, sent])
     }
 
     setText("")
