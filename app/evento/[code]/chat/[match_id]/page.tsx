@@ -632,6 +632,33 @@ export default function ChatPage() {
       .on(
         "broadcast",
         {
+          event: "message:new",
+        },
+        (payload) => {
+          const nuovoMessaggio = payload.payload as Messaggio
+
+          if (!nuovoMessaggio?.id || nuovoMessaggio.match_id !== matchId) {
+            return
+          }
+
+          setMessages((attuali) => {
+            if (attuali.some((messaggio) => messaggio.id === nuovoMessaggio.id)) {
+              return attuali
+            }
+
+            return [...attuali, nuovoMessaggio]
+          })
+
+          if (nuovoMessaggio.sender_id !== mioId) {
+            mostraNotificaMessaggio(nuovoMessaggio)
+            if (!document.hidden) void segnaMessaggiComeLetti()
+          }
+        }
+      )
+
+      .on(
+        "broadcast",
+        {
           event: "typing",
         },
         (payload) => {
@@ -834,6 +861,18 @@ export default function ChatPage() {
     const sent = data as Messaggio | null
     if (sent) {
       setMessages((current) => current.some((message) => message.id === sent.id) ? current : [...current, sent])
+      const channel = channelRef.current
+      if (channel) {
+        const broadcastResult = await channel.send({
+          type: "broadcast",
+          event: "message:new",
+          payload: sent,
+        })
+
+        if (broadcastResult !== "ok") {
+          console.error("Trasmissione immediata del messaggio non riuscita:", broadcastResult)
+        }
+      }
     }
 
     setText("")
