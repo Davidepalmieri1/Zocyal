@@ -60,20 +60,24 @@ export default function NotificationCenter() {
       const {data:{session}}=await supabase.auth.getSession()
       if(!active)return
       if(session?.access_token)supabase.realtime.setAuth(session.access_token)
-      channel=supabase
-      .channel(`notification-center-${code}-${participantIdRef.current}`)
-      .on("postgres_changes",{event:"*",schema:"public",table:"matches"},payload=>{
-        const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
-        if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);void load()}
-      })
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
-        const message=payload.new as {id?:string;match_id?:string;message?:string;sender_id?:string}
+      const handleMessage=(raw:unknown)=>{
+        const message=raw as {id?:string;match_id?:string;message?:string;sender_id?:string}
         if(!message.id||!message.match_id||message.sender_id===participantIdRef.current||!matchIdsRef.current.has(message.match_id))return
         const notice:Notice={id:`message-${message.id}`,kind:"message",title:"Nuovo messaggio",detail:message.message||"Apri la chat per leggerlo.",href:`/evento/${code}/chat/${message.match_id}`}
         knownIds.current.add(notice.id)
         setNotices(current=>current.some(item=>item.id===notice.id)?current:[notice,...current])
         if("Notification" in window&&Notification.permission==="granted")new Notification(notice.title,{body:notice.detail})
-        window.setTimeout(()=>void load(),100)
+        window.setTimeout(refresh,100)
+      }
+      channel=supabase
+      .channel(`event-notifications-${code}`)
+      .on("broadcast",{event:"message:new"},payload=>handleMessage(payload.payload))
+      .on("postgres_changes",{event:"*",schema:"public",table:"matches"},payload=>{
+        const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
+        if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);void load()}
+      })
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+        handleMessage(payload.new)
       })
       .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations"},payload=>{
         const invitation=(payload.new||payload.old) as {participant_id?:string}

@@ -127,6 +127,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const eventNotificationChannelRef = useRef<RealtimeChannel | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const notificheAttiveRef = useRef(false)
   const personaRef = useRef<Persona | null>(null)
@@ -144,6 +145,15 @@ export default function ChatPage() {
   useEffect(() => {
     notificheAttiveRef.current = notificheAttive
   }, [notificheAttive])
+
+  useEffect(() => {
+    const channel = supabase.channel(`event-notifications-${params.code}`).subscribe()
+    eventNotificationChannelRef.current = channel
+    return () => {
+      eventNotificationChannelRef.current = null
+      void supabase.removeChannel(channel)
+    }
+  }, [params.code])
 
   useEffect(() => {
     if (!drinkOffer || drinkOffer.sender_id !== mioId || !["accepted","redeemed"].includes(drinkOffer.status) || drinkOffer.coupon_code) return
@@ -871,6 +881,17 @@ export default function ChatPage() {
 
         if (broadcastResult !== "ok") {
           console.error("Trasmissione immediata del messaggio non riuscita:", broadcastResult)
+        }
+      }
+      const notificationChannel = eventNotificationChannelRef.current
+      if (notificationChannel) {
+        const notificationResult = await notificationChannel.send({
+          type: "broadcast",
+          event: "message:new",
+          payload: sent,
+        })
+        if (notificationResult !== "ok") {
+          console.error("Notifica globale del messaggio non riuscita:", notificationResult)
         }
       }
     }
