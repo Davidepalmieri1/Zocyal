@@ -888,7 +888,10 @@ export default function ChatPage() {
         const notificationResult = await notificationChannel.send({
           type: "broadcast",
           event: "message:new",
-          payload: sent,
+          payload: {
+            ...sent,
+            receiver_id: personaRef.current?.id,
+          },
         })
         if (notificationResult !== "ok") {
           console.error("Notifica globale del messaggio non riuscita:", notificationResult)

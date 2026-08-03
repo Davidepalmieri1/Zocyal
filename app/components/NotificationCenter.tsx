@@ -24,7 +24,7 @@ export default function NotificationCenter() {
     const participantId=await resolveCurrentParticipant(code)
     if(!participantId){setNotices([]);return}
     participantIdRef.current=participantId
-    const matchesResult=await supabase.from("matches").select("id,user_one,user_two,created_at").or(`user_one.eq.${participantId},user_two.eq.${participantId}`).neq("status","blocked").order("created_at",{ascending:false}).limit(10)
+    const matchesResult=await supabase.from("matches").select("id,user_one,user_two,created_at").or(`user_one.eq.${participantId},user_two.eq.${participantId}`).neq("status","blocked").order("created_at",{ascending:false})
     const matches=(matchesResult.data||[]) as MatchRow[]
     const matchIds=matches.map(match=>match.id)
     matchIdsRef.current=new Set(matchIds)
@@ -61,8 +61,11 @@ export default function NotificationCenter() {
       if(!active)return
       if(session?.access_token)supabase.realtime.setAuth(session.access_token)
       const handleMessage=(raw:unknown)=>{
-        const message=raw as {id?:string;match_id?:string;message?:string;sender_id?:string}
-        if(!message.id||!message.match_id||message.sender_id===participantIdRef.current||!matchIdsRef.current.has(message.match_id))return
+        const message=raw as {id?:string;match_id?:string;message?:string;sender_id?:string;receiver_id?:string}
+        const intendedForMe=message.receiver_id
+          ? message.receiver_id===participantIdRef.current
+          : Boolean(message.match_id&&matchIdsRef.current.has(message.match_id))
+        if(!message.id||!message.match_id||message.sender_id===participantIdRef.current||!intendedForMe)return
         const notice:Notice={id:`message-${message.id}`,kind:"message",title:"Nuovo messaggio",detail:message.message||"Apri la chat per leggerlo.",href:`/evento/${code}/chat/${message.match_id}`}
         knownIds.current.add(notice.id)
         setNotices(current=>current.some(item=>item.id===notice.id)?current:[notice,...current])
