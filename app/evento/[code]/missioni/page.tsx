@@ -201,7 +201,9 @@ export default function MissioniPage() {
     }
 
     const [dashboardResult, leaderboardResult, redemptionsResult, pointsResult] = await Promise.all([
-      supabase.rpc("get_missions_rewards"),
+      supabase.rpc("get_missions_rewards_for_event", {
+        p_event_code: eventCode,
+      }),
       supabase.rpc("get_event_leaderboard_for_event", {
         p_event_code: eventCode,
       }),
