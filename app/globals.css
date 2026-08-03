@@ -21,10 +21,21 @@
 
 * { box-sizing: border-box; }
 
-html { background: var(--background); scroll-behavior: smooth; }
+html {
+  max-width: 100%;
+  overflow-x: clip;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  background: var(--background);
+  scroll-behavior: smooth;
+}
 
 body {
   min-width: 320px;
+  max-width: 100%;
+  min-height: 100svh;
+  overflow-x: clip;
+  overscroll-behavior: none;
   background:
     radial-gradient(circle at 84% -10%, rgba(198, 44, 255, 0.13), transparent 34rem),
     radial-gradient(circle at -12% 82%, rgba(255, 61, 154, 0.1), transparent 30rem),
