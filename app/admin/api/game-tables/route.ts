@@ -7,7 +7,8 @@ export const dynamic = "force-dynamic"
 const EVENT = /^[a-z0-9_-]{1,64}$/
 const UUID = /^[0-9a-f-]{36}$/i
 type Answers = Record<string, string | null>
-type ParticipantCandidate = { id:string; goal:string|null; answers:Answers|Answers[]|null }
+type ParticipantCandidate = { id:string; goal:string|null }
+type ParticipantAnswers = Answers & { participant_id:string }
 type GameTable = { id:string; reward_mission_id:string; points_reward:number }
 type JoinedInvitation = { participant_id:string; status:string; table:GameTable|GameTable[] }
 
@@ -46,12 +47,38 @@ export async function POST(request: Request) {
     const points = Number(body.points_reward)
     if (!name || !game || !interestTags.length || !Number.isSafeInteger(points) || points < 1 || points > 10) return json({ error: "Compila nome, gioco, interessi e punti (1-10)." }, 400)
 
-    const { data: participants, error: peopleError } = await db.from("participants").select("id,goal,answers(question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8)").eq("event_code", eventCode).eq("completed_test", true)
-    if (peopleError) return json({ error: "Impossibile individuare i partecipanti compatibili." }, 500)
+    const { data: participants, error: peopleError } = await db
+      .from("participants")
+      .select("id,goal")
+      .eq("event_code", eventCode)
+      .eq("completed_test", true)
+    if (peopleError) {
+      console.error("Errore caricamento partecipanti compatibili:", peopleError)
+      return json({ error: "Impossibile individuare i partecipanti compatibili." }, 500)
+    }
+
+    const people = (participants || []) as ParticipantCandidate[]
+    const participantIds = people.map(person => person.id)
+    const answersResult = participantIds.length
+      ? await db
+          .from("answers")
+          .select("participant_id,question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8")
+          .in("participant_id", participantIds)
+      : { data: [] as ParticipantAnswers[], error: null }
+    if (answersResult.error) {
+      console.error("Errore caricamento interessi partecipanti:", answersResult.error)
+      return json({ error: "Impossibile individuare i partecipanti compatibili." }, 500)
+    }
+
+    const answersByParticipant = new Map(
+      ((answersResult.data || []) as ParticipantAnswers[]).map(answer => [
+        answer.participant_id,
+        answer,
+      ])
+    )
     const wanted = new Set(interestTags.map(tag => tag.toLocaleLowerCase("it")))
-    const people = (participants || []) as unknown as ParticipantCandidate[]
     const compatible = people.filter(person => {
-      const answer = Array.isArray(person.answers) ? person.answers[0] : person.answers
+      const answer = answersByParticipant.get(person.id)
       const values = [person.goal, ...Object.values(answer || {})].filter((value): value is string => typeof value === "string")
       return values.some(value => wanted.has(value.toLocaleLowerCase("it")))
     })
