@@ -29,6 +29,7 @@ type Premio = {
   available: boolean
   claimed: boolean
   deliveryStatus: "redeemed" | "fulfilled" | null
+  claimCode: string | null
   rewardType: string
   podiumPosition: number | null
   quantityRemaining: number
@@ -80,13 +81,6 @@ function normalizeDashboard(data: unknown): MissionDashboard {
       ? payload.available_rewards
       : []
   const rawLeaderboard = Array.isArray(payload.leaderboard) ? payload.leaderboard : []
-  const rawRedemptions = Array.isArray(payload.redemptions) ? payload.redemptions : []
-  const redemptionStatus = new Map(
-    rawRedemptions.map((item) => {
-      const redemption = record(item)
-      return [text(redemption.reward_id), text(redemption.status)]
-    })
-  )
   const pointsAvailable = number(payload.points_available)
   const rawMyPosition = payload.my_position ?? payload.current_position
   const myPosition = rawMyPosition == null ? null : number(rawMyPosition)
@@ -111,7 +105,7 @@ function normalizeDashboard(data: unknown): MissionDashboard {
 
   const rewards = rawRewards.map((item, index) => {
     const reward = record(item)
-    const savedStatus = redemptionStatus.get(text(reward.id))
+    const savedStatus = text(reward.redemption_status)
     const deliveryStatus: Premio["deliveryStatus"] = savedStatus === "fulfilled"
       ? "fulfilled"
       : savedStatus === "redeemed"
@@ -141,6 +135,7 @@ function normalizeDashboard(data: unknown): MissionDashboard {
       available: boolean(reward.available ?? reward.is_available) || available,
       claimed: boolean(reward.redeemed ?? reward.claimed),
       deliveryStatus,
+      claimCode: text(reward.claim_code) || null,
       rewardType,
       podiumPosition,
       quantityRemaining,
@@ -199,14 +194,13 @@ export default function MissioniPage() {
       throw new Error("Participant authentication required")
     }
 
-    const [dashboardResult, leaderboardResult, redemptionsResult, pointsResult] = await Promise.all([
+    const [dashboardResult, leaderboardResult, pointsResult] = await Promise.all([
       supabase.rpc("get_missions_rewards_for_event", {
         p_event_code: eventCode,
       }),
       supabase.rpc("get_event_leaderboard_for_event", {
         p_event_code: eventCode,
       }),
-      supabase.from("reward_redemptions").select("reward_id,status"),
       supabase.rpc("get_participant_points_for_event", {
         p_event_code: eventCode,
       }),
@@ -214,14 +208,12 @@ export default function MissioniPage() {
 
     if (dashboardResult.error) throw dashboardResult.error
     if (leaderboardResult.error) throw leaderboardResult.error
-    if (redemptionsResult.error) throw redemptionsResult.error
     if (pointsResult.error) throw pointsResult.error
 
     const normalized = normalizeDashboard(dashboardResult.data)
     return normalizeDashboard({
       ...record(dashboardResult.data),
       leaderboard: leaderboardResult.data,
-      redemptions: redemptionsResult.data,
       points_available: pointsResult.data,
       my_position: normalized.myPosition,
     })
@@ -449,6 +441,13 @@ export default function MissioniPage() {
                 <p className={`mt-3 text-xs font-black uppercase tracking-wider ${premio.claimed ? "text-gray-400" : premio.available ? "text-green-300" : "text-gray-500"}`}>
                   {premio.deliveryStatus === "fulfilled" ? "UTILIZZATO ✓" : premio.claimed ? "RISCATTATO · MOSTRALO ALLO STAFF" : premio.quantityRemaining <= 0 ? "Esaurito" : premio.available ? "Sbloccato" : "Da sbloccare"}
                 </p>
+                {premio.claimed && premio.claimCode && (
+                  <div className="mt-4 rounded-xl border border-green-300/30 bg-black/35 p-4 text-center">
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Codice riscatto</p>
+                    <p className="mt-2 font-mono text-2xl font-black tracking-[0.18em] text-green-300">{premio.claimCode}</p>
+                    <p className="mt-2 text-xs text-gray-400">Mostralo allo staff per ritirare il premio.</p>
+                  </div>
+                )}
                 {premio.available && !premio.claimed && (
                   <button type="button" disabled={premioInCorso !== null} onClick={() => void riscattaPremio(premio.id)} className="mt-4 w-full rounded-xl bg-green-400 px-4 py-3 text-sm font-black text-black disabled:opacity-60">
                     {premioInCorso === premio.id ? "RISCATTO..." : `RISCATTA${premio.pointsCost ? ` · ${premio.pointsCost} PT` : ""}`}

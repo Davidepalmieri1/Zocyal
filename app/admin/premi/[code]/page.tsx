@@ -9,7 +9,7 @@ type Mission = { id:string; title:string; description:string; points:number; ver
 type Reward = { id:string; name:string; description:string; points_cost:number; quantity_total:number; reward_type:"threshold"|"podium_position"; threshold_points:number|null; podium_position:number|null; active:boolean }
 type Person = { id:string; nickname:string|null }
 type Leader = { nickname:string; avatar_url:string|null; points:number; rank_position:number }
-type Redemption = { id:string; status:string; redeemed_at:string; points_spent:number; reward:{name:string}|null; participant:{nickname:string|null}|null }
+type Redemption = { id:string; status:string; redeemed_at:string; points_spent:number; claim_code:string|null; reward:{name:string}|null; participant:{nickname:string|null}|null }
 type Data = { missions:Mission[]; rewards:Reward[]; participants:Person[]; leaderboard:Leader[]; redemptions:Redemption[] }
 
 const AUTOMATIC = [
