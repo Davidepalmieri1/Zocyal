@@ -200,21 +200,26 @@ export default function MissioniPage() {
       throw new Error("Participant authentication required")
     }
 
-    const [dashboardResult, leaderboardResult, redemptionsResult] = await Promise.all([
+    const [dashboardResult, leaderboardResult, redemptionsResult, pointsResult] = await Promise.all([
       supabase.rpc("get_missions_rewards"),
       supabase.rpc("get_event_leaderboard"),
       supabase.from("reward_redemptions").select("reward_id,status"),
+      supabase.rpc("get_participant_points_for_event", {
+        p_event_code: eventCode,
+      }),
     ])
 
     if (dashboardResult.error) throw dashboardResult.error
     if (leaderboardResult.error) throw leaderboardResult.error
     if (redemptionsResult.error) throw redemptionsResult.error
+    if (pointsResult.error) throw pointsResult.error
 
     const normalized = normalizeDashboard(dashboardResult.data)
     return normalizeDashboard({
       ...record(dashboardResult.data),
       leaderboard: leaderboardResult.data,
       redemptions: redemptionsResult.data,
+      points_available: pointsResult.data,
       my_position: normalized.myPosition,
     })
   }, [eventCode])
@@ -222,22 +227,28 @@ export default function MissioniPage() {
   useEffect(() => {
     let active = true
 
-    void caricaDashboard()
-      .then((data) => {
-        if (!active) return
-        setDashboard(data)
-        setErrore("")
-      })
-      .catch((error: unknown) => {
-        console.error("Errore caricamento missioni:", error)
-        if (active) setErrore(errorMessage(error))
-      })
-      .finally(() => {
-        if (active) setLoading(false)
-      })
+    function aggiornaDashboard() {
+      void caricaDashboard()
+        .then((data) => {
+          if (!active) return
+          setDashboard(data)
+          setErrore("")
+        })
+        .catch((error: unknown) => {
+          console.error("Errore caricamento missioni:", error)
+          if (active) setErrore(errorMessage(error))
+        })
+        .finally(() => {
+          if (active) setLoading(false)
+        })
+    }
+
+    aggiornaDashboard()
+    const timer = window.setInterval(aggiornaDashboard, 10_000)
 
     return () => {
       active = false
+      window.clearInterval(timer)
     }
   }, [caricaDashboard])
 
