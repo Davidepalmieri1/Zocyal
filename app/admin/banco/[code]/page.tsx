@@ -19,7 +19,7 @@ type Coupon = {
 type Result =
   | { kind: "coupon"; coupon: Coupon }
   | { kind: "error"; message: string }
-  | { kind: "success"; couponCode: string }
+  | { kind: "success"; couponCode: string; couponType: "drink" | "reward" }
 
 function statoCoupon(status: string) {
   if (status === "accepted") return "VALIDO"
@@ -98,7 +98,7 @@ export default function BancoPage() {
         return
       }
       if (!response.ok) throw new Error(body.error || "Convalida non riuscita.")
-      setResult({ kind: "success", couponCode: coupon.coupon_code })
+      setResult({ kind: "success", couponCode: coupon.coupon_code, couponType: coupon.coupon_type })
     } catch (cause) {
       setResult({
         kind: "error",
@@ -239,9 +239,9 @@ export default function BancoPage() {
             className="mt-4 rounded-[2rem] border border-emerald-400/30 bg-emerald-400/10 p-7 text-center"
           >
             <p className="text-5xl">✓</p>
-            <h2 className="mt-3 text-2xl font-black">Coupon utilizzato</h2>
+            <h2 className="mt-3 text-2xl font-black">{result.couponType === "reward" ? "Premio consegnato" : "Coupon utilizzato"}</h2>
             <p className="mt-2 text-sm text-emerald-100/70">
-              Sconto registrato per {result.couponCode}.
+              {result.couponType === "reward" ? "Consegna registrata" : "Sconto registrato"} per {result.couponCode}.
             </p>
             <button
               type="button"
