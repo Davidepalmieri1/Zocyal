@@ -72,13 +72,60 @@ export async function GET(request: Request) {
   if (error) return json({ error: "Impossibile caricare le segnalazioni." }, 500)
 
   const byId = new Map(people.map((person) => [person.id, person]))
+  const { data: bans, error: bansError } = await db
+    .from("event_participant_bans")
+    .select("original_participant_id")
+    .eq("event_code", code)
+    .in("original_participant_id", ids)
+
+  if (bansError) return json({ error: "Impossibile verificare gli utenti oscurati." }, 500)
+  const suspendedIds = new Set(
+    ((bans || []) as { original_participant_id: string | null }[])
+      .map((ban) => ban.original_participant_id)
+      .filter((id): id is string => Boolean(id))
+  )
   return json({
     reports: ((reports || []) as ReportRow[]).map((report) => ({
       ...report,
       reporter: byId.get(report.reported_by) || null,
       reported: byId.get(report.reported_participant) || null,
+      suspended: suspendedIds.has(report.reported_participant),
     })),
   })
+}
+
+export async function PATCH(request: Request) {
+  if (!(await authorized())) return json({ error: "Accesso non valido." }, 401)
+  if (request.headers.get("origin") !== new URL(request.url).origin) {
+    return json({ error: "Richiesta non valida." }, 403)
+  }
+
+  let body: Record<string, unknown>
+  try {
+    body = await request.json()
+  } catch {
+    return json({ error: "Dati non validi." }, 400)
+  }
+
+  const code = validCode(body.code)
+  const participantId = validId(body.participantId)
+  if (!code || !participantId) return json({ error: "Dati non validi." }, 400)
+  if (!verifyDestructiveActionPassword(body.password)) {
+    return json({ error: "Password amministrativa errata." }, 403)
+  }
+
+  const db = getSupabaseAdmin()
+  const { error } = await db.rpc("admin_suspend_participant", {
+    p_event_code: code,
+    p_participant_id: participantId,
+  } as never)
+
+  if (error) {
+    console.error("Oscuramento partecipante non riuscito:", error)
+    return json({ error: "Oscuramento non riuscito. Verifica di aver applicato la nuova migrazione SQL." }, 500)
+  }
+
+  return json({ suspended: true, participantId })
 }
 
 export async function DELETE(request: Request) {

@@ -22,6 +22,7 @@ type Report = {
   created_at: string
   reporter: Person | null
   reported: Person | null
+  suspended: boolean
 }
 
 async function responseJson(response: Response) {
@@ -37,6 +38,7 @@ export default function ReportsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [deleting, setDeleting] = useState("")
+  const [suspending, setSuspending] = useState("")
 
   const load = useCallback(async (silent = false) => {
     if (!silent) setLoading(true)
@@ -92,6 +94,32 @@ export default function ReportsPage() {
     }
   }
 
+  async function suspendParticipant(report: Report) {
+    const person = report.reported
+    if (!person || report.suspended) return
+    if (!window.confirm(`Oscurare ${person.nickname || "questo partecipante"}? Non potrà più usare il profilo o crearne uno nuovo durante l'evento.`)) return
+
+    const password = window.prompt("Inserisci la password amministrativa usata per eliminare gli eventi:")
+    if (password === null) return
+
+    setSuspending(person.id)
+    setError("")
+    try {
+      const response = await fetch("/admin/api/reports", {
+        method: "PATCH",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code, participantId: person.id, password }),
+      })
+      await responseJson(response)
+      setReports((current) => current.map((item) => item.reported_participant === person.id ? { ...item, suspended: true } : item))
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Oscuramento non riuscito.")
+    } finally {
+      setSuspending("")
+    }
+  }
+
   const open = reports.filter((report) => report.status === "open").length
 
   return (
@@ -143,22 +171,30 @@ export default function ReportsPage() {
                         <div className="flex flex-wrap items-center gap-2">
                           <h2 className="truncate text-xl font-black">{report.reported?.nickname || "Partecipante non disponibile"}</h2>
                           <span className={`rounded-full px-2.5 py-1 text-[9px] font-black uppercase ${report.status === "open" ? "bg-red-400/15 text-red-300" : "bg-white/[.06] text-white/40"}`}>
-                            {report.status === "open" ? "Da valutare" : report.status || "Segnalata"}
+                            {report.suspended ? "Oscurato" : report.status === "open" ? "Da valutare" : report.status || "Segnalata"}
                           </span>
                         </div>
                         <p className="mt-1 text-xs text-white/35">Segnalato da {report.reporter?.nickname || "partecipante"} · {new Date(report.created_at).toLocaleString("it-IT")}</p>
                       </div>
                     </div>
-                    {report.reported && (
+                    {report.reported && <div className="flex shrink-0 flex-wrap gap-2">
                       <button
                         type="button"
-                        disabled={Boolean(deleting)}
+                        disabled={Boolean(deleting || suspending || report.suspended)}
+                        onClick={() => void suspendParticipant(report)}
+                        className="rounded-xl border border-amber-300/30 bg-amber-300/10 px-4 py-3 text-xs font-black text-amber-100 transition hover:bg-amber-300/20 disabled:cursor-not-allowed disabled:opacity-45"
+                      >
+                        {suspending === report.reported.id ? "OSCURAMENTO…" : report.suspended ? "UTENTE OSCURATO" : "OSCURA UTENTE"}
+                      </button>
+                      <button
+                        type="button"
+                        disabled={Boolean(deleting || suspending)}
                         onClick={() => void removeParticipant(report)}
                         className="shrink-0 rounded-xl border border-red-400/30 bg-red-400/10 px-4 py-3 text-xs font-black text-red-200 transition hover:bg-red-400/20 disabled:cursor-wait disabled:opacity-45"
                       >
                         {deleting === report.reported.id ? "ELIMINAZIONE…" : "ELIMINA UTENTE"}
                       </button>
-                    )}
+                    </div>}
                   </div>
                   <div className="mt-5 rounded-2xl border border-white/[.07] bg-black/20 p-4">
                     <p className="text-[10px] font-black uppercase tracking-[0.16em] text-pink-300">{report.reason || "Motivo non specificato"}</p>

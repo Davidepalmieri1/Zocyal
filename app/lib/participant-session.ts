@@ -98,6 +98,10 @@ export function participantErrorMessage(error: unknown) {
     return "Questo evento non è disponibile. Controlla il link o il QR."
   }
 
+  if (message.includes("participant suspended for this event")) {
+    return "Questo accesso è stato oscurato dallo staff per la serata. Rivolgiti all'organizzazione."
+  }
+
   return "Non siamo riusciti a creare il profilo. Controlla la connessione e riprova."
 }
 
