@@ -239,11 +239,18 @@ export default function MissioniPage() {
     }
 
     aggiornaDashboard()
-    const timer = window.setInterval(aggiornaDashboard, 30_000)
+    const refreshWhenVisible = () => {
+      if (!document.hidden) aggiornaDashboard()
+    }
+    const timer = window.setInterval(refreshWhenVisible, 120_000)
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    window.addEventListener("focus", refreshWhenVisible)
 
     return () => {
       active = false
       window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+      window.removeEventListener("focus", refreshWhenVisible)
     }
   }, [caricaDashboard])
 

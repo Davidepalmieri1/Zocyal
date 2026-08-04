@@ -127,7 +127,6 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
-  const eventNotificationChannelRef = useRef<RealtimeChannel | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const notificheAttiveRef = useRef(false)
   const personaRef = useRef<Persona | null>(null)
@@ -145,15 +144,6 @@ export default function ChatPage() {
   useEffect(() => {
     notificheAttiveRef.current = notificheAttive
   }, [notificheAttive])
-
-  useEffect(() => {
-    const channel = supabase.channel(`event-notifications-${params.code}`).subscribe()
-    eventNotificationChannelRef.current = channel
-    return () => {
-      eventNotificationChannelRef.current = null
-      void supabase.removeChannel(channel)
-    }
-  }, [params.code])
 
   useEffect(() => {
     if (!drinkOffer || drinkOffer.sender_id !== mioId || !["accepted","redeemed"].includes(drinkOffer.status) || drinkOffer.coupon_code) return
@@ -544,7 +534,9 @@ export default function ChatPage() {
 
     caricaChat()
 
+    let realtimeReady = false
     const fallbackRealtime = window.setInterval(async () => {
+      if (realtimeReady || document.hidden) return
       const { data, error } = await supabase.rpc("get_messages_for_match", { p_match_id: matchId })
       if (error) {
         console.error("Sincronizzazione chat non disponibile:", error)
@@ -642,33 +634,6 @@ export default function ChatPage() {
       .on(
         "broadcast",
         {
-          event: "message:new",
-        },
-        (payload) => {
-          const nuovoMessaggio = payload.payload as Messaggio
-
-          if (!nuovoMessaggio?.id || nuovoMessaggio.match_id !== matchId) {
-            return
-          }
-
-          setMessages((attuali) => {
-            if (attuali.some((messaggio) => messaggio.id === nuovoMessaggio.id)) {
-              return attuali
-            }
-
-            return [...attuali, nuovoMessaggio]
-          })
-
-          if (nuovoMessaggio.sender_id !== mioId) {
-            mostraNotificaMessaggio(nuovoMessaggio)
-            if (!document.hidden) void segnaMessaggiComeLetti()
-          }
-        }
-      )
-
-      .on(
-        "broadcast",
-        {
           event: "typing",
         },
         (payload) => {
@@ -683,7 +648,9 @@ export default function ChatPage() {
         }
       )
 
-      .subscribe()
+      .subscribe((status) => {
+        realtimeReady = status === "SUBSCRIBED"
+      })
 
     channelRef.current = channel
 
@@ -871,32 +838,6 @@ export default function ChatPage() {
     const sent = data as Messaggio | null
     if (sent) {
       setMessages((current) => current.some((message) => message.id === sent.id) ? current : [...current, sent])
-      const channel = channelRef.current
-      if (channel) {
-        const broadcastResult = await channel.send({
-          type: "broadcast",
-          event: "message:new",
-          payload: sent,
-        })
-
-        if (broadcastResult !== "ok") {
-          console.error("Trasmissione immediata del messaggio non riuscita:", broadcastResult)
-        }
-      }
-      const notificationChannel = eventNotificationChannelRef.current
-      if (notificationChannel) {
-        const notificationResult = await notificationChannel.send({
-          type: "broadcast",
-          event: "message:new",
-          payload: {
-            ...sent,
-            receiver_id: personaRef.current?.id,
-          },
-        })
-        if (notificationResult !== "ok") {
-          console.error("Notifica globale del messaggio non riuscita:", notificationResult)
-        }
-      }
     }
 
     setText("")

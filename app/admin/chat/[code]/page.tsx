@@ -19,7 +19,7 @@ export default function Page() {
     catch (cause) { setError(cause instanceof Error ? cause.message : "Errore inatteso.") }
     finally { if (!silent) setLoading(false) }
   }, [code])
-  useEffect(() => { const initial = window.setTimeout(() => void load(), 0); const timer = window.setInterval(() => void load(true), 5000); return () => { window.clearTimeout(initial); window.clearInterval(timer) } }, [load])
+  useEffect(() => { const initial = window.setTimeout(() => void load(), 0); const timer = window.setInterval(() => { if (!document.hidden) void load(true) }, 30000); return () => { window.clearTimeout(initial); window.clearInterval(timer) } }, [load])
 
   return <div className="flex min-h-screen bg-black text-white"><Sidebar /><main className="min-w-0 flex-1 px-4 pb-8 pt-20 sm:px-6 lg:p-8">
     <h1 className="text-4xl font-bold text-pink-500 sm:text-5xl">💬 Chat Live</h1><p className="mt-3 text-gray-400">Evento: {code}</p>

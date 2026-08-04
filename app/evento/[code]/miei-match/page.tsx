@@ -54,20 +54,31 @@ export default function MieiMatchPage() {
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
   const [filtro, setFiltro] = useState<"tutte" | "non-lette">("tutte")
+  const [participantId, setParticipantId] = useState("")
 
   useEffect(() => {
     let active = true
-
-    async function caricaChat(silent = false) {
-      const mioId = await resolveCurrentParticipant(params.code)
-
+    void resolveCurrentParticipant(params.code).then((id) => {
       if (!active) return
-
-      if (!mioId) {
+      if (!id) {
         setErrore("Profilo non trovato.")
         setLoading(false)
         return
       }
+      setParticipantId(id)
+    })
+    return () => { active = false }
+  }, [params.code])
+
+  useEffect(() => {
+    if (!participantId) return
+    let active = true
+    let realtimeReady = false
+    let refreshTimeout: number | null = null
+    const mioId = participantId
+
+    async function caricaChat(silent = false) {
+      if (!active) return
 
       if (!silent) setLoading(true)
       setErrore("")
@@ -214,23 +225,53 @@ export default function MieiMatchPage() {
 
     void caricaChat()
 
+    const scheduleChatRefresh = () => {
+      if (refreshTimeout !== null) window.clearTimeout(refreshTimeout)
+      refreshTimeout = window.setTimeout(() => {
+        refreshTimeout = null
+        void caricaChat(true)
+      }, 200)
+    }
+
     const fallback = window.setInterval(() => {
-      if (!document.hidden) void caricaChat(true)
-    }, 15000)
+      if (!realtimeReady && !document.hidden) void caricaChat(true)
+    }, 60000)
 
     const channel = supabase
-      .channel(`conversations-${params.code}`)
+      .channel(`conversations-${mioId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        () => void caricaChat(true)
+        { event: "INSERT", schema: "public", table: "messages", filter: `receiver_id=eq.${mioId}` },
+        scheduleChatRefresh
       )
       .on(
         "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "messages" },
-        () => void caricaChat(true)
+        { event: "INSERT", schema: "public", table: "messages", filter: `sender_id=eq.${mioId}` },
+        scheduleChatRefresh
       )
-      .subscribe()
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `receiver_id=eq.${mioId}` },
+        scheduleChatRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "UPDATE", schema: "public", table: "messages", filter: `sender_id=eq.${mioId}` },
+        scheduleChatRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "matches", filter: `user_one=eq.${mioId}` },
+        scheduleChatRefresh
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "matches", filter: `user_two=eq.${mioId}` },
+        scheduleChatRefresh
+      )
+      .subscribe((status) => {
+        realtimeReady = status === "SUBSCRIBED"
+      })
 
     const refreshWhenVisible = () => {
       if (!document.hidden) void caricaChat(true)
@@ -242,11 +283,12 @@ export default function MieiMatchPage() {
     return () => {
       active = false
       window.clearInterval(fallback)
+      if (refreshTimeout !== null) window.clearTimeout(refreshTimeout)
       document.removeEventListener("visibilitychange", refreshWhenVisible)
       window.removeEventListener("focus", refreshWhenVisible)
       void supabase.removeChannel(channel)
     }
-  }, [params.code])
+  }, [params.code, participantId])
 
   function formattaOrario(data: string | null) {
     if (!data) return ""

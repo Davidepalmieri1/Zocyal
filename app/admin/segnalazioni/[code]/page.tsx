@@ -61,7 +61,7 @@ export default function ReportsPage() {
     const initial = window.setTimeout(() => void load(), 0)
     const timer = window.setInterval(() => {
       if (document.visibilityState === "visible") void load(true)
-    }, 15000)
+    }, 30000)
     return () => {
       window.clearTimeout(initial)
       window.clearInterval(timer)

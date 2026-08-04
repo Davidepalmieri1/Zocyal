@@ -40,7 +40,7 @@ export default function Page() {
 
   useEffect(() => {
     const initial = window.setTimeout(() => void load(), 0)
-    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(true) }, 10000)
+    const timer = window.setInterval(() => { if (document.visibilityState === "visible") void load(true) }, 30000)
     return () => { window.clearTimeout(initial); window.clearInterval(timer) }
   }, [load])
 
