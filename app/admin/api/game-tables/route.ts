@@ -30,9 +30,13 @@ export async function GET(request: Request) {
   const eventCode = code(new URL(request.url).searchParams.get("code"))
   if (!eventCode) return json({ error: "Evento non valido." }, 400)
   const db = getSupabaseAdmin()
-  const { data, error } = await db.from("game_tables").select("*, invitations:game_table_invitations(*, participant:participants(id,nickname,avatar_url))").eq("event_code", eventCode).order("created_at", { ascending: false })
-  if (error) return json({ error: "Impossibile caricare i tavoli." }, 500)
-  return json({ tables: data || [] })
+  const [tablesResult, templatesResult] = await Promise.all([
+    db.from("game_tables").select("*, invitations:game_table_invitations(*, participant:participants(id,nickname,avatar_url))").eq("event_code", eventCode).order("created_at", { ascending: false }),
+    db.from("game_table_templates").select("id,name,interest_tags,points_reward,created_at,updated_at").order("updated_at", { ascending: false }),
+  ])
+  if (tablesResult.error) return json({ error: "Impossibile caricare i tavoli." }, 500)
+  if (templatesResult.error) return json({ error: "Impossibile caricare i giochi salvati." }, 500)
+  return json({ tables: tablesResult.data || [], templates: templatesResult.data || [] })
 }
 
 export async function POST(request: Request) {
@@ -41,6 +45,31 @@ export async function POST(request: Request) {
   const eventCode = code(body?.event_code), action = text(body?.action, 30)
   if (!body || !eventCode) return json({ error: "Dati non validi." }, 400)
   const db = getSupabaseAdmin()
+
+  if (action === "save_template") {
+    const name = text(body.game, 120), interestTags = tags(body.interest_tags)
+    const points = Number(body.points_reward)
+    if (!name || !interestTags.length || !Number.isSafeInteger(points) || points < 1 || points > 10) {
+      return json({ error: "Compila gioco, interessi e punti (1-10) prima di salvarlo." }, 400)
+    }
+    const { data, error } = await db
+      .from("game_table_templates")
+      .upsert({ name, interest_tags: interestTags, points_reward: points, updated_at: new Date().toISOString() } as never, { onConflict: "normalized_name" })
+      .select("id,name,interest_tags,points_reward,created_at,updated_at")
+      .single()
+    return error
+      ? json({ error: "Salvataggio del gioco non riuscito." }, 500)
+      : json({ template: data }, 201)
+  }
+
+  if (action === "delete_template") {
+    const templateId = text(body.template_id, 36)
+    if (!UUID.test(templateId)) return json({ error: "Gioco salvato non valido." }, 400)
+    const { error } = await db.from("game_table_templates").delete().eq("id", templateId)
+    return error
+      ? json({ error: "Rimozione del gioco non riuscita." }, 500)
+      : json({ ok: true })
+  }
 
   if (action === "create") {
     const name = text(body.name, 120), game = text(body.game, 120), interestTags = tags(body.interest_tags)
