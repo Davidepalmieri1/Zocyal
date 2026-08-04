@@ -16,6 +16,21 @@ type Profilo = {
   recovery_code?: string | null
 }
 
+function avatarStoragePath(avatarUrl: string | null) {
+  if (!avatarUrl) return null
+
+  try {
+    const marker = "/storage/v1/object/public/avatars/"
+    const pathname = new URL(avatarUrl).pathname
+    const markerIndex = pathname.indexOf(marker)
+
+    if (markerIndex === -1) return null
+    return decodeURIComponent(pathname.slice(markerIndex + marker.length))
+  } catch {
+    return null
+  }
+}
+
 export default function MioProfiloPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
@@ -24,6 +39,10 @@ export default function MioProfiloPage() {
   const [inclusiveMode, setInclusiveMode] = useState(false)
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
+  const [eliminazioneAperta, setEliminazioneAperta] = useState(false)
+  const [confermaEliminazione, setConfermaEliminazione] = useState("")
+  const [eliminazioneInCorso, setEliminazioneInCorso] = useState(false)
+  const [erroreEliminazione, setErroreEliminazione] = useState("")
 
   useEffect(() => {
     async function caricaProfilo() {
@@ -79,6 +98,53 @@ export default function MioProfiloPage() {
 
     void caricaProfilo()
   }, [params.code])
+
+  async function eliminaProfilo() {
+    if (!profilo || confermaEliminazione.trim().toUpperCase() !== "ELIMINA") {
+      return
+    }
+
+    setEliminazioneInCorso(true)
+    setErroreEliminazione("")
+
+    const avatarPath = avatarStoragePath(profilo.avatar_url)
+    const eventCode = params.code.trim().toLowerCase()
+    const { error } = await supabase.rpc("delete_own_participant", {
+      p_event_code: eventCode,
+      p_confirmation: confermaEliminazione.trim(),
+    })
+
+    if (error) {
+      console.error("Errore eliminazione profilo:", error)
+      setErroreEliminazione(
+        "Non siamo riusciti a eliminare il profilo. Riprova o avvisa lo staff."
+      )
+      setEliminazioneInCorso(false)
+      return
+    }
+
+    if (avatarPath) {
+      const { error: avatarError } = await supabase.storage
+        .from("avatars")
+        .remove([avatarPath])
+
+      if (avatarError) {
+        console.warn("Profilo eliminato, foto non rimossa dallo storage:", avatarError)
+      }
+    }
+
+    localStorage.removeItem("participant_id")
+    localStorage.removeItem("event_code")
+    localStorage.removeItem("recovery_code")
+
+    const { error: signOutError } = await supabase.auth.signOut()
+    if (signOutError) {
+      console.warn("Profilo eliminato, sessione locale non chiusa:", signOutError)
+    }
+
+    router.replace(`/evento/${params.code}`)
+    router.refresh()
+  }
 
   if (loading) {
     return (
@@ -224,10 +290,99 @@ export default function MioProfiloPage() {
                   GESTISCI PREFERENZE PRIVATE
                 </button>
               )}
+
+              <section className="mt-8 rounded-3xl border border-red-500/25 bg-red-500/[0.06] p-5">
+                <p className="text-xs font-black uppercase tracking-[0.16em] text-red-300">
+                  Gestione profilo
+                </p>
+                <p className="mt-2 text-sm leading-6 text-gray-400">
+                  Puoi eliminare definitivamente il tuo profilo e tutti i dati
+                  collegati a questa serata.
+                </p>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setErroreEliminazione("")
+                    setEliminazioneAperta(true)
+                  }}
+                  className="mt-4 w-full rounded-full border border-red-400/35 bg-red-500/10 px-6 py-4 font-black text-red-200 transition hover:bg-red-500/20"
+                >
+                  ELIMINA IL MIO PROFILO
+                </button>
+              </section>
             </>
           )
         )}
       </div>
+
+      {eliminazioneAperta && profilo && (
+        <div
+          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="titolo-eliminazione-profilo"
+        >
+          <section className="w-full max-w-md rounded-[2rem] border border-red-500/30 bg-zinc-950 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.75)]">
+            <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
+              Azione definitiva
+            </p>
+            <h2
+              id="titolo-eliminazione-profilo"
+              className="mt-3 text-2xl font-black text-white"
+            >
+              Eliminare il profilo?
+            </h2>
+            <p className="mt-3 leading-7 text-gray-300">
+              Verranno eliminati profilo, match, chat, punti, missioni, premi e
+              inviti di questa serata. Non potrai recuperarli.
+            </p>
+            <label className="mt-5 block text-sm font-bold text-gray-300">
+              Scrivi <span className="text-red-300">ELIMINA</span> per confermare
+              <input
+                type="text"
+                value={confermaEliminazione}
+                onChange={(event) => setConfermaEliminazione(event.target.value)}
+                disabled={eliminazioneInCorso}
+                autoComplete="off"
+                className="mt-3 w-full rounded-2xl border border-white/10 bg-black px-4 py-4 font-black uppercase tracking-[0.12em] text-white outline-none transition focus:border-red-400/60"
+                placeholder="ELIMINA"
+              />
+            </label>
+
+            {erroreEliminazione && (
+              <p className="mt-4 rounded-2xl border border-red-500/25 bg-red-500/10 p-3 text-sm text-red-200">
+                {erroreEliminazione}
+              </p>
+            )}
+
+            <div className="mt-6 grid gap-3 sm:grid-cols-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setEliminazioneAperta(false)
+                  setConfermaEliminazione("")
+                  setErroreEliminazione("")
+                }}
+                disabled={eliminazioneInCorso}
+                className="rounded-full border border-white/15 px-5 py-4 font-black text-white disabled:opacity-50"
+              >
+                ANNULLA
+              </button>
+              <button
+                type="button"
+                onClick={() => void eliminaProfilo()}
+                disabled={
+                  eliminazioneInCorso ||
+                  confermaEliminazione.trim().toUpperCase() !== "ELIMINA"
+                }
+                className="rounded-full bg-red-600 px-5 py-4 font-black text-white transition hover:bg-red-500 disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                {eliminazioneInCorso ? "ELIMINAZIONE..." : "ELIMINA DEFINITIVAMENTE"}
+              </button>
+            </div>
+          </section>
+        </div>
+      )}
     </main>
   )
 }
