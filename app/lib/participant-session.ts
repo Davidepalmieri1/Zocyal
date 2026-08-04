@@ -102,6 +102,10 @@ export function participantErrorMessage(error: unknown) {
     return "Questo accesso è stato oscurato dallo staff per la serata. Rivolgiti all'organizzazione."
   }
 
+  if (message.includes("event participant capacity reached")) {
+    return "Ci dispiace, l'evento ha raggiunto il numero massimo di partecipanti e non è possibile creare un nuovo profilo."
+  }
+
   return "Non siamo riusciti a creare il profilo. Controlla la connessione e riprova."
 }
 
