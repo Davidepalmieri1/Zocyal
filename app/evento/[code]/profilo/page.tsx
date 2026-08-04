@@ -1,6 +1,7 @@
 "use client"
 
 import { FormEvent, useEffect, useState } from "react"
+import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import {
@@ -16,6 +17,13 @@ const inclusiveOptions = [
   { value: "non_binary", label: "Persone non binarie" },
   { value: "other", label: "Altre identità" },
 ]
+
+type RegistrationAvailability = {
+  capacity: number
+  participants: number
+  remaining: number
+  available: boolean
+}
 
 export default function ProfiloPage() {
   const params = useParams<{ code: string }>()
@@ -34,20 +42,38 @@ export default function ProfiloPage() {
   const [photoPreview, setPhotoPreview] = useState("")
   const [loading, setLoading] = useState(false)
   const [errore, setErrore] = useState("")
+  const [registrationAvailability, setRegistrationAvailability] =
+    useState<RegistrationAvailability | null>(null)
 
   useEffect(() => {
     const eventCode = params.code.trim().toLowerCase()
-    void supabase
-      .from("events")
-      .select("experience_mode")
-      .eq("code", eventCode)
-      .maybeSingle()
-      .then(({ data, error }) => {
-        if (error || !data) {
+    void Promise.all([
+      supabase
+        .from("events")
+        .select("experience_mode")
+        .eq("code", eventCode)
+        .maybeSingle(),
+      supabase.rpc("get_event_registration_availability", {
+        p_event_code: eventCode,
+      }),
+    ]).then(([eventResult, availabilityResult]) => {
+        if (
+          eventResult.error ||
+          !eventResult.data ||
+          availabilityResult.error ||
+          !availabilityResult.data
+        ) {
           setErrore("Non siamo riusciti a caricare la configurazione dell’evento.")
           return
         }
-        setEventMode(data.experience_mode === "inclusive" ? "inclusive" : "standard")
+        setEventMode(
+          eventResult.data.experience_mode === "inclusive"
+            ? "inclusive"
+            : "standard"
+        )
+        setRegistrationAvailability(
+          availabilityResult.data as RegistrationAvailability
+        )
       })
   }, [params.code])
 
@@ -98,6 +124,13 @@ export default function ProfiloPage() {
     const nicknamePulito = nickname.trim()
     const eta = Number(age)
     const eventCode = params.code.trim().toLowerCase()
+
+    if (registrationAvailability && !registrationAvailability.available) {
+      setErrore(
+        "Ci dispiace, l'evento ha raggiunto il numero massimo di partecipanti e non è possibile creare un nuovo profilo."
+      )
+      return
+    }
 
     if (nicknamePulito.length < 2) {
       setErrore("Inserisci un nome o soprannome valido.")
@@ -239,6 +272,35 @@ export default function ProfiloPage() {
           </p>
         </div>
 
+        {!registrationAvailability ? (
+          <section className="mt-8 rounded-[2rem] border border-white/10 bg-white/[0.05] p-7 text-center backdrop-blur-xl">
+            {errore ? (
+              <p className="text-sm leading-6 text-red-300">{errore}</p>
+            ) : (
+              <>
+                <div className="mx-auto h-10 w-10 animate-spin rounded-full border-4 border-white/10 border-t-pink-500" />
+                <p className="mt-4 text-sm text-gray-400">Verifica dei posti disponibili…</p>
+              </>
+            )}
+          </section>
+        ) : !registrationAvailability.available ? (
+          <section className="mt-8 rounded-[2rem] border border-orange-300/25 bg-orange-300/[0.08] p-7 text-center shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
+            <span className="text-5xl" aria-hidden="true">🙏</span>
+            <h2 className="mt-5 text-2xl font-black">Evento al completo</h2>
+            <p className="mt-3 leading-7 text-gray-300">
+              Ci dispiace, abbiamo raggiunto il numero massimo di 190 partecipanti. Al momento non è possibile creare un nuovo profilo per questa serata.
+            </p>
+            <p className="mt-3 text-sm leading-6 text-gray-500">
+              Se avevi già creato il tuo profilo, puoi continuare recuperando il tuo accesso personale.
+            </p>
+            <Link
+              href={`/evento/${params.code}/recupera`}
+              className="mt-6 inline-flex min-h-12 items-center justify-center rounded-full border border-pink-400/35 bg-pink-500/10 px-6 py-3 font-black text-pink-100 transition hover:bg-pink-500/20"
+            >
+              RECUPERA IL MIO PROFILO
+            </Link>
+          </section>
+        ) : (
         <form
           onSubmit={salvaProfilo}
           className="mt-8 rounded-3xl border border-white/10 bg-white/[0.05] p-6 shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl"
@@ -534,6 +596,7 @@ export default function ProfiloPage() {
             Partecipando confermi di avere almeno 18 anni.
           </p>
         </form>
+        )}
       </div>
     </main>
   )
