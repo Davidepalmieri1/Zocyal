@@ -37,6 +37,13 @@ export function verifyAdminPassword(password: string) {
   return Boolean(expected) && safeEqual(password, expected)
 }
 
+export function verifyDestructiveActionPassword(password: unknown) {
+  if (typeof password !== "string") return false
+
+  const expected = process.env.ADMIN_EVENT_DELETE_PASSWORD || "1109"
+  return safeEqual(password, expected)
+}
+
 export function createAdminSessionToken() {
   if (!isAdminAuthConfigured()) return ""
 

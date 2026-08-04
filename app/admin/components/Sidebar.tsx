@@ -39,6 +39,12 @@ const menu: MenuItem[] = [
     description: "Conversazioni",
   },
   {
+    name: "Segnalazioni",
+    icon: "!",
+    path: "segnalazioni",
+    description: "Sicurezza e moderazione",
+  },
+  {
     name: "Premi",
     icon: "🎁",
     path: "premi",
