@@ -75,7 +75,7 @@ export default function Page() {
     { title: "Presenti", value: data.totals.participants, symbol: "◎", href: `/admin/partecipanti/${code}`, tone: "pink" },
     { title: "Match", value: data.totals.matches, symbol: "♥", href: `/admin/match/${code}`, tone: "pink" },
     { title: "Messaggi", value: data.totals.messages, symbol: "◌", href: `/admin/chat/${code}`, tone: "violet" },
-    { title: "Segnalazioni", value: data.totals.reports, symbol: "!", href: `/admin/chat/${code}`, tone: data.totals.reports ? "danger" : "neutral" },
+    { title: "Segnalazioni", value: data.totals.reports, symbol: "!", href: `/admin/segnalazioni/${code}`, tone: data.totals.reports ? "danger" : "neutral" },
   ]
 
   return (
