@@ -60,8 +60,16 @@ export default function NotificationCenter() {
   useEffect(()=>{
     let active=true
     let id:number|null=null
+    let realtimeReady=false
+    let refreshTimeout:number|null=null
     let channel:ReturnType<typeof supabase.channel>|null=null
-    const refresh=()=>{void load().catch(error=>console.error("Sincronizzazione notifiche non riuscita:",error))}
+    const refresh=()=>{
+      if(refreshTimeout!==null)window.clearTimeout(refreshTimeout)
+      refreshTimeout=window.setTimeout(()=>{
+        refreshTimeout=null
+        void load().catch(error=>console.error("Sincronizzazione notifiche non riuscita:",error))
+      },150)
+    }
     const initial=window.setTimeout(()=>setPermission("Notification" in window?Notification.permission:"unsupported"),0)
 
     const start=async()=>{
@@ -71,6 +79,8 @@ export default function NotificationCenter() {
       const {data:{session}}=await supabase.auth.getSession()
       if(!active)return
       if(session?.access_token)supabase.realtime.setAuth(session.access_token)
+      const participantId=participantIdRef.current
+      if(!participantId)return
       const handleMessage=(raw:unknown)=>{
         const message=raw as {id?:string;match_id?:string;message?:string;sender_id?:string;receiver_id?:string}
         const intendedForMe=message.receiver_id
@@ -84,24 +94,30 @@ export default function NotificationCenter() {
         if("Notification" in window&&Notification.permission==="granted")new Notification(notice.title,{body:notice.detail})
       }
       channel=supabase
-      .channel(`event-notifications-${code}`)
-      .on("broadcast",{event:"message:new"},payload=>handleMessage(payload.payload))
-      .on("postgres_changes",{event:"*",schema:"public",table:"matches"},payload=>{
+      .channel(`participant-notifications-${participantId}`)
+      .on("postgres_changes",{event:"*",schema:"public",table:"matches",filter:`user_one=eq.${participantId}`},payload=>{
         const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
         if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);refresh()}
       })
-      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages"},payload=>{
+      .on("postgres_changes",{event:"*",schema:"public",table:"matches",filter:`user_two=eq.${participantId}`},payload=>{
+        const match=(payload.new||payload.old) as {id?:string;user_one?:string;user_two?:string}
+        if(match.user_one===participantIdRef.current||match.user_two===participantIdRef.current){if(match.id)matchIdsRef.current.add(match.id);refresh()}
+      })
+      .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`receiver_id=eq.${participantId}`},payload=>{
         handleMessage(payload.new)
       })
-      .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations"},payload=>{
+      .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations",filter:`participant_id=eq.${participantId}`},payload=>{
         const invitation=(payload.new||payload.old) as {participant_id?:string}
         if(invitation.participant_id===participantIdRef.current)refresh()
       })
-      .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions"},refresh)
-      .subscribe(status=>{if(status==="SUBSCRIBED")refresh()})
+      .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions",filter:`participant_id=eq.${participantId}`},refresh)
+      .subscribe(status=>{
+        realtimeReady=status==="SUBSCRIBED"
+        if(realtimeReady)refresh()
+      })
       // Realtime handles normal traffic; this is only recovery for suspended
       // sockets, so it must stay inexpensive when many guests are connected.
-      id=window.setInterval(refresh,30000)
+      id=window.setInterval(()=>{if(!realtimeReady&&!document.hidden)refresh()},60000)
     }
     void start()
     const {data:authListener}=supabase.auth.onAuthStateChange((_event,session)=>{
@@ -114,6 +130,7 @@ export default function NotificationCenter() {
     window.addEventListener("online",refresh)
     return()=>{
       active=false;window.clearTimeout(initial)
+      if(refreshTimeout!==null)window.clearTimeout(refreshTimeout)
       if(id!==null)window.clearInterval(id)
       document.removeEventListener("visibilitychange",refreshWhenVisible)
       window.removeEventListener("focus",refresh)
