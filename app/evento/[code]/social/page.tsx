@@ -60,7 +60,7 @@ export default function SocialPage() {
         )
         .eq("event_code", eventCode)
         .neq("id", participantId)
-        .order("created_at", { ascending: true })
+        .order("id", { ascending: true })
 
       if (error) {
         console.error(
