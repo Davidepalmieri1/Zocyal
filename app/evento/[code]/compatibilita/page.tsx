@@ -8,6 +8,7 @@ import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 const PROFILI_PER_PAGINA = 20
+const SOGLIA_COMPATIBILITA_MATCH = 30
 
 type StatoMatch = "match" | "liked" | "received_like" | "none"
 
@@ -151,60 +152,73 @@ export default function CompatibilitaPage() {
     setErrore("")
 
     try {
-      const indiceFinale = indiceIniziale + PROFILI_PER_PAGINA - 1
+      let indiceCorrente = indiceIniziale
+      let haAltriBlocchi = true
+      let nuovePersone: PersonaMatch[] = []
 
-      const { data: altriPartecipanti, error: partecipantiError } =
-        await supabase
-          .from("participants")
-          .select("id, nickname, age, avatar_url")
-          .neq("id", participantId)
-          .eq("event_code", eventCode)
-          .eq("completed_test", true)
-          .range(indiceIniziale, indiceFinale)
+      // Continua sui blocchi successivi se quello corrente non contiene
+      // profili sopra soglia, senza nascondere candidati validi più avanti.
+      while (nuovePersone.length === 0 && haAltriBlocchi) {
+        const indiceFinale = indiceCorrente + PROFILI_PER_PAGINA - 1
+        const { data: altriPartecipanti, error: partecipantiError } =
+          await supabase
+            .from("participants")
+            .select("id, nickname, age, avatar_url")
+            .neq("id", participantId)
+            .eq("event_code", eventCode)
+            .eq("completed_test", true)
+            .order("created_at", { ascending: true })
+            .range(indiceCorrente, indiceFinale)
 
-      if (partecipantiError) {
-        console.error("Errore caricamento partecipanti:", partecipantiError)
-        setErrore("Non siamo riusciti a caricare le affinità.")
-        return 0
+        if (partecipantiError) {
+          console.error("Errore caricamento partecipanti:", partecipantiError)
+          setErrore("Non siamo riusciti a caricare le affinità.")
+          return 0
+        }
+
+        const partecipanti = altriPartecipanti || []
+        const participantIds = partecipanti.map((persona) => persona.id)
+        const risposteResult =
+          participantIds.length > 0
+            ? await supabase
+                .from("answers")
+                .select("*")
+                .in("participant_id", participantIds)
+            : { data: [] as Risposte[], error: null }
+
+        if (risposteResult.error) {
+          console.error(
+            "Errore caricamento risposte profili:",
+            risposteResult.error
+          )
+          setErrore("Alcune compatibilità non sono state calcolate.")
+        }
+
+        const risposte = (risposteResult.data || []) as Risposte[]
+        nuovePersone = partecipanti
+          .map((person) => {
+            const sueRisposte = risposte.find(
+              (answer) => answer.participant_id === person.id
+            )
+            const compatibilita =
+              mieRisposteRef.current && sueRisposte
+                ? calcolaCompatibilita(mieRisposteRef.current, sueRisposte)
+                : 0
+
+            return {
+              ...person,
+              compatibilita,
+              ...trovaStatoPersona(person.id, participantId),
+            } as PersonaMatch
+          })
+          .filter(
+            (person) =>
+              person.compatibilita >= SOGLIA_COMPATIBILITA_MATCH
+          )
+
+        indiceCorrente += partecipanti.length
+        haAltriBlocchi = partecipanti.length === PROFILI_PER_PAGINA
       }
-
-      const partecipanti = altriPartecipanti || []
-      const participantIds = partecipanti.map((persona) => persona.id)
-
-      const risposteResult =
-        participantIds.length > 0
-          ? await supabase
-              .from("answers")
-              .select("*")
-              .in("participant_id", participantIds)
-          : { data: [] as Risposte[], error: null }
-
-      if (risposteResult.error) {
-        console.error(
-          "Errore caricamento risposte profili:",
-          risposteResult.error
-        )
-        setErrore("Alcune compatibilità non sono state calcolate.")
-      }
-
-      const risposte = (risposteResult.data || []) as Risposte[]
-
-      const nuovePersone = partecipanti.map((person) => {
-        const sueRisposte = risposte.find(
-          (answer) => answer.participant_id === person.id
-        )
-
-        const compatibilita =
-          mieRisposteRef.current && sueRisposte
-            ? calcolaCompatibilita(mieRisposteRef.current, sueRisposte)
-            : 0
-
-        return {
-          ...person,
-          compatibilita,
-          ...trovaStatoPersona(person.id, participantId),
-        } as PersonaMatch
-      })
 
       setMatches((attuali) => {
         const base = reset ? [] : attuali
@@ -219,9 +233,9 @@ export default function CompatibilitaPage() {
         )
       })
 
-      setProssimoIndice(indiceIniziale + partecipanti.length)
-      setHaAltriProfili(partecipanti.length === PROFILI_PER_PAGINA)
-      return partecipanti.length
+      setProssimoIndice(indiceCorrente)
+      setHaAltriProfili(haAltriBlocchi)
+      return nuovePersone.length
     } catch (error) {
       console.error("Errore imprevisto caricamento profili:", error)
       setErrore("Si è verificato un errore durante il caricamento.")
@@ -621,8 +635,8 @@ export default function CompatibilitaPage() {
 
           <p className="mt-3 leading-7 text-gray-400">
             {inclusiveMode
-              ? "Mostriamo soltanto profili con preferenze di connessione reciproche, senza rendere pubbliche le vostre scelte."
-              : "Mostriamo massimo 20 nuovi profili alla volta, così la pagina resta veloce anche nelle serate più grandi."}
+              ? `Mostriamo profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, senza rendere pubbliche le vostre scelte.`
+              : `Mostriamo profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, caricati a gruppi per mantenere la serata veloce.`}
           </p>
 
           {matches.length > 0 && (
@@ -659,8 +673,8 @@ export default function CompatibilitaPage() {
 
             <p className="mt-3 leading-7 text-gray-400">
               {inclusiveMode
-                ? "Al momento non ci sono preferenze di connessione reciproche. Puoi aggiornare le tue scelte o tornare più tardi: le preferenze restano sempre private."
-                : "Aspetta che altre persone completino il profilo e torna tra poco."}
+                ? `Al momento non ci sono profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere persone con interessi diversi.`
+                : `Al momento non ci sono profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere nuove persone.`}
             </p>
 
             <div className="mt-7 grid gap-3">
@@ -844,3 +858,4 @@ export default function CompatibilitaPage() {
     </main>
   )
 }
+
