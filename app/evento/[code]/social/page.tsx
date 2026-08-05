@@ -60,6 +60,7 @@ export default function SocialPage() {
         )
         .eq("event_code", eventCode)
         .neq("id", participantId)
+        .order("created_at", { ascending: true })
 
       if (error) {
         console.error(
@@ -187,8 +188,8 @@ export default function SocialPage() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-gray-400 sm:text-base">
-              Scopri chi è presente, trova qualcuno con cui
-              parlare, ballare o fare gruppo.
+              Scopri tutte le persone con preferenze reciproche compatibili,
+              anche quando avete interessi o risposte diverse.
             </p>
           </motion.div>
         </section>
@@ -318,3 +319,4 @@ export default function SocialPage() {
     </main>
   )
 }
+
