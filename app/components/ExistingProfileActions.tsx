@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import Link from "next/link"
-import { supabase } from "@/lib/supabase"
+import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type ExistingProfileActionsProps = {
   eventCode: string
@@ -16,30 +16,45 @@ export default function ExistingProfileActions({
 
   useEffect(() => {
     let active = true
-    const timer = window.setTimeout(async () => {
+    const normalizedEventCode = eventCode.trim().toLowerCase()
+
+    async function verificaProfilo() {
       const participantId = localStorage.getItem("participant_id")
       const savedEventCode = localStorage.getItem("event_code")
-      if (!participantId || savedEventCode !== eventCode) {
-        if (active) { setProfiloTrovato(false); setLoading(false) }
-        return
-      }
-      const { data, error } = await supabase
-        .from("participants")
-        .select("id")
-        .eq("id", participantId)
-        .eq("event_code", eventCode)
-        .maybeSingle()
+      const profiloMemorizzato = Boolean(
+        participantId && savedEventCode === normalizedEventCode
+      )
 
-      if (error || !data) {
-        localStorage.removeItem("participant_id")
-        localStorage.removeItem("event_code")
-        localStorage.removeItem("recovery_code")
-        if (active) { setProfiloTrovato(false); setLoading(false) }
-        return
+      // Mostra subito il profilo noto mentre Supabase ripristina e verifica
+      // la sessione anonima associata al partecipante.
+      if (active && profiloMemorizzato) {
+        setProfiloTrovato(true)
+        setLoading(false)
       }
-      if (active) { setProfiloTrovato(true); setLoading(false) }
-    }, 0)
-    return () => { active = false; window.clearTimeout(timer) }
+
+      try {
+        const participantIdRisolto =
+          await resolveCurrentParticipant(normalizedEventCode)
+
+        if (active) {
+          setProfiloTrovato(Boolean(participantIdRisolto))
+          setLoading(false)
+        }
+      } catch {
+        // Un errore temporaneo di rete non deve cancellare un profilo valido
+        // dalla memoria del dispositivo né obbligare l'utente a ricaricare.
+        if (active) {
+          setProfiloTrovato(profiloMemorizzato)
+          setLoading(false)
+        }
+      }
+    }
+
+    void verificaProfilo()
+
+    return () => {
+      active = false
+    }
   }, [eventCode])
 
   if (loading) {
@@ -98,3 +113,4 @@ export default function ExistingProfileActions({
     </div>
   )
 }
+
