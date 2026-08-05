@@ -167,7 +167,7 @@ export default function CompatibilitaPage() {
             .neq("id", participantId)
             .eq("event_code", eventCode)
             .eq("completed_test", true)
-            .order("created_at", { ascending: true })
+            .order("id", { ascending: true })
             .range(indiceCorrente, indiceFinale)
 
         if (partecipantiError) {
