@@ -100,9 +100,7 @@ export default function ChatPage() {
   const [persona, setPersona] = useState<Persona | null>(null)
   const [typing, setTyping] = useState(false)
   const [errore, setErrore] = useState("")
-  const [online, setOnline] = useState(() =>
-    typeof navigator === "undefined" ? true : navigator.onLine
-  )
+  const [online, setOnline] = useState(true)
   const [chatBloccata, setChatBloccata] = useState(false)
   const [sicurezzaAperta, setSicurezzaAperta] = useState(false)
   const [motivoSegnalazione, setMotivoSegnalazione] = useState("")
@@ -201,6 +199,8 @@ export default function ChatPage() {
       setOnline(true)
       setErrore("")
     }
+
+    setOnline(navigator.onLine)
 
     window.addEventListener("offline", handleOffline)
     window.addEventListener("online", handleOnline)

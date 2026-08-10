@@ -188,7 +188,7 @@ export default function SocialPage() {
             </h1>
 
             <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-gray-400 sm:text-base">
-              Scopri tutte le persone con preferenze reciproche compatibili,
+              Scopri tutte le persone presenti nello stesso evento,
               anche quando avete interessi o risposte diverse.
             </p>
           </motion.div>

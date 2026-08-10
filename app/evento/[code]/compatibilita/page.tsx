@@ -8,7 +8,6 @@ import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 const PROFILI_PER_PAGINA = 20
-const SOGLIA_COMPATIBILITA_MATCH = 30
 
 type StatoMatch = "match" | "liked" | "received_like" | "none"
 
@@ -156,8 +155,8 @@ export default function CompatibilitaPage() {
       let haAltriBlocchi = true
       let nuovePersone: PersonaMatch[] = []
 
-      // Continua sui blocchi successivi se quello corrente non contiene
-      // profili sopra soglia, senza nascondere candidati validi più avanti.
+      // Mantiene la paginazione stabile per mostrare tutti i partecipanti
+      // dell'evento senza sovraccaricare il caricamento iniziale.
       while (nuovePersone.length === 0 && haAltriBlocchi) {
         const indiceFinale = indiceCorrente + PROFILI_PER_PAGINA - 1
         const { data: altriPartecipanti, error: partecipantiError } =
@@ -166,7 +165,6 @@ export default function CompatibilitaPage() {
             .select("id, nickname, age, avatar_url")
             .neq("id", participantId)
             .eq("event_code", eventCode)
-            .eq("completed_test", true)
             .order("id", { ascending: true })
             .range(indiceCorrente, indiceFinale)
 
@@ -211,10 +209,6 @@ export default function CompatibilitaPage() {
               ...trovaStatoPersona(person.id, participantId),
             } as PersonaMatch
           })
-          .filter(
-            (person) =>
-              person.compatibilita >= SOGLIA_COMPATIBILITA_MATCH
-          )
 
         indiceCorrente += partecipanti.length
         haAltriBlocchi = partecipanti.length === PROFILI_PER_PAGINA
@@ -635,8 +629,8 @@ export default function CompatibilitaPage() {
 
           <p className="mt-3 leading-7 text-gray-400">
             {inclusiveMode
-              ? `Mostriamo profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, senza rendere pubbliche le vostre scelte.`
-              : `Mostriamo profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, caricati a gruppi per mantenere la serata veloce.`}
+              ? "Mostriamo tutte le persone presenti nello stesso evento, senza rendere pubbliche le vostre preferenze."
+              : "Mostriamo tutte le persone presenti nello stesso evento, ordinate per affinità e caricate a gruppi per mantenere la serata veloce."}
           </p>
 
           {matches.length > 0 && (
@@ -672,9 +666,7 @@ export default function CompatibilitaPage() {
             </h2>
 
             <p className="mt-3 leading-7 text-gray-400">
-              {inclusiveMode
-                ? `Al momento non ci sono profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere persone con interessi diversi.`
-                : `Al momento non ci sono profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere nuove persone.`}
+              Al momento non ci sono altre persone presenti in questo evento.
             </p>
 
             <div className="mt-7 grid gap-3">
