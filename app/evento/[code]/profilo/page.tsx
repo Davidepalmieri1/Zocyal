@@ -184,6 +184,22 @@ export default function ProfiloPage() {
       return
     }
 
+    if (!eventMode) {
+      setErrore("Attendi il caricamento della configurazione dell’evento.")
+      return
+    }
+
+    if (
+      eventMode === "inclusive" &&
+      matchingConsent &&
+      (!identityCategory || connectionPreferences.length === 0)
+    ) {
+      setErrore(
+        "Per usare i match inclusivi, indica una categoria e almeno una preferenza di connessione."
+      )
+      return
+    }
+
     setLoading(true)
     setErrore("")
 
@@ -196,16 +212,6 @@ export default function ProfiloPage() {
       console.error("Errore sessione partecipante:", sessionError)
       setErrore(participantErrorMessage(sessionError))
       setLoading(false)
-      return
-    }
-
-    if (eventMode === "inclusive" && matchingConsent && (!identityCategory || connectionPreferences.length === 0)) {
-      setErrore("Per usare i match inclusivi, indica una categoria e almeno una preferenza di connessione.")
-      return
-    }
-
-    if (!eventMode) {
-      setErrore("Attendi il caricamento della configurazione dell’evento.")
       return
     }
 
@@ -537,7 +543,10 @@ export default function ProfiloPage() {
                 </p>
 
                 <label className="mt-5 block text-sm font-bold text-gray-300">
-                  Categoria con cui ti riconosci <span className="font-normal text-gray-500">(facoltativa)</span>
+                  Categoria con cui ti riconosci{" "}
+                  <span className="font-normal text-gray-500">
+                    {matchingConsent ? "(obbligatoria per i match)" : "(facoltativa)"}
+                  </span>
                   <select value={identityCategory} onChange={(event) => setIdentityCategory(event.target.value)} className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-black">
                     <option value="">Preferisco non indicarla</option>
                     <option value="woman">Donna</option>
@@ -554,7 +563,11 @@ export default function ProfiloPage() {
 
                 <div className="mt-5">
                   <p className="text-sm font-bold text-gray-300">Con chi sei disponibile a creare connessioni?</p>
-                  <p className="mt-1 text-xs text-gray-500">Puoi scegliere più opzioni.</p>
+                  <p className="mt-1 text-xs text-gray-500">
+                    {matchingConsent
+                      ? "Scegli almeno un’opzione per attivare i match."
+                      : "Puoi scegliere più opzioni."}
+                  </p>
                   <div className="mt-3 grid gap-2 sm:grid-cols-2">
                     {inclusiveOptions.map((option) => (
                       <label key={option.value} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm">
@@ -576,6 +589,11 @@ export default function ProfiloPage() {
                     Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.
                   </span>
                 </label>
+                {matchingConsent && (!identityCategory || connectionPreferences.length === 0) && (
+                  <p className="mt-3 rounded-2xl border border-amber-300/20 bg-amber-300/[0.08] p-3 text-xs leading-5 text-amber-100">
+                    Per attivare i match, completa la categoria e scegli almeno una preferenza qui sopra.
+                  </p>
+                )}
                 {!matchingConsent && <p className="mt-3 text-xs leading-5 text-amber-200">Puoi continuare senza consenso, ma la funzione match inclusiva resterà disattivata finché non completerai queste preferenze.</p>}
               </fieldset>
             )}
