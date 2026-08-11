@@ -51,6 +51,12 @@ const menu: MenuItem[] = [
     description: "Missioni e ricompense",
   },
   {
+    name: "Punti staff",
+    icon: "+",
+    path: "missioni-banco",
+    description: "Assegna punti rapidamente",
+  },
+  {
     name: "Tavoli gioco",
     icon: "🎲",
     path: "tavoli",

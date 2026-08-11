@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import Link from "next/link"
 import Sidebar from "@/app/admin/components/Sidebar"
 import { fetchAdminData } from "@/app/admin/data-client"
 
@@ -54,7 +55,7 @@ export default function RewardsAdminPage() {
   const podium=[1,2,3].map(place=>({place,leader:data?.leaderboard.find(l=>Number(l.rank_position)===place)}))
 
   return <div className="flex min-h-screen bg-black text-white"><Sidebar/><main className="min-w-0 flex-1 px-4 pb-16 pt-20 lg:p-8"><div className="mx-auto max-w-6xl">
-    <p className="text-xs font-black uppercase tracking-[.2em] text-pink-400">Centro engagement</p><h1 className="mt-2 text-4xl font-black">Missioni, premi e riscatti</h1><p className="mt-3 text-zinc-400">Evento: {code}</p>
+    <p className="text-xs font-black uppercase tracking-[.2em] text-pink-400">Centro engagement</p><div className="flex flex-wrap items-end justify-between gap-4"><div><h1 className="mt-2 text-4xl font-black">Missioni, premi e riscatti</h1><p className="mt-3 text-zinc-400">Evento: {code}</p></div><Link href={`/admin/missioni-banco/${code}`} className="rounded-2xl bg-orange-400 px-5 py-4 text-sm font-black text-black">+ APRI PUNTI STAFF</Link></div>
     {error&&<p className="mt-5 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-red-200">{error}</p>}
     <nav className="mt-7 grid grid-cols-3 gap-2">{[["missions","Missioni"],["rewards","Premi"],["redemptions","Riscatti"]].map(([id,label])=><button key={id} onClick={()=>setTab(id as typeof tab)} className={`rounded-2xl border px-3 py-4 font-bold ${tab===id?"border-pink-400 bg-pink-500/15":"border-white/10 bg-white/[.04]"}`}>{label}</button>)}</nav>
 
@@ -84,6 +85,5 @@ export default function RewardsAdminPage() {
 
     {tab==="redemptions"&&<section className="mt-6"><h2 className="text-2xl font-black">Consegne premi</h2><div className="mt-4 grid gap-3">{data?.redemptions.length?data.redemptions.map(r=><article key={r.id} className="flex flex-col gap-4 rounded-2xl border border-white/10 bg-white/[.04] p-5 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-black">{r.reward?.name||"Premio"}</h3><p className="text-sm text-zinc-400">{r.participant?.nickname||"Partecipante"} · {r.points_spent} punti</p></div>{r.status==="redeemed"?<button disabled={busy} onClick={async()=>{setBusy(true);try{await mutate({action:"fulfill_redemption",event_code:code,redemption_id:r.id});await load()}finally{setBusy(false)}}} className="rounded-xl bg-green-400 px-4 py-3 font-black text-black">SEGNA CONSEGNATO</button>:<span className="font-bold text-green-300">CONSEGNATO ✓</span>}</article>):<p className="rounded-2xl border border-dashed border-white/15 p-8 text-center text-zinc-400">Nessun premio richiesto.</p>}</div></section>}
 
-    {data?.missions.some(m=>m.verification_mode==="manual")&&<section className="mt-10 rounded-3xl border border-white/10 bg-white/[.04] p-5"><h2 className="text-xl font-black">Approva missione staff</h2><form onSubmit={e=>submit(e,"approve_manual")} className="mt-4 grid gap-3 sm:grid-cols-3"><select name="participant_id" required className="rounded-xl bg-white p-3 text-black"><option value="">Partecipante</option>{data.participants.map(p=><option key={p.id} value={p.id}>{p.nickname||p.id}</option>)}</select><select name="mission_id" required className="rounded-xl bg-white p-3 text-black"><option value="">Missione</option>{data.missions.filter(m=>m.verification_mode==="manual"&&m.active).map(m=><option key={m.id} value={m.id}>{m.title}</option>)}</select><button disabled={busy} className="rounded-xl bg-orange-400 p-3 font-black text-black">APPROVA E ASSEGNA PUNTI</button></form></section>}
   </div></main></div>
 }
