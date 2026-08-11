@@ -47,9 +47,9 @@ export async function POST(request:Request){
     if(request.headers.get("content-type")?.includes("multipart/form-data")){
       const form=await request.formData()
       body=Object.fromEntries(form.entries())
-      logo=image(form.get("venue_logo"),3*1024*1024)
-      poster=image(form.get("venue_poster"),8*1024*1024)
-      if(logo===undefined||poster===undefined)return reply({error:"Usa immagini JPG, PNG o WebP. Logo massimo 3 MB, locandina massimo 8 MB."},400)
+      logo=image(form.get("venue_logo"),1024*1024)
+      poster=image(form.get("venue_poster"),3*1024*1024)
+      if(logo===undefined||poster===undefined)return reply({error:"Usa immagini JPG, PNG o WebP. Logo massimo 1 MB, locandina massimo 3 MB."},400)
     }else body=await request.json()
   }catch{return reply({error:"Dati non validi."},400)}
   const code=clean(body.code,24).toLowerCase(),name=clean(body.name,100),venue=clean(body.venue,160),description=clean(body.description,1000),timezone=clean(body.timezone,60)||"Europe/Rome",experienceMode=clean(body.experience_mode,20)||"standard",startsAt=date(body.starts_at),endsAt=date(body.ends_at)
