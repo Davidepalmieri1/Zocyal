@@ -222,6 +222,7 @@ export default function MissioniPage() {
 
   useEffect(() => {
     let active = true
+    let rewardChannel: ReturnType<typeof supabase.channel> | null = null
 
     function aggiornaDashboard() {
       void caricaDashboard()
@@ -240,6 +241,23 @@ export default function MissioniPage() {
     }
 
     aggiornaDashboard()
+    void (async () => {
+      await ensureAnonymousSession()
+      const participantId = await resolveCurrentParticipant(eventCode)
+      if (!active || !participantId) return
+      const { data: { session } } = await supabase.auth.getSession()
+      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
+      rewardChannel = supabase
+        .channel(`mission-rewards-${participantId}`)
+        .on(
+          "postgres_changes",
+          { event: "UPDATE", schema: "public", table: "reward_redemptions", filter: `participant_id=eq.${participantId}` },
+          () => aggiornaDashboard()
+        )
+        .subscribe((status) => {
+          if (status === "SUBSCRIBED") aggiornaDashboard()
+        })
+    })().catch((error: unknown) => console.error("Realtime premi non disponibile:", error))
     const refreshWhenVisible = () => {
       if (!document.hidden) aggiornaDashboard()
     }
@@ -249,11 +267,12 @@ export default function MissioniPage() {
 
     return () => {
       active = false
+      if (rewardChannel) void supabase.removeChannel(rewardChannel)
       window.clearInterval(timer)
       document.removeEventListener("visibilitychange", refreshWhenVisible)
       window.removeEventListener("focus", refreshWhenVisible)
     }
-  }, [caricaDashboard])
+  }, [caricaDashboard, eventCode])
 
   const completate = useMemo(
     () => dashboard?.missions.filter((mission) => mission.completed).length ?? 0,
