@@ -117,12 +117,17 @@ export default function GameTablesAdminPage() {
         .catch((error) => setMessage(error.message))
         .finally(() => setLoading(false))
     }, 0)
-    const timer = window.setInterval(() => {
+    const refreshWhenVisible = () => {
       if (!document.hidden) void load()
-    }, 30000)
+    }
+    const timer = window.setInterval(refreshWhenVisible, 5000)
+    document.addEventListener("visibilitychange", refreshWhenVisible)
+    window.addEventListener("focus", refreshWhenVisible)
     return () => {
       window.clearTimeout(initial)
       window.clearInterval(timer)
+      document.removeEventListener("visibilitychange", refreshWhenVisible)
+      window.removeEventListener("focus", refreshWhenVisible)
     }
   }, [load])
 
