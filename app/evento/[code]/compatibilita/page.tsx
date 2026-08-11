@@ -1,11 +1,12 @@
 "use client"
 
 import { useEffect, useRef, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, useRouter, useSearchParams } from "next/navigation"
 import { publicSupabase, supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
+import { calculateCompatibility } from "@/app/lib/compatibility"
 
 const PROFILI_PER_PAGINA = 20
 const SOGLIA_COMPATIBILITA_MATCH = 30
@@ -53,6 +54,10 @@ type MatchRecord = {
 export default function CompatibilitaPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
+  const searchParams = useSearchParams()
+  const socialPersonId = searchParams.get("mode") === "social"
+    ? searchParams.get("persona")
+    : null
 
   const [matches, setMatches] = useState<PersonaMatch[]>([])
   const [loading, setLoading] = useState(true)
@@ -69,33 +74,6 @@ export default function CompatibilitaPage() {
   const mieRisposteRef = useRef<Risposte | null>(null)
   const likesRef = useRef<LikeRecord[]>([])
   const userMatchesRef = useRef<MatchRecord[]>([])
-
-  function calcolaCompatibilita(a: Risposte, b: Risposte) {
-    const domande: Array<keyof Risposte> = [
-      "question_1",
-      "question_2",
-      "question_3",
-      "question_4",
-      "question_5",
-      "question_6",
-      "question_7",
-      "question_8",
-      "question_9",
-      "question_10",
-      "question_11",
-      "question_12",
-    ]
-
-    let uguali = 0
-
-    domande.forEach((domanda) => {
-      if (a[domanda] && b[domanda] && a[domanda] === b[domanda]) {
-        uguali++
-      }
-    })
-
-    return Math.round((uguali / domande.length) * 100)
-  }
 
   function coloreCompatibilita(percentuale: number) {
     if (percentuale >= 75) {
@@ -168,15 +146,18 @@ export default function CompatibilitaPage() {
       // profili sopra soglia, senza nascondere candidati validi più avanti.
       while (nuovePersone.length === 0 && haAltriBlocchi) {
         const indiceFinale = indiceCorrente + PROFILI_PER_PAGINA - 1
-        const { data: altriPartecipanti, error: partecipantiError } =
-          await supabase
+        let participantsQuery = supabase
             .from("participants")
             .select("id, nickname, age, avatar_url")
             .neq("id", participantId)
             .eq("event_code", eventCode)
             .eq("completed_test", true)
-            .order("id", { ascending: true })
-            .range(indiceCorrente, indiceFinale)
+
+        participantsQuery = socialPersonId
+          ? participantsQuery.eq("id", socialPersonId).limit(1)
+          : participantsQuery.order("id", { ascending: true }).range(indiceCorrente, indiceFinale)
+
+        const { data: altriPartecipanti, error: partecipantiError } = await participantsQuery
 
         if (partecipantiError) {
           console.error("Errore caricamento partecipanti:", partecipantiError)
@@ -210,7 +191,7 @@ export default function CompatibilitaPage() {
             )
             const compatibilita =
               mieRisposteRef.current && sueRisposte
-                ? calcolaCompatibilita(mieRisposteRef.current, sueRisposte)
+                ? calculateCompatibility(mieRisposteRef.current, sueRisposte)
                 : 0
 
             return {
@@ -221,11 +202,11 @@ export default function CompatibilitaPage() {
           })
           .filter(
             (person) =>
-              person.compatibilita >= SOGLIA_COMPATIBILITA_MATCH
+              socialPersonId || person.compatibilita >= SOGLIA_COMPATIBILITA_MATCH
           )
 
         indiceCorrente += partecipanti.length
-        haAltriBlocchi = partecipanti.length === PROFILI_PER_PAGINA
+        haAltriBlocchi = !socialPersonId && partecipanti.length === PROFILI_PER_PAGINA
       }
 
       setMatches((attuali) => {
@@ -640,15 +621,17 @@ export default function CompatibilitaPage() {
 
         <div className="mt-7 text-center">
           <p className="premium-eyebrow">
-            Le tue affinità
+            {socialPersonId ? "Modalità social" : "Le tue affinità"}
           </p>
 
           <h1 className="premium-title mt-3 text-4xl font-black">
-            Persone compatibili
+            {socialPersonId ? "Profilo selezionato" : "Persone compatibili"}
           </h1>
 
           <p className="mt-3 leading-7 text-gray-400">
-            {inclusiveMode
+            {socialPersonId
+              ? "Qui puoi vedere l’affinità reale del questionario anche quando è inferiore alla soglia della sezione match."
+              : inclusiveMode
               ? `Mostriamo profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, senza rendere pubbliche le vostre scelte.`
               : `Mostriamo profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, caricati a gruppi per mantenere la serata veloce.`}
           </p>
@@ -686,7 +669,9 @@ export default function CompatibilitaPage() {
             </h2>
 
             <p className="mt-3 leading-7 text-gray-400">
-              {inclusiveMode
+              {socialPersonId
+                ? "Questo profilo non è più disponibile oppure non ha ancora completato il questionario."
+                : inclusiveMode
                 ? `Al momento non ci sono profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere persone con interessi diversi.`
                 : `Al momento non ci sono profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere nuove persone.`}
             </p>

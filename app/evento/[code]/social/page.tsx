@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
+import { calculateCompatibility, type CompatibilityAnswers } from "@/app/lib/compatibility"
 
 type PersonaSocial = {
   id: string
@@ -13,6 +14,7 @@ type PersonaSocial = {
   avatar_url: string | null
   age: number | null
   goal: string | null
+  compatibilita: number | null
 }
 
 export default function SocialPage() {
@@ -76,7 +78,27 @@ export default function SocialPage() {
         return
       }
 
-      setPersone((data || []) as PersonaSocial[])
+      const people = (data || []) as Omit<PersonaSocial, "compatibilita">[]
+      const ids = [participantId, ...people.map((person) => person.id)]
+      const { data: answers, error: answersError } = await supabase
+        .from("answers")
+        .select("*")
+        .in("participant_id", ids)
+
+      if (answersError) {
+        console.error("Errore caricamento affinità social:", answersError)
+      }
+
+      const answerRows = (answers || []) as CompatibilityAnswers[]
+      const mine = answerRows.find((answer) => answer.participant_id === participantId)
+
+      setPersone(people.map((person) => {
+        const theirs = answerRows.find((answer) => answer.participant_id === person.id)
+        return {
+          ...person,
+          compatibilita: mine && theirs ? calculateCompatibility(mine, theirs) : null,
+        }
+      }))
       setLoading(false)
     }
 
@@ -299,6 +321,13 @@ export default function SocialPage() {
                       {persona.goal ||
                         "Conoscere nuove persone"}
                     </p>
+                  </div>
+
+                  <div className="mt-3 flex items-center justify-between rounded-2xl border border-fuchsia-400/20 bg-fuchsia-500/[0.08] px-4 py-3">
+                    <span className="text-xs font-bold text-fuchsia-100">Affinità questionario</span>
+                    <span className="text-lg font-black text-white">
+                      {persona.compatibilita === null ? "—" : `${persona.compatibilita}%`}
+                    </span>
                   </div>
 
                   <button
