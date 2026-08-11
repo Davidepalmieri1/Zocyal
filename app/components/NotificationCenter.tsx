@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
-type NoticeKind = "interest" | "match" | "message" | "mission" | "table" | "reward"
+type NoticeKind = "interest" | "match" | "message" | "mission" | "drink" | "table" | "reward"
 type Notice = { id:string; kind:NoticeKind; title:string; detail:string; href:string }
 type MatchRow = { id:string; user_one:string; user_two:string; created_at:string|null }
 
@@ -14,6 +14,7 @@ const appearance:Record<NoticeKind,{icon:string;label:string;classes:string}> = 
   match: { icon:"♥", label:"Nuovo match", classes:"border-pink-400/25 bg-pink-500/15 text-pink-100" },
   message: { icon:"💬", label:"Messaggio", classes:"border-sky-400/25 bg-sky-500/15 text-sky-100" },
   mission: { icon:"✓", label:"Missione completata", classes:"border-green-400/25 bg-green-500/15 text-green-100" },
+  drink: { icon:"🥂", label:"Offerta drink", classes:"border-orange-400/25 bg-orange-500/15 text-orange-100" },
   table: { icon:"🎲", label:"Tavolo", classes:"border-violet-400/25 bg-violet-500/15 text-violet-100" },
   reward: { icon:"🎁", label:"Premio", classes:"border-orange-400/25 bg-orange-500/15 text-orange-100" },
 }
@@ -64,22 +65,28 @@ export default function NotificationCenter() {
       const matchIds = matches.map(match => match.id)
       matchIdsRef.current = new Set(matchIds)
 
-      const [messagesResult,invitesResult,rewardsResult,interestsResult,missionsResult,serverReadsResult] = await Promise.all([
+      const [messagesResult,invitesResult,rewardsResult,interestsResult,missionsResult,serverReadsResult,drinkOffersResult] = await Promise.all([
         supabase.rpc("get_unread_notification_messages",{p_event_code:code}),
         supabase.from("game_table_invitations").select("id,table:game_tables(name,game)").eq("participant_id",participantId).eq("status","pending").order("invited_at",{ascending:false}),
         supabase.rpc("get_missions_rewards_for_event",{p_event_code:code}),
         supabase.from("likes").select("id,from_participant,to_participant").eq("to_participant",participantId),
         supabase.from("participant_mission_completions").select("id,points_awarded,mission:missions(title,event_code)").eq("participant_id",participantId).order("completed_at",{ascending:false}).limit(100),
         supabase.from("participant_notification_reads").select("notification_id").eq("participant_id",participantId),
+        supabase.from("drink_offers").select("id,match_id,sender_id,status").eq("receiver_id",participantId).eq("status","pending").order("created_at",{ascending:false}),
       ])
 
       if (interestsResult.error) throw interestsResult.error
       if (missionsResult.error) throw missionsResult.error
+      if (drinkOffersResult.error) throw drinkOffersResult.error
 
       const incomingInterests = (interestsResult.data || []) as Array<{id:string;from_participant:string;to_participant:string}>
       const matchedPeople = new Set(matches.map(match => match.user_one === participantId ? match.user_two : match.user_one))
       const pendingInterests = incomingInterests.filter(interest => !matchedPeople.has(interest.from_participant))
-      const senderIds = [...new Set(pendingInterests.map(interest => interest.from_participant))]
+      const pendingDrinkOffers = (drinkOffersResult.data || []) as Array<{id:string;match_id:string;sender_id:string;status:string}>
+      const senderIds = [...new Set([
+        ...pendingInterests.map(interest => interest.from_participant),
+        ...pendingDrinkOffers.map(offer => offer.sender_id),
+      ])]
       const sendersResult = senderIds.length
         ? await supabase.from("participants").select("id,nickname").in("id",senderIds)
         : {data:[] as Array<{id:string;nickname:string|null}>,error:null}
@@ -100,6 +107,10 @@ export default function NotificationCenter() {
         if (mission?.event_code !== code) return []
         return [{id:`mission-${completion.id}`,kind:"mission" as const,title:"Missione completata!",detail:`${mission?.title || "Missione"} · +${completion.points_awarded} punti`,href:`/evento/${code}/missioni`}]
       })
+      const drinkNotices:Notice[] = pendingDrinkOffers.map(offer => {
+        const nickname = senderNames.get(offer.sender_id)
+        return {id:`drink-${offer.id}`,kind:"drink",title:"Ti hanno offerto un drink",detail:nickname ? `${nickname} ti ha inviato una proposta. Rispondi ora.` : "Hai ricevuto una nuova proposta drink.",href:`/evento/${code}/chat/${offer.match_id}`}
+      })
       const inviteNotices:Notice[] = (invitesResult.data || []).map(invite => { const table=invite.table as unknown as {name?:string;game?:string}|null; return {id:`table-${invite.id}`,kind:"table",title:"Invito al tavolo",detail:table?.name || table?.game || "Hai un nuovo invito.",href:`/evento/${code}/tavoli`} })
       const rewardNotices:Notice[] = ((rewardsResult.data as {rewards?:Array<{id:string;name:string;redeemed:boolean;redemption_status?:string}>}|null)?.rewards || []).filter(reward => reward.redeemed && reward.redemption_status === "redeemed").map(reward => ({id:`reward-${reward.id}`,kind:"reward",title:"Premio da ritirare",detail:reward.name || "Mostra il codice allo staff.",href:`/evento/${code}/missioni`}))
       const alreadyRead = readIds()
@@ -108,7 +119,7 @@ export default function NotificationCenter() {
       } else {
         console.warn("Ricevute notifiche non disponibili:",serverReadsResult.error)
       }
-      const next = [...interestNotices,...messageNotices,...matchNotices,...missionNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
+      const next = [...drinkNotices,...interestNotices,...messageNotices,...matchNotices,...missionNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
 
       const fresh = initialized.current
         ? next.filter(item => !knownIds.current.has(item.id))
@@ -155,6 +166,7 @@ export default function NotificationCenter() {
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_two=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`receiver_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"participant_mission_completions",filter:`participant_id=eq.${participantId}`},refresh)
+        .on("postgres_changes",{event:"*",schema:"public",table:"drink_offers",filter:`receiver_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations",filter:`participant_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions",filter:`participant_id=eq.${participantId}`},refresh)
         .subscribe(status => { if(status === "SUBSCRIBED") refresh() })
