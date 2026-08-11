@@ -149,16 +149,76 @@ export async function POST(request: Request) {
       const participant = cleanText(body.participant_id, 36)
       const mission = cleanText(body.mission_id, 36)
       if (!UUID.test(participant) || !UUID.test(mission)) return reply({ error: "Partecipante o missione non validi." }, 400)
-      const { data, error } = await supabase.rpc("approve_manual_mission", {
-        p_participant_id: participant, p_mission_id: mission,
-        p_approval_note: cleanText(body.note, 500) || null,
-      } as never)
-      if (error) throw error
+
+      const [participantResult, missionResult] = await Promise.all([
+        supabase.from("participants")
+          .select("id,event_code")
+          .eq("id", participant)
+          .maybeSingle(),
+        supabase.from("missions")
+          .select("id,event_code,points,verification_mode,active,starts_at,ends_at")
+          .eq("id", mission)
+          .maybeSingle(),
+      ])
+
+      if (participantResult.error) throw participantResult.error
+      if (missionResult.error) throw missionResult.error
+
+      const selectedParticipant = participantResult.data as { id:string; event_code:string } | null
+      const selectedMission = missionResult.data as {
+        id:string; event_code:string; points:number; verification_mode:string;
+        active:boolean; starts_at:string|null; ends_at:string|null
+      } | null
+      const now = Date.now()
+      const missionAvailable = Boolean(
+        selectedMission &&
+        selectedMission.event_code === code &&
+        selectedMission.verification_mode === "manual" &&
+        selectedMission.active &&
+        (!selectedMission.starts_at || new Date(selectedMission.starts_at).getTime() <= now) &&
+        (!selectedMission.ends_at || new Date(selectedMission.ends_at).getTime() > now)
+      )
+
+      if (!selectedParticipant || selectedParticipant.event_code !== code || !missionAvailable || !selectedMission) {
+        return reply({ error: "Partecipante o missione non appartengono a questo evento." }, 400)
+      }
+
+      const { data: completion, error: completionError } = await supabase
+        .from("participant_mission_completions")
+        .upsert({
+          participant_id: participant,
+          mission_id: mission,
+          points_awarded: selectedMission.points,
+          verification_mode: "manual",
+          verification_evidence: {
+            approved_at: new Date().toISOString(),
+            source: "admin_points_staff",
+          },
+          approval_note: cleanText(body.note, 500) || null,
+        } as never, {
+          onConflict: "participant_id,mission_id",
+          ignoreDuplicates: true,
+        })
+        .select("id")
+        .maybeSingle()
+
+      if (completionError) throw completionError
+      const insertedCompletion = completion as { id:string } | null
+
       const { error: requestError } = await supabase.from("mission_validation_requests").update({
         status: "approved", resolved_at: new Date().toISOString(),
       } as never).eq("participant_id",participant).eq("mission_id",mission).eq("status","pending")
-      if (requestError) throw requestError
-      return reply({ result: data })
+      if (requestError) {
+        console.warn("Mission validation request update skipped", requestError)
+      }
+
+      return reply({
+        result: {
+          completion_id: insertedCompletion?.id || null,
+          awarded: Boolean(insertedCompletion),
+          already_awarded: !insertedCompletion,
+        },
+      })
     }
 
     if (action === "fulfill_redemption") {
