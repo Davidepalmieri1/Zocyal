@@ -49,8 +49,8 @@ export async function POST(request: Request) {
   if (action === "save_template") {
     const name = text(body.game, 120), interestTags = tags(body.interest_tags)
     const points = Number(body.points_reward)
-    if (!name || !interestTags.length || !Number.isSafeInteger(points) || points < 1 || points > 10) {
-      return json({ error: "Compila gioco, interessi e punti (1-10) prima di salvarlo." }, 400)
+    if (!name || !interestTags.length || !Number.isSafeInteger(points) || points < 3 || points > 10) {
+      return json({ error: "Compila gioco, interessi e punti (3-10) prima di salvarlo." }, 400)
     }
     const { data, error } = await db
       .from("game_table_templates")
@@ -74,7 +74,7 @@ export async function POST(request: Request) {
   if (action === "create") {
     const name = text(body.name, 120), game = text(body.game, 120), interestTags = tags(body.interest_tags)
     const points = Number(body.points_reward)
-    if (!name || !game || !interestTags.length || !Number.isSafeInteger(points) || points < 1 || points > 10) return json({ error: "Compila nome, gioco, interessi e punti (1-10)." }, 400)
+    if (!name || !game || !interestTags.length || !Number.isSafeInteger(points) || points < 3 || points > 10) return json({ error: "Compila nome, gioco, interessi e punti (3-10)." }, 400)
 
     const { data: participants, error: peopleError } = await db
       .from("participants")

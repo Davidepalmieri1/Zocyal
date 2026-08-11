@@ -399,7 +399,7 @@ export default function GameTablesAdminPage() {
                     setSelectedTemplate(null)
                   }}
                   type="number"
-                  min="1"
+                  min="3"
                   max="10"
                   required
                   className="mt-2 w-full rounded-2xl border border-white/10 bg-white/[.07] px-4 py-4 text-base font-bold normal-case tracking-normal text-white outline-none focus:border-pink-400/55 focus:ring-4 focus:ring-pink-500/10"
