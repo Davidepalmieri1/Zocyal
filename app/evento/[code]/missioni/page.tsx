@@ -320,12 +320,24 @@ export default function MissioniPage() {
     setMissioneInCorso(missionId)
     setErrore("")
     try {
-      const {error} = await supabase.rpc("request_manual_mission_validation",{p_mission_id:missionId})
-      if (error) throw error
+      await ensureAnonymousSession()
+      const { data: { session } } = await supabase.auth.getSession()
+      if (!session?.access_token) throw new Error("Sessione partecipante non disponibile.")
+
+      const response = await fetch("/api/mission-validation", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${session.access_token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ event_code: eventCode, mission_id: missionId }),
+      })
+      const result = await response.json() as { error?:string }
+      if (!response.ok) throw new Error(result.error || "Richiesta non salvata.")
       setRichiesteManuali(current => new Set([...current,missionId]))
     } catch(error) {
       console.error("Errore richiesta convalida:",error)
-      setErrore("Non siamo riusciti a inviare la richiesta allo staff.")
+      setErrore(error instanceof Error ? error.message : "Non siamo riusciti a inviare la richiesta allo staff.")
     } finally {
       setMissioneInCorso(null)
     }
