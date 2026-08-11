@@ -4,6 +4,7 @@ import { useCallback, useEffect, useMemo, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
+import { QRCodeSVG } from "qrcode.react"
 import Logo from "@/app/components/Logo"
 import { ensureAnonymousSession, resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
@@ -450,9 +451,12 @@ export default function MissioniPage() {
                 </p>
                 {premio.claimed && premio.claimCode && (
                   <div className="mt-4 rounded-xl border border-green-300/30 bg-black/35 p-4 text-center">
-                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">Codice riscatto</p>
-                    <p className="mt-2 font-mono text-2xl font-black tracking-[0.18em] text-green-300">{premio.claimCode}</p>
-                    <p className="mt-2 text-xs text-gray-400">Mostralo allo staff per ritirare il premio.</p>
+                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-gray-400">QR ritiro premio</p>
+                    <div className={`mx-auto mt-3 w-fit rounded-2xl bg-white p-4 ${premio.deliveryStatus === "fulfilled" ? "opacity-45" : ""}`}>
+                      <QRCodeSVG value={premio.claimCode} size={180} level="H" marginSize={1} aria-label={`QR premio ${premio.claimCode}`} />
+                      <p className="mt-3 font-mono text-lg font-black tracking-[0.14em] text-black">{premio.claimCode}</p>
+                    </div>
+                    <p className="mt-3 text-xs text-gray-400">{premio.deliveryStatus === "fulfilled" ? "Premio giÃ  ritirato." : "Mostra il QR allo staff per ritirare il premio."}</p>
                   </div>
                 )}
                 {premio.available && !premio.claimed && (
