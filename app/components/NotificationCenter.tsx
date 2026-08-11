@@ -6,11 +6,12 @@ import { useParams } from "next/navigation"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
-type NoticeKind = "match" | "message" | "table" | "reward"
+type NoticeKind = "interest" | "match" | "message" | "table" | "reward"
 type Notice = { id:string; kind:NoticeKind; title:string; detail:string; href:string }
 type MatchRow = { id:string; user_one:string; user_two:string; created_at:string|null }
 
 const appearance:Record<NoticeKind,{icon:string;label:string;classes:string}> = {
+  interest: { icon:"✨", label:"Nuovo interesse", classes:"border-fuchsia-400/25 bg-fuchsia-500/15 text-fuchsia-100" },
   match: { icon:"♥", label:"Nuovo match", classes:"border-pink-400/25 bg-pink-500/15 text-pink-100" },
   message: { icon:"💬", label:"Messaggio", classes:"border-sky-400/25 bg-sky-500/15 text-sky-100" },
   table: { icon:"🎲", label:"Tavolo", classes:"border-violet-400/25 bg-violet-500/15 text-violet-100" },
@@ -62,26 +63,43 @@ export default function NotificationCenter() {
       const matchIds = matches.map(match => match.id)
       matchIdsRef.current = new Set(matchIds)
 
-      const [messagesResult,invitesResult,rewardsResult] = await Promise.all([
+      const [messagesResult,invitesResult,rewardsResult,interestsResult] = await Promise.all([
         supabase.rpc("get_unread_notification_messages",{p_event_code:code}),
         supabase.from("game_table_invitations").select("id,table:game_tables(name,game)").eq("participant_id",participantId).eq("status","pending").order("invited_at",{ascending:false}),
         supabase.rpc("get_missions_rewards_for_event",{p_event_code:code}),
+        supabase.from("likes").select("id,from_participant,to_participant").eq("to_participant",participantId),
       ])
+
+      if (interestsResult.error) throw interestsResult.error
+
+      const incomingInterests = (interestsResult.data || []) as Array<{id:string;from_participant:string;to_participant:string}>
+      const matchedPeople = new Set(matches.map(match => match.user_one === participantId ? match.user_two : match.user_one))
+      const pendingInterests = incomingInterests.filter(interest => !matchedPeople.has(interest.from_participant))
+      const senderIds = [...new Set(pendingInterests.map(interest => interest.from_participant))]
+      const sendersResult = senderIds.length
+        ? await supabase.from("participants").select("id,nickname").in("id",senderIds)
+        : {data:[] as Array<{id:string;nickname:string|null}>,error:null}
+      if (sendersResult.error) throw sendersResult.error
+      const senderNames = new Map((sendersResult.data || []).map(sender => [sender.id,sender.nickname]))
 
       const seenAt = Number(localStorage.getItem(`zocyal_matches_seen_${code}`) || 0)
       const matchNotices:Notice[] = matches
         .filter(match => new Date(match.created_at || 0).getTime() > seenAt)
         .map(match => ({id:`match-${match.id}`,kind:"match",title:"È un match!",detail:"L’interesse è reciproco. Apri la nuova connessione.",href:`/evento/${code}/miei-match`}))
+      const interestNotices:Notice[] = pendingInterests.map(interest => {
+        const nickname = senderNames.get(interest.from_participant)
+        return {id:`interest-${interest.id}`,kind:"interest",title:"Qualcuno è interessato a te",detail:nickname ? `${nickname} vorrebbe conoscerti.` : "Apri il profilo e scopri se l’interesse è reciproco.",href:`/evento/${code}/compatibilita?persona=${interest.from_participant}&mode=social`}
+      })
       const messageNotices:Notice[] = ((messagesResult.data || []) as Array<{id:string;match_id:string;message:string|null}>).map(message => ({id:`message-${message.id}`,kind:"message",title:"Nuovo messaggio",detail:String(message.message || "Apri la chat per leggerlo."),href:`/evento/${code}/chat/${message.match_id}`}))
       const inviteNotices:Notice[] = (invitesResult.data || []).map(invite => { const table=invite.table as unknown as {name?:string;game?:string}|null; return {id:`table-${invite.id}`,kind:"table",title:"Invito al tavolo",detail:table?.name || table?.game || "Hai un nuovo invito.",href:`/evento/${code}/tavoli`} })
       const rewardNotices:Notice[] = ((rewardsResult.data as {rewards?:Array<{id:string;name:string;redeemed:boolean;redemption_status?:string}>}|null)?.rewards || []).filter(reward => reward.redeemed && reward.redemption_status === "redeemed").map(reward => ({id:`reward-${reward.id}`,kind:"reward",title:"Premio da ritirare",detail:reward.name || "Mostra il codice allo staff.",href:`/evento/${code}/missioni`}))
       const alreadyRead = readIds()
-      const next = [...messageNotices,...matchNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
+      const next = [...interestNotices,...messageNotices,...matchNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
 
-      if (initialized.current) {
-        const fresh = next.filter(item => !knownIds.current.has(item.id))
-        if (fresh[0]) announce(fresh[0])
-      }
+      const fresh = initialized.current
+        ? next.filter(item => !knownIds.current.has(item.id))
+        : next
+      if (fresh[0]) announce(fresh[0])
       knownIds.current = new Set(next.map(item => item.id))
       initialized.current = true
       setNotices(next)
@@ -118,6 +136,7 @@ export default function NotificationCenter() {
       const participantId = participantIdRef.current
       if (!participantId) return
       channel = supabase.channel(`participant-notifications-${participantId}`)
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"likes",filter:`to_participant=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_one=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_two=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`receiver_id=eq.${participantId}`},refresh)
