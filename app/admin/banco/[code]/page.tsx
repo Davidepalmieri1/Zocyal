@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useRef, useState } from "react"
+import { FormEvent, useCallback, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import { useParams } from "next/navigation"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -34,6 +34,8 @@ export default function BancoPage() {
   const [couponCode, setCouponCode] = useState("")
   const [result, setResult] = useState<Result | null>(null)
   const [busy, setBusy] = useState(false)
+  const [scannerOpen, setScannerOpen] = useState(false)
+  const [scannerError, setScannerError] = useState("")
 
   function nuovoCoupon() {
     setCouponCode("")
@@ -44,6 +46,10 @@ export default function BancoPage() {
   async function verifica(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
     const normalized = couponCode.replace(/\s+/g, "").toUpperCase()
+    await verificaCodice(normalized)
+  }
+
+  const verificaCodice = useCallback(async (normalized: string) => {
     if (normalized.length < 4) {
       setResult({ kind: "error", message: "Inserisci il codice completo." })
       return
@@ -79,7 +85,43 @@ export default function BancoPage() {
     } finally {
       setBusy(false)
     }
-  }
+  }, [eventCode])
+
+  useEffect(() => {
+    if (!scannerOpen) return
+    let active = true
+    let scanner: import("html5-qrcode").Html5Qrcode | null = null
+
+    void import("html5-qrcode").then(async ({ Html5Qrcode, Html5QrcodeSupportedFormats }) => {
+      if (!active) return
+      scanner = new Html5Qrcode("coupon-qr-reader", {
+        formatsToSupport: [Html5QrcodeSupportedFormats.QR_CODE],
+        verbose: false,
+      })
+      try {
+        await scanner.start(
+          { facingMode: "environment" },
+          { fps: 10, qrbox: { width: 240, height: 240 } },
+          (decodedText) => {
+            if (!active) return
+            const normalized = decodedText.replace(/\s+/g, "").toUpperCase()
+            active = false
+            setScannerOpen(false)
+            setCouponCode(normalized)
+            void verificaCodice(normalized)
+          },
+          () => undefined
+        )
+      } catch {
+        if (active) setScannerError("Impossibile accedere alla fotocamera. Controlla i permessi del browser oppure inserisci il codice manualmente.")
+      }
+    })
+
+    return () => {
+      active = false
+      if (scanner?.isScanning) void scanner.stop().catch(() => undefined)
+    }
+  }, [scannerOpen, verificaCodice])
 
   async function usaCoupon(coupon: Coupon) {
     setBusy(true)
@@ -134,11 +176,27 @@ export default function BancoPage() {
             </span>
             <h2 className="mt-4 text-2xl font-black">Verifica coupon e premi</h2>
             <p className="mt-2 text-sm leading-6 text-white/45">
-              Digita il codice mostrato dal cliente.
+              Scansiona il QR del cliente oppure digita il codice.
             </p>
           </div>
 
-          <form onSubmit={verifica} className="mt-6">
+          <button
+            type="button"
+            disabled={busy}
+            onClick={() => {
+              setScannerError("")
+              setScannerOpen(true)
+            }}
+            className="mt-6 w-full rounded-2xl bg-emerald-400 px-5 py-4 text-sm font-black text-black disabled:opacity-50"
+          >
+            ▣ SCANSIONA QR CODE
+          </button>
+
+          <div className="my-5 flex items-center gap-3 text-[10px] font-black uppercase tracking-[.18em] text-white/25">
+            <span className="h-px flex-1 bg-white/10" /> oppure <span className="h-px flex-1 bg-white/10" />
+          </div>
+
+          <form onSubmit={verifica}>
             <label
               htmlFor="coupon-code"
               className="mb-2 block text-sm font-black text-white/70"
@@ -168,6 +226,20 @@ export default function BancoPage() {
             </button>
           </form>
         </section>
+
+        {scannerOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/90 p-4" role="dialog" aria-modal="true" aria-label="Scansiona coupon">
+            <div className="w-full max-w-md rounded-[2rem] border border-white/10 bg-[#0b0b0b] p-5">
+              <div className="flex items-center justify-between gap-4">
+                <div><p className="premium-eyebrow">Fotocamera</p><h2 className="mt-1 text-xl font-black">Inquadra il QR code</h2></div>
+                <button type="button" onClick={() => setScannerOpen(false)} className="flex h-11 w-11 items-center justify-center rounded-full border border-white/10 text-xl" aria-label="Chiudi scanner">×</button>
+              </div>
+              <div id="coupon-qr-reader" className="mt-5 overflow-hidden rounded-2xl bg-black" />
+              {scannerError && <p role="alert" className="mt-4 rounded-xl bg-red-400/10 p-4 text-sm leading-6 text-red-200">{scannerError}</p>}
+              <p className="mt-4 text-center text-xs leading-5 text-white/40">La verifica parte automaticamente appena il codice viene letto.</p>
+            </div>
+          </div>
+        )}
 
         {result?.kind === "coupon" && (
           <section
