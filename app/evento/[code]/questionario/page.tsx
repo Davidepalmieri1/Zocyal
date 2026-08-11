@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 
-const questions = [
+const legacyQuestions = [
   {
     q: "In una serata preferisci:",
     a: ["Conoscere tante persone", "Stare con pochi amici"],
@@ -38,6 +38,28 @@ const questions = [
     q: "Sei qui per:",
     a: ["Fare nuove amicizie", "Trovare una connessione speciale"],
   },
+]
+
+const extraOptions = [
+  ["Seguire il ritmo della serata", "Concentrarmi su una persona"],
+  ["Fare nuove esperienze", "Rilassarmi senza programmi"],
+  ["Una persona che mi faccia ridere", "Una persona che mi incuriosisca"],
+  ["Energico/a", "Riservato/a"],
+  ["Diretto/a e sincero/a", "Prudente e graduale"],
+  ["Lasciare che accada naturalmente", "Ricevere un segnale chiaro"],
+  ["Musica e movimento", "Conversazioni profonde"],
+  ["Uscire dalla routine", "Vivere il momento"],
+]
+
+const questions = [
+  ...legacyQuestions.map((question, index) => ({
+    ...question,
+    a: [...question.a, ...extraOptions[index]],
+  })),
+  { q: "Quando conosci qualcuno, cosa noti per prima cosa?", a: ["Il sorriso", "Il modo di parlare", "L'energia", "Lo stile"] },
+  { q: "La conversazione ideale parla di:", a: ["Viaggi ed esperienze", "Passioni e progetti", "Storie divertenti", "Emozioni e vita personale"] },
+  { q: "In un gruppo nuovo tendi a:", a: ["Coinvolgere tutti", "Osservare prima di aprirmi", "Legare con poche persone", "Seguire chi propone qualcosa"] },
+  { q: "Cosa rende memorabile un incontro?", a: ["La complicitÃ ", "Una risata spontanea", "Una sorpresa", "Sentirsi ascoltati"] },
 ]
 
 export default function QuestionarioPage() {
@@ -141,6 +163,10 @@ export default function QuestionarioPage() {
             question_6: answers[5],
             question_7: answers[6],
             question_8: answers[7],
+            question_9: answers[8],
+            question_10: answers[9],
+            question_11: answers[10],
+            question_12: answers[11],
           },
           {
             onConflict: "participant_id",

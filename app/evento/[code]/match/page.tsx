@@ -24,7 +24,7 @@ type Participant = {
 
 type Answers = Record<string, string | null>
 
-const questions = ["question_1", "question_2", "question_3", "question_4", "question_5", "question_6", "question_7", "question_8"]
+const questions = ["question_1", "question_2", "question_3", "question_4", "question_5", "question_6", "question_7", "question_8", "question_9", "question_10", "question_11", "question_12"]
 
 function calculateCompatibility(a: Answers, b: Answers) {
   const answered = questions.filter((question) => a[question] && b[question])
@@ -79,8 +79,8 @@ export default function MatchPage() {
         const otherId = currentMatch.user_one === myId ? currentMatch.user_two : currentMatch.user_one
         const [personResult, myAnswersResult, theirAnswersResult] = await Promise.all([
           supabase.from("participants").select("id,nickname,age,avatar_url,goal").eq("id", otherId).single(),
-          supabase.from("answers").select("question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8").eq("participant_id", myId).maybeSingle(),
-          supabase.from("answers").select("question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8").eq("participant_id", otherId).maybeSingle(),
+          supabase.from("answers").select("question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8,question_9,question_10,question_11,question_12").eq("participant_id", myId).maybeSingle(),
+          supabase.from("answers").select("question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8,question_9,question_10,question_11,question_12").eq("participant_id", otherId).maybeSingle(),
         ])
 
         if (personResult.error) throw personResult.error

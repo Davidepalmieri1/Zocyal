@@ -32,6 +32,10 @@ type Risposte = {
   question_6?: string | null
   question_7?: string | null
   question_8?: string | null
+  question_9?: string | null
+  question_10?: string | null
+  question_11?: string | null
+  question_12?: string | null
 }
 
 type LikeRecord = {
@@ -76,6 +80,10 @@ export default function CompatibilitaPage() {
       "question_6",
       "question_7",
       "question_8",
+      "question_9",
+      "question_10",
+      "question_11",
+      "question_12",
     ]
 
     let uguali = 0
@@ -495,7 +503,13 @@ export default function CompatibilitaPage() {
           ),
       ])
 
-      mieRisposteRef.current = risposteResult.data as Risposte | null
+      const mieRisposte = risposteResult.data as Risposte | null
+      if (!mieRisposte?.question_9 || !mieRisposte.question_10 || !mieRisposte.question_11 || !mieRisposte.question_12) {
+        router.replace(`/evento/${eventCode}/questionario`)
+        return
+      }
+
+      mieRisposteRef.current = mieRisposte
       likesRef.current = (likesResult.data || []) as LikeRecord[]
       userMatchesRef.current = (matchesResult.data || []) as MatchRecord[]
 
