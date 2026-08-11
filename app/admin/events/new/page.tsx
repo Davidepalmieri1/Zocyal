@@ -4,8 +4,36 @@ import { ChangeEvent, FormEvent, useState } from "react"
 import { useRouter } from "next/navigation"
 import Logo from "@/app/components/Logo"
 
-const LOGO_MAX_SIZE = 1024 * 1024
-const POSTER_MAX_SIZE = 3 * 1024 * 1024
+const LOGO_MAX_SIZE = 3 * 1024 * 1024
+const POSTER_MAX_SIZE = 8 * 1024 * 1024
+const LOGO_UPLOAD_SIZE = 900 * 1024
+const POSTER_UPLOAD_SIZE = 2800 * 1024
+
+async function optimizeImage(file: File, maxBytes: number, maxDimension: number) {
+  if (!file.size || file.size <= maxBytes) return file
+  const bitmap = await createImageBitmap(file)
+  let scale = Math.min(1, maxDimension / Math.max(bitmap.width, bitmap.height))
+
+  try {
+    for (let resize = 0; resize < 5; resize += 1) {
+      const canvas = document.createElement("canvas")
+      canvas.width = Math.max(1, Math.round(bitmap.width * scale))
+      canvas.height = Math.max(1, Math.round(bitmap.height * scale))
+      canvas.getContext("2d")?.drawImage(bitmap, 0, 0, canvas.width, canvas.height)
+      for (const quality of [0.9, 0.8, 0.7, 0.6, 0.5]) {
+        const blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/webp", quality))
+        if (blob && blob.size <= maxBytes) {
+          const name = `${file.name.replace(/\.[^.]+$/, "") || "immagine"}.webp`
+          return new File([blob], name, { type: "image/webp", lastModified: file.lastModified })
+        }
+      }
+      scale *= 0.75
+    }
+  } finally {
+    bitmap.close()
+  }
+  throw new Error("Non siamo riusciti a ottimizzare l'immagine. Prova con un file piÃ¹ leggero.")
+}
 
 function iso(value: string) {
   return value ? new Date(value).toISOString() : null
@@ -31,12 +59,12 @@ export default function NewEventPage() {
     const logo = form.get("venue_logo")
     const poster = form.get("venue_poster")
     if (logo instanceof File && logo.size > LOGO_MAX_SIZE) {
-      setError("Il logo supera 1 MB. Scegli un'immagine piÃ¹ leggera.")
+      setError("Il logo supera 3 MB. Scegli un'immagine piÃ¹ leggera.")
       setBusy(false)
       return
     }
     if (poster instanceof File && poster.size > POSTER_MAX_SIZE) {
-      setError("La locandina supera 3 MB. Scegli un'immagine piÃ¹ leggera.")
+      setError("La locandina supera 8 MB. Scegli un'immagine piÃ¹ leggera.")
       setBusy(false)
       return
     }
@@ -45,6 +73,8 @@ export default function NewEventPage() {
     form.set("timezone", "Europe/Rome")
 
     try {
+      if (logo instanceof File && logo.size) form.set("venue_logo", await optimizeImage(logo, LOGO_UPLOAD_SIZE, 1200))
+      if (poster instanceof File && poster.size) form.set("venue_poster", await optimizeImage(poster, POSTER_UPLOAD_SIZE, 2200))
       const response = await fetch("/admin/api/settings", {
         method: "POST",
         credentials: "same-origin",
@@ -103,13 +133,13 @@ export default function NewEventPage() {
             <div className="mt-5 grid gap-4 sm:grid-cols-2">
               <label className="cursor-pointer rounded-2xl border border-dashed border-white/20 bg-black/25 p-4 transition hover:border-pink-400/60">
                 <span className="text-xs font-black uppercase tracking-[.14em] text-pink-300">Logo del locale</span>
-                <span className="mt-1 block text-xs text-zinc-500">JPG, PNG o WebP · max 1 MB</span>
+                <span className="mt-1 block text-xs text-zinc-500">JPG, PNG o WebP · max 3 MB</span>
                 <input name="venue_logo" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => preview(event, setLogoPreview)} className="mt-4 block w-full text-xs text-zinc-400 file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:font-black file:text-black" />
                 {logoPreview && <img src={logoPreview} alt="Anteprima logo" className="mt-4 h-28 w-full rounded-xl border border-white/15 bg-gradient-to-br from-zinc-700 to-black object-contain p-3" />}
               </label>
               <label className="cursor-pointer rounded-2xl border border-dashed border-white/20 bg-black/25 p-4 transition hover:border-orange-300/60">
                 <span className="text-xs font-black uppercase tracking-[.14em] text-orange-200">Locandina della serata</span>
-                <span className="mt-1 block text-xs text-zinc-500">Formato verticale consigliato · max 3 MB</span>
+                <span className="mt-1 block text-xs text-zinc-500">Formato verticale consigliato · max 8 MB</span>
                 <input name="venue_poster" type="file" accept="image/jpeg,image/png,image/webp" onChange={(event) => preview(event, setPosterPreview)} className="mt-4 block w-full text-xs text-zinc-400 file:mr-3 file:rounded-full file:border-0 file:bg-white file:px-4 file:py-2 file:font-black file:text-black" />
                 {posterPreview && <img src={posterPreview} alt="Anteprima locandina" className="mt-4 aspect-[3/4] w-full rounded-xl object-cover" />}
               </label>
