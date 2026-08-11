@@ -212,8 +212,12 @@ export default function MissioniPage() {
     if (dashboardResult.error) throw dashboardResult.error
     if (leaderboardResult.error) throw leaderboardResult.error
     if (pointsResult.error) throw pointsResult.error
-    if (requestsResult.error) throw requestsResult.error
-    setRichiesteManuali(new Set((requestsResult.data || []).map(item => item.mission_id)))
+    if (requestsResult.error) {
+      console.warn("Richieste convalida non disponibili:",requestsResult.error)
+      setRichiesteManuali(new Set())
+    } else {
+      setRichiesteManuali(new Set((requestsResult.data || []).map(item => item.mission_id)))
+    }
 
     const normalized = normalizeDashboard(dashboardResult.data)
     return normalizeDashboard({

@@ -123,10 +123,17 @@ export async function GET(request: Request) {
           supabase.from("mission_validation_requests").select("id,participant_id,mission_id,status,requested_at,participant:participants(nickname),mission:missions(title,points)").eq("event_code",code).eq("status","pending").order("requested_at",{ascending:true}).limit(500),
         ])
 
-        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates, validationRequests].find(
+        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants].find(
           (result) => result.error
         )
       if (failed?.error) throw failed.error
+
+      if (templates.error) {
+        console.warn("Libreria missioni e premi non disponibile:",templates.error)
+      }
+      if (validationRequests.error) {
+        console.warn("Richieste convalida missioni non disponibili:",validationRequests.error)
+      }
 
       return json({
           missions: missions.data || [],
@@ -135,8 +142,8 @@ export async function GET(request: Request) {
           redemptions: redemptions.data || [],
           leaderboard: (leaderboard.data || []).slice(0, 3),
           participants: rewardParticipants.data || [],
-          templates: templates.data || [],
-          validationRequests: validationRequests.data || [],
+          templates: templates.error ? [] : templates.data || [],
+          validationRequests: validationRequests.error ? [] : validationRequests.data || [],
         })
     }
 
