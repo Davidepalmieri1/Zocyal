@@ -118,7 +118,7 @@ export async function GET(request: Request) {
             .order("redeemed_at", { ascending: false })
             .limit(1000),
           supabase.rpc("mr_event_leaderboard", { p_event_code: code } as never),
-          supabase.from("participants").select("id,nickname").eq("event_code", code).order("nickname"),
+          supabase.from("participants").select("id,nickname,event_code").eq("event_code", code).order("nickname"),
           supabase.from("engagement_templates").select("*").order("updated_at", { ascending: false }).limit(500),
           supabase.from("mission_validation_requests").select("id,participant_id,mission_id,status,requested_at,participant:participants(nickname),mission:missions(title,points)").eq("event_code",code).eq("status","pending").order("requested_at",{ascending:true}).limit(500),
         ])

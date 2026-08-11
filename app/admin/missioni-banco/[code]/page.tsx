@@ -7,7 +7,7 @@ import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { fetchAdminData } from "@/app/admin/data-client"
 
 type Mission = { id: string; title: string; description: string; points: number; verification_mode: "automatic" | "manual"; active: boolean }
-type Person = { id: string; nickname: string | null }
+type Person = { id: string; nickname: string | null; event_code: string }
 type Completion = { mission_id: string; participant_id: string }
 type ValidationRequest = { id:string; participant_id:string; mission_id:string; status:string; requested_at:string; participant:{nickname:string|null}|null; mission:{title:string;points:number}|null }
 type Data = { missions: Mission[]; participants: Person[]; completions: Completion[]; validationRequests:ValidationRequest[] }
@@ -39,6 +39,10 @@ export default function MissioniBancoPage() {
     setData(next)
   }, [code])
   useEffect(() => {
+    setData(null)
+    setPerson(null)
+    setMission(null)
+    setQuery("")
     const refresh = () => void load().catch((cause) => setError(cause instanceof Error ? cause.message : "Caricamento non riuscito."))
     const initial = window.setTimeout(refresh,0)
     const timer = window.setInterval(() => { if(!document.hidden) refresh() },3000)
@@ -50,8 +54,8 @@ export default function MissioniBancoPage() {
 
   const people = useMemo(() => {
     const term = query.trim().toLocaleLowerCase("it")
-    return (data?.participants || []).filter((item) => !term || (item.nickname || "").toLocaleLowerCase("it").includes(term)).slice(0, 30)
-  }, [data, query])
+    return (data?.participants || []).filter((item) => item.event_code === code && (!term || (item.nickname || "").toLocaleLowerCase("it").includes(term))).slice(0, 30)
+  }, [code, data, query])
 
   const available = useMemo(() => {
     if (!person || !data) return []
@@ -91,7 +95,7 @@ export default function MissioniBancoPage() {
   }
 
   return <main className="premium-page min-h-screen px-4 py-5 text-white sm:px-6"><PremiumBackdrop /><div className="relative mx-auto w-full max-w-lg">
-    <header className="flex items-center justify-between gap-4"><div><p className="premium-eyebrow">Modalit&agrave; staff</p><h1 className="mt-2 text-3xl font-black">Assegna punti</h1></div><Link href={`/admin/premi/${code}`} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-xs font-black text-white/65">GESTIONE</Link></header>
+    <header className="flex items-center justify-between gap-4"><div><p className="premium-eyebrow">Modalit&agrave; staff</p><h1 className="mt-2 text-3xl font-black">Assegna punti</h1><p className="mt-2 text-xs font-black uppercase tracking-[.14em] text-white/40">Evento: {code}</p></div><Link href={`/admin/premi/${code}`} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-xs font-black text-white/65">GESTIONE</Link></header>
     {error && <p role="alert" className="mt-5 rounded-2xl border border-red-400/25 bg-red-400/10 p-4 text-red-200">{error}</p>}
     {!person && !success && Boolean(data?.validationRequests?.length) && <section className="mt-6 rounded-[2rem] border border-pink-400/30 bg-gradient-to-br from-pink-500/15 to-orange-400/[.08] p-5"><div className="flex items-center justify-between gap-4"><div><p className="text-xs font-black uppercase tracking-[.16em] text-pink-300">Richieste in tempo reale</p><h2 className="mt-2 text-2xl font-black">Da convalidare</h2></div><span className="flex h-11 min-w-11 items-center justify-center rounded-full bg-pink-500 px-3 font-black">{data?.validationRequests.length}</span></div><div className="mt-4 grid gap-3">{data?.validationRequests.map(request=><button key={request.id} onClick={()=>{const selectedPerson=data.participants.find(item=>item.id===request.participant_id);const selectedMission=data.missions.find(item=>item.id===request.mission_id);if(selectedPerson&&selectedMission){setPerson(selectedPerson);setMission(selectedMission)}}} className="flex items-center justify-between gap-4 rounded-2xl border border-white/10 bg-black/25 p-4 text-left transition hover:border-pink-300/40 hover:bg-pink-500/10"><span><strong className="block">{request.participant?.nickname || "Partecipante"}</strong><span className="mt-1 block text-sm text-white/50">{request.mission?.title || "Missione"}</span></span><span className="shrink-0 font-black text-orange-300">+{request.mission?.points || 0} ›</span></button>)}</div></section>}
     {success ? <section className="mt-6 rounded-[2rem] border border-emerald-400/30 bg-emerald-400/10 p-7 text-center"><p className="text-5xl">{"\u2713"}</p><h2 className="mt-3 text-2xl font-black">Punti assegnati</h2><p className="mt-2 text-emerald-100/70">{success}</p><button onClick={reset} className="mt-6 w-full rounded-2xl bg-white px-5 py-4 text-sm font-black text-black">ASSEGNA AL PROSSIMO</button></section>
