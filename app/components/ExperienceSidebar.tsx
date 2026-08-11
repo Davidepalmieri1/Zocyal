@@ -246,14 +246,19 @@ export default function ExperienceSidebar() {
         type="button"
         onClick={() => setAperto(true)}
         aria-label="Apri menu attività"
-        whileTap={{ scale: 0.92 }}
-        whileHover={{ scale: 1.06 }}
-        className={`fixed right-3 z-40 flex h-12 w-auto items-center justify-center gap-2 rounded-full border border-white/25 bg-gradient-to-br from-fuchsia-600/90 via-pink-500/90 to-orange-400/90 px-4 text-white opacity-90 shadow-[0_12px_38px_rgba(236,72,153,.3),inset_0_1px_rgba(255,255,255,.35)] backdrop-blur-md transition-[bottom,opacity,transform] hover:opacity-100 focus-visible:opacity-100 sm:right-6 ${
+        whileTap={{ scale: 0.97 }}
+        whileHover={{ scale: 1.02, y: -2 }}
+        className={`group fixed right-3 z-40 flex h-14 w-auto items-center justify-center gap-3 overflow-hidden rounded-2xl border border-pink-300/20 bg-[#130b16]/90 px-3.5 pr-5 text-white shadow-[0_16px_45px_rgba(0,0,0,.45),0_0_28px_rgba(236,72,153,.18),inset_0_1px_rgba(255,255,255,.08)] backdrop-blur-xl transition-[bottom,border-color,box-shadow,transform] hover:border-pink-300/40 hover:shadow-[0_18px_50px_rgba(0,0,0,.5),0_0_34px_rgba(236,72,153,.25)] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300/70 [&>span]:hidden sm:right-6 ${
           pathname.includes("/chat/")
             ? "bottom-[calc(env(safe-area-inset-bottom)+7rem)] sm:bottom-28"
             : "bottom-[calc(env(safe-area-inset-bottom)+5.5rem)] sm:bottom-10"
         }`}
       >
+        <div aria-hidden="true" className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-pink-200/70 to-transparent" />
+        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400 shadow-[0_6px_20px_rgba(236,72,153,.3)]">
+          <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 7h14M5 12h14M5 17h9" /></svg>
+        </div>
+        <div className="text-left"><span className="block text-[9px] font-bold uppercase tracking-[.2em] text-pink-200/55">Menu</span><span className="mt-0.5 block text-xs font-black uppercase tracking-[.12em]">Attivit&agrave;</span></div>
         <span aria-hidden="true" className="text-lg">☰</span>
         <span className="text-[11px] font-black uppercase tracking-[.12em]">Attività</span>
       </motion.button>
