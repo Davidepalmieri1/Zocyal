@@ -543,10 +543,7 @@ export default function ProfiloPage() {
                 </p>
 
                 <label className="mt-5 block text-sm font-bold text-gray-300">
-                  Categoria con cui ti riconosci{" "}
-                  <span className="font-normal text-gray-500">
-                    {matchingConsent ? "(obbligatoria per i match)" : "(facoltativa)"}
-                  </span>
+                  Categoria con cui ti riconosci
                   <select value={identityCategory} onChange={(event) => setIdentityCategory(event.target.value)} className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-black">
                     <option value="">Preferisco non indicarla</option>
                     <option value="woman">Donna</option>
