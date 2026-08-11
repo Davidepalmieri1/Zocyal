@@ -12,6 +12,24 @@ type Completion = { mission_id: string; participant_id: string }
 type ValidationRequest = { id:string; participant_id:string; mission_id:string; status:string; requested_at:string; participant:{nickname:string|null}|null; mission:{title:string;points:number}|null }
 type Data = { missions: Mission[]; participants: Person[]; completions: Completion[]; validationRequests:ValidationRequest[] }
 
+async function showStaffNotification(title:string, body:string) {
+  if (!("Notification" in window) || Notification.permission !== "granted") return
+
+  try {
+    if ("serviceWorker" in navigator) {
+      const registration = await navigator.serviceWorker.getRegistration()
+      if (registration) {
+        await registration.showNotification(title, { body })
+        return
+      }
+    }
+
+    new Notification(title, { body })
+  } catch (error) {
+    console.warn("Notifica browser non disponibile:", error)
+  }
+}
+
 export default function MissioniBancoPage() {
   const { code: raw } = useParams<{ code: string }>()
   const code = raw.toLowerCase()
@@ -28,15 +46,18 @@ export default function MissioniBancoPage() {
   const load = useCallback(async () => {
     const next = await fetchAdminData<Data>("rewards", code)
     const requests = next.validationRequests || []
+    setData(next)
     if (initialized.current) {
       const fresh = requests.filter(item => !knownRequests.current.has(item.id))
-      if (fresh[0] && "Notification" in window && Notification.permission === "granted") {
-        new Notification("Missione da convalidare",{body:`${fresh[0].participant?.nickname || "Un partecipante"} · ${fresh[0].mission?.title || "Missione manuale"}`})
+      if (fresh[0]) {
+        void showStaffNotification(
+          "Missione da convalidare",
+          `${fresh[0].participant?.nickname || "Un partecipante"} · ${fresh[0].mission?.title || "Missione manuale"}`
+        )
       }
     }
     knownRequests.current = new Set(requests.map(item => item.id))
     initialized.current = true
-    setData(next)
   }, [code])
   useEffect(() => {
     setData(null)
