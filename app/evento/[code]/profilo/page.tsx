@@ -50,7 +50,7 @@ export default function ProfiloPage() {
     void Promise.all([
       publicSupabase
         .from("events")
-        .select("experience_mode")
+        .select("experience_mode,status,starts_at,ends_at")
         .eq("code", eventCode)
         .maybeSingle(),
       publicSupabase.rpc("get_event_registration_availability", {
@@ -70,6 +70,34 @@ export default function ProfiloPage() {
           setErrore("Non siamo riusciti a caricare la configurazione dell’evento.")
           return
         }
+
+        if (eventResult.data.status !== "open") {
+          setErrore(
+            eventResult.data.status === "draft"
+              ? "L’evento non è ancora aperto. Chiedi allo staff di attivare gli ingressi."
+              : "L’evento è terminato e non accetta più nuovi partecipanti."
+          )
+          return
+        }
+
+        const now = Date.now()
+        const startsAt = eventResult.data.starts_at
+          ? new Date(eventResult.data.starts_at).getTime()
+          : null
+        const endsAt = eventResult.data.ends_at
+          ? new Date(eventResult.data.ends_at).getTime()
+          : null
+
+        if (startsAt && startsAt > now) {
+          setErrore("L’evento non è ancora iniziato. Riprova all’orario indicato dallo staff.")
+          return
+        }
+
+        if (endsAt && endsAt <= now) {
+          setErrore("L’evento è terminato e non accetta più nuovi partecipanti.")
+          return
+        }
+
         setEventMode(
           eventResult.data.experience_mode === "inclusive"
             ? "inclusive"

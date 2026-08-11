@@ -98,6 +98,18 @@ export function participantErrorMessage(error: unknown) {
     return "Questo evento non è disponibile. Controlla il link o il QR."
   }
 
+  if (message.includes("event registrations are closed")) {
+    return "Le iscrizioni a questo evento non sono ancora aperte oppure sono state chiuse dallo staff."
+  }
+
+  if (message.includes("event has not started yet")) {
+    return "L’evento non è ancora iniziato. Riprova all’orario indicato dallo staff."
+  }
+
+  if (message.includes("event has ended")) {
+    return "L’evento è terminato e non accetta più nuovi partecipanti."
+  }
+
   if (message.includes("participant suspended for this event")) {
     return "Questo accesso è stato oscurato dallo staff per la serata. Rivolgiti all'organizzazione."
   }
