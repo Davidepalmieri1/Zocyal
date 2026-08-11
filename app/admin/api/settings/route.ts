@@ -30,13 +30,48 @@ export async function GET(request:Request){
 export async function PATCH(request:Request){
   if(!(await authenticated()))return reply({error:"Accesso non valido."},401)
   if(request.headers.get("origin")!==new URL(request.url).origin)return reply({error:"Richiesta non valida."},403)
-  let body:Record<string,unknown>;try{body=await request.json()}catch{return reply({error:"Dati non validi."},400)}
+  let body:Record<string,unknown>,logo:File|null|undefined=null,poster:File|null|undefined=null
+  try{
+    if(request.headers.get("content-type")?.includes("multipart/form-data")){
+      const form=await request.formData()
+      body=Object.fromEntries(form.entries())
+      logo=image(form.get("venue_logo"),1024*1024)
+      poster=image(form.get("venue_poster"),3*1024*1024)
+      if(logo===undefined||poster===undefined)return reply({error:"Usa immagini JPG, PNG o WebP. Logo massimo 3 MB, locandina massimo 8 MB."},400)
+    }else body=await request.json()
+  }catch{return reply({error:"Dati non validi."},400)}
   const code=clean(body.code,64).toLowerCase(),name=clean(body.name,100),venue=clean(body.venue,160),description=clean(body.description,1000),timezone=clean(body.timezone,60)||"Europe/Rome",status=clean(body.status,20),startsAt=date(body.starts_at),endsAt=date(body.ends_at)
   if(!EVENT.test(code)||name.length<3||!STATES.has(status)||startsAt===undefined||endsAt===undefined)return reply({error:"Controlla i campi inseriti."},400)
   if(startsAt&&endsAt&&new Date(startsAt)>=new Date(endsAt))return reply({error:"La chiusura deve essere successiva all'apertura."},400)
-  const {data,error}=await getSupabaseAdmin().from("events").update({name,venue:venue||null,description,timezone,status,starts_at:startsAt,ends_at:endsAt,updated_at:new Date().toISOString()} as never).eq("code",code).select("name,venue,code,description,starts_at,ends_at,timezone,status,experience_mode,venue_logo_url,venue_poster_url,updated_at").maybeSingle()
-  if(error)return reply({error:"Salvataggio non riuscito."},500)
-  return data?reply({event:data}):reply({error:"Evento non trovato."},404)
+  const db=getSupabaseAdmin()
+  const current=await db.from("events").select("venue_logo_url,venue_poster_url").eq("code",code).maybeSingle()
+  if(current.error)return reply({error:"Salvataggio non riuscito."},500)
+  if(!current.data)return reply({error:"Evento non trovato."},404)
+  const uploaded:string[]=[],assets:Record<string,string>={}
+  try{
+    for(const [kind,file] of [["logo",logo],["poster",poster]] as const){
+      if(!file)continue
+      const path=`${code}/${kind}-${crypto.randomUUID()}.${IMAGE_TYPES.get(file.type)}`
+      const {error:uploadError}=await db.storage.from("event-assets").upload(path,file,{contentType:file.type,upsert:false})
+      if(uploadError)throw uploadError
+      uploaded.push(path)
+      assets[kind]=db.storage.from("event-assets").getPublicUrl(path).data.publicUrl
+    }
+    const changes:Record<string,unknown>={name,venue:venue||null,description,timezone,status,starts_at:startsAt,ends_at:endsAt,updated_at:new Date().toISOString()}
+    if(assets.logo)changes.venue_logo_url=assets.logo
+    if(assets.poster)changes.venue_poster_url=assets.poster
+    const {data,error}=await db.from("events").update(changes as never).eq("code",code).select("name,venue,code,description,starts_at,ends_at,timezone,status,experience_mode,venue_logo_url,venue_poster_url,updated_at").maybeSingle()
+    if(error)throw error
+    if(!data)throw new Error("Evento non trovato")
+    const oldUrls=[assets.logo?(current.data as {venue_logo_url:string|null}).venue_logo_url:null,assets.poster?(current.data as {venue_poster_url:string|null}).venue_poster_url:null]
+    const oldPaths=oldUrls.flatMap(url=>{if(!url)return[];try{const marker="/event-assets/",index=new URL(url).pathname.indexOf(marker);const path=index>=0?decodeURIComponent(new URL(url).pathname.slice(index+marker.length)):"";return path.startsWith(`${code}/`)?[path]:[]}catch{return[]}})
+    if(oldPaths.length)await db.storage.from("event-assets").remove(oldPaths)
+    return reply({event:data})
+  }catch(uploadError){
+    if(uploaded.length)await db.storage.from("event-assets").remove(uploaded)
+    console.error("Aggiornamento immagini evento non riuscito:",uploadError)
+    return reply({error:"Non siamo riusciti a salvare logo o locandina. Riprova."},500)
+  }
 }
 
 export async function POST(request:Request){
