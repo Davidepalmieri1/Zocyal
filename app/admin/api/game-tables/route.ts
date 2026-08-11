@@ -91,7 +91,7 @@ export async function POST(request: Request) {
     const answersResult = participantIds.length
       ? await db
           .from("answers")
-          .select("participant_id,question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8")
+          .select("participant_id,question_1,question_2,question_3,question_4,question_5,question_6,question_7,question_8,question_9,question_10,question_11,question_12")
           .in("participant_id", participantIds)
       : { data: [] as ParticipantAnswers[], error: null }
     if (answersResult.error) {

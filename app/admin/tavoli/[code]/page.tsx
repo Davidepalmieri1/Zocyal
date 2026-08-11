@@ -8,12 +8,36 @@ import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 const INTERESTS = [
   "Conoscere tante persone",
   "Stare con pochi amici",
+  "Seguire il ritmo della serata",
+  "Concentrarmi su una persona",
   "Ballare e divertirti",
   "Parlare e conoscere persone",
+  "Fare nuove esperienze",
+  "Rilassarmi senza programmi",
   "Avventura e sorprese",
+  "Musica e movimento",
+  "Conversazioni profonde",
   "Relax e tranquillità",
   "Fare nuove amicizie",
   "Trovare una connessione speciale",
+  "Uscire dalla routine",
+  "Vivere il momento",
+  "Il sorriso",
+  "Il modo di parlare",
+  "L'energia",
+  "Lo stile",
+  "Viaggi ed esperienze",
+  "Passioni e progetti",
+  "Storie divertenti",
+  "Emozioni e vita personale",
+  "Coinvolgere tutti",
+  "Osservare prima di aprirmi",
+  "Legare con poche persone",
+  "Seguire chi propone qualcosa",
+  "La complicitÃ ",
+  "Una risata spontanea",
+  "Una sorpresa",
+  "Sentirsi ascoltati",
 ]
 
 type Invite = {
@@ -134,11 +158,14 @@ export default function GameTablesAdminPage() {
   }
 
   function toggleInterest(interest: string) {
-    setSelectedInterests((current) =>
-      current.includes(interest)
-        ? current.filter((item) => item !== interest)
-        : [...current, interest]
-    )
+    setSelectedInterests((current) => {
+      if (current.includes(interest)) return current.filter((item) => item !== interest)
+      if (current.length >= 12) {
+        setMessage("Puoi selezionare al massimo 12 interessi per tavolo.")
+        return current
+      }
+      return [...current, interest]
+    })
     setSelectedTemplate(null)
   }
 
