@@ -382,6 +382,16 @@ export default function CompatibilitaPage() {
             : persona
         )
       )
+
+      window.dispatchEvent(new CustomEvent("zocyal:notification", {
+        detail: {
+          id: `match-${matchId}`,
+          kind: "match",
+          title: "È un match!",
+          detail: `Tu e ${person.nickname || "questa persona"} vi piacete.`,
+          href: `/evento/${params.code}/miei-match`,
+        },
+      }))
     } catch (error) {
       console.error("Errore imprevisto durante il match:", error)
       setErrore("Si è verificato un errore imprevisto durante il match.")
