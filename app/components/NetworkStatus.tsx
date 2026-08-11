@@ -3,12 +3,12 @@
 import { useEffect, useState } from "react"
 
 export default function NetworkStatus() {
-  const [online, setOnline] = useState(() =>
-    typeof navigator === "undefined" ? true : navigator.onLine
-  )
+  const [online, setOnline] = useState(true)
   const [showBackOnline, setShowBackOnline] = useState(false)
 
   useEffect(() => {
+    const initial = window.setTimeout(() => setOnline(navigator.onLine), 0)
+
     function handleOffline() {
       setOnline(false)
       setShowBackOnline(false)
@@ -27,6 +27,7 @@ export default function NetworkStatus() {
     window.addEventListener("online", handleOnline)
 
     return () => {
+      window.clearTimeout(initial)
       window.removeEventListener("offline", handleOffline)
       window.removeEventListener("online", handleOnline)
     }
