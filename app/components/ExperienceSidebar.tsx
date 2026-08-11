@@ -19,6 +19,13 @@ type VoceMenu = {
   badge?: string
 }
 
+const MENU_ICONS: Record<AttivitaId, string> = {
+  tavoli: "\u{1F3B2}",
+  match: "\u2665",
+  social: "\u{1F91D}",
+  missioni: "\u{1F3AF}",
+}
+
 const vociMenu: VoceMenu[] = [
   {
     id: "tavoli",
@@ -278,20 +285,20 @@ export default function ExperienceSidebar() {
             />
 
             <motion.aside
-              initial={{ x: "100%" }}
-              animate={{ x: 0 }}
-              exit={{ x: "100%" }}
+              initial={{ y: "100%", opacity: 0 }}
+              animate={{ y: 0, opacity: 1 }}
+              exit={{ y: "100%", opacity: 0 }}
               transition={{
                 type: "spring",
                 stiffness: 260,
                 damping: 28,
               }}
-              className="fixed bottom-0 right-0 top-0 z-50 flex w-[88%] max-w-sm flex-col overflow-hidden border-l border-white/10 bg-[#09060b]/95 text-white shadow-[-30px_0_100px_rgba(0,0,0,0.65)] backdrop-blur-2xl"
+              className="fixed bottom-0 left-0 right-0 z-50 flex max-h-[90svh] w-full flex-col overflow-hidden rounded-t-[2rem] border-t border-white/10 bg-[#0c080e]/95 text-white shadow-[0_-24px_90px_rgba(0,0,0,.65)] backdrop-blur-2xl sm:bottom-0 sm:left-auto sm:top-0 sm:max-h-none sm:w-[420px] sm:rounded-none sm:border-l sm:border-t-0 sm:shadow-[-30px_0_100px_rgba(0,0,0,.65)]"
             >
               <div className="pointer-events-none absolute right-[-100px] top-[-120px] h-[320px] w-[320px] rounded-full bg-fuchsia-600/20 blur-[100px]" />
               <div className="pointer-events-none absolute bottom-[-120px] left-[-100px] h-[300px] w-[300px] rounded-full bg-orange-500/10 blur-[100px]" />
 
-              <div className="relative flex items-center justify-between border-b border-white/10 px-6 py-6">
+              <div className="relative flex items-center justify-between border-b border-white/[.08] px-5 py-4 sm:px-6">
                 <Logo size="small" />
 
                 <button
@@ -304,17 +311,17 @@ export default function ExperienceSidebar() {
                 </button>
               </div>
 
-              <div className="relative flex-1 overflow-y-auto px-5 py-7">
+              <div className="relative flex-1 overflow-y-auto px-4 py-5 sm:px-6">
                 <p className="text-xs font-black uppercase tracking-[0.22em] text-pink-400">
                   Vivi la serata
                 </p>
 
-                <h2 className="mt-3 text-3xl font-black">
-                  Cosa vuoi fare?
+                <h2 className="mt-2 text-2xl font-black sm:text-3xl">
+                  Scegli la tua esperienza
                 </h2>
 
-                <p className="mt-3 text-sm leading-6 text-gray-400">
-                  Cambia esperienza in qualsiasi momento.
+                <p className="mt-2 text-sm leading-6 text-gray-400">
+                  Tutto ci&ograve; che puoi fare durante la serata, in un solo posto.
                 </p>
 
 
@@ -324,7 +331,7 @@ export default function ExperienceSidebar() {
                     setAperto(false)
                     router.push(`/evento/${eventCode}/mio-profilo`)
                   }}
-                  className={`mt-6 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition ${
+                  className={`mt-5 flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
                     pathname.includes("/mio-profilo")
                       ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10"
                       : "border-white/10 bg-white/[0.04] hover:border-pink-400/30 hover:bg-white/[0.07]"
@@ -355,7 +362,7 @@ export default function ExperienceSidebar() {
                     setAperto(false)
                     router.push(`/evento/${eventCode}/miei-match`)
                   }}
-                  className={`mt-3 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition ${
+                  className={`mt-2 flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
                     pathname.includes("/miei-match") ||
                     pathname.includes("/chat")
                       ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10"
@@ -381,7 +388,7 @@ export default function ExperienceSidebar() {
                   </span>
                 </button>
 
-                <div className="mt-8 flex flex-col gap-4">
+                <div className="mt-7 border-t border-white/[.08] pt-5"><div className="mb-3 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[.2em] text-white/35">Esperienze</p><span className="text-[10px] font-bold text-white/25">Scegline una</span></div><div className="grid gap-2">
                   {vociMenu.map((voce, index) => {
                     const attiva = attivitaAttuale === voce.id
 
@@ -396,7 +403,7 @@ export default function ExperienceSidebar() {
                           delay: 0.08 + index * 0.07,
                         }}
                         whileTap={{ scale: 0.98 }}
-                        className={`group relative overflow-hidden rounded-3xl border p-5 text-left transition ${
+                        className={`group relative overflow-hidden rounded-2xl border p-4 text-left transition ${
                           attiva
                             ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10 shadow-[0_16px_45px_rgba(236,72,153,0.12)]"
                             : "border-white/10 bg-white/[0.04] hover:border-white/20 hover:bg-white/[0.07]"
@@ -421,12 +428,12 @@ export default function ExperienceSidebar() {
                             }
                             transition={{
                               duration: 1.8,
-                              repeat: attiva ? Infinity : 0,
+                              repeat: 0,
                               repeatDelay: 2,
                             }}
-                            className="flex h-14 w-14 shrink-0 items-center justify-center text-4xl"
+                            className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl text-2xl ${attiva ? "bg-pink-400/15" : "bg-white/[.05]"}`}
                           >
-                            {voce.icon}
+                            {MENU_ICONS[voce.id]}
                           </motion.div>
 
                           <div className="min-w-0 flex-1">
@@ -466,9 +473,9 @@ export default function ExperienceSidebar() {
                       </motion.button>
                     )
                   })}
-                </div>
+                </div></div>
 
-                <div className="mt-6 border-t border-white/10 pt-6">
+                <div className="mt-5 border-t border-white/[.08] pt-5">
                   <p className="text-xs font-black uppercase tracking-[0.18em] text-gray-500">
                     Avvisi
                   </p>
@@ -476,7 +483,7 @@ export default function ExperienceSidebar() {
                   <button
                     type="button"
                     onClick={cambiaStatoNotifiche}
-                    className={`mt-3 flex w-full items-center gap-4 rounded-3xl border p-4 text-left transition ${
+                    className={`mt-3 flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
                       notificheAttive
                         ? "border-green-400/30 bg-green-400/10"
                         : "border-white/10 bg-white/[0.04] hover:border-pink-400/30 hover:bg-white/[0.07]"
