@@ -92,7 +92,7 @@ export async function GET(request: Request) {
 
       if (view === "rewards") {
         stage = "missioni e premi"
-        const [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates] = await Promise.all([
+        const [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates, validationRequests] = await Promise.all([
           supabase
             .from("missions")
             .select("id, event_code, code, title, description, points, verification_mode, verification_key, active, created_at")
@@ -120,9 +120,10 @@ export async function GET(request: Request) {
           supabase.rpc("mr_event_leaderboard", { p_event_code: code } as never),
           supabase.from("participants").select("id,nickname").eq("event_code", code).order("nickname"),
           supabase.from("engagement_templates").select("*").order("updated_at", { ascending: false }).limit(500),
+          supabase.from("mission_validation_requests").select("id,participant_id,mission_id,status,requested_at,participant:participants(nickname),mission:missions(title,points)").eq("event_code",code).eq("status","pending").order("requested_at",{ascending:true}).limit(500),
         ])
 
-        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates].find(
+        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates, validationRequests].find(
           (result) => result.error
         )
       if (failed?.error) throw failed.error
@@ -135,6 +136,7 @@ export async function GET(request: Request) {
           leaderboard: (leaderboard.data || []).slice(0, 3),
           participants: rewardParticipants.data || [],
           templates: templates.data || [],
+          validationRequests: validationRequests.data || [],
         })
     }
 

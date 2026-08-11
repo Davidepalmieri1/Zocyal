@@ -154,6 +154,10 @@ export async function POST(request: Request) {
         p_approval_note: cleanText(body.note, 500) || null,
       } as never)
       if (error) throw error
+      const { error: requestError } = await supabase.from("mission_validation_requests").update({
+        status: "approved", resolved_at: new Date().toISOString(),
+      } as never).eq("participant_id",participant).eq("mission_id",mission).eq("status","pending")
+      if (requestError) throw requestError
       return reply({ result: data })
     }
 

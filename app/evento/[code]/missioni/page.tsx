@@ -185,6 +185,7 @@ export default function MissioniPage() {
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
   const [missioneInCorso, setMissioneInCorso] = useState<string | null>(null)
+  const [richiesteManuali, setRichiesteManuali] = useState<Set<string>>(new Set())
   const [premioInCorso, setPremioInCorso] = useState<string | null>(null)
 
   const caricaDashboard = useCallback(async () => {
@@ -195,7 +196,7 @@ export default function MissioniPage() {
       throw new Error("Participant authentication required")
     }
 
-    const [dashboardResult, leaderboardResult, pointsResult] = await Promise.all([
+    const [dashboardResult, leaderboardResult, pointsResult, requestsResult] = await Promise.all([
       supabase.rpc("get_missions_rewards_for_event", {
         p_event_code: eventCode,
       }),
@@ -205,11 +206,14 @@ export default function MissioniPage() {
       supabase.rpc("get_participant_points_for_event", {
         p_event_code: eventCode,
       }),
+      supabase.from("mission_validation_requests").select("mission_id").eq("participant_id",participantId).eq("status","pending"),
     ])
 
     if (dashboardResult.error) throw dashboardResult.error
     if (leaderboardResult.error) throw leaderboardResult.error
     if (pointsResult.error) throw pointsResult.error
+    if (requestsResult.error) throw requestsResult.error
+    setRichiesteManuali(new Set((requestsResult.data || []).map(item => item.mission_id)))
 
     const normalized = normalizeDashboard(dashboardResult.data)
     return normalizeDashboard({
@@ -302,6 +306,22 @@ export default function MissioniPage() {
     } catch (error) {
       console.error("Errore completamento missione:", error)
       setErrore("Missione non completata. Riprova tra poco.")
+    } finally {
+      setMissioneInCorso(null)
+    }
+  }
+
+  async function richiediConvalida(missionId:string) {
+    if (missioneInCorso || richiesteManuali.has(missionId)) return
+    setMissioneInCorso(missionId)
+    setErrore("")
+    try {
+      const {error} = await supabase.rpc("request_manual_mission_validation",{p_mission_id:missionId})
+      if (error) throw error
+      setRichiesteManuali(current => new Set([...current,missionId]))
+    } catch(error) {
+      console.error("Errore richiesta convalida:",error)
+      setErrore("Non siamo riusciti a inviare la richiesta allo staff.")
     } finally {
       setMissioneInCorso(null)
     }
@@ -433,8 +453,8 @@ export default function MissioniPage() {
               </div>
               <div className="mt-5 flex items-center justify-between gap-4">
                 <span className="text-sm font-black text-orange-300">+{missione.points} punti</span>
-                <button type="button" onClick={() => void completaMissione(missione.id)} disabled={missione.completed || missione.verificationMode !== "automatic" || missioneInCorso !== null} className={`rounded-full px-4 py-2.5 text-xs font-black transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${missione.completed ? "border border-green-400/30 bg-green-400/15 text-green-300" : "bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 text-white"}`}>
-                  {missione.completed ? "COMPLETATA ✓" : missione.verificationMode !== "automatic" ? "DA CONFERMARE" : missioneInCorso === missione.id ? "SALVATAGGIO..." : "VERIFICA"}
+                <button type="button" onClick={() => void (missione.verificationMode === "manual" ? richiediConvalida(missione.id) : completaMissione(missione.id))} disabled={missione.completed || richiesteManuali.has(missione.id) || missioneInCorso !== null} className={`rounded-full px-4 py-2.5 text-xs font-black transition active:scale-95 disabled:cursor-not-allowed disabled:opacity-60 ${missione.completed ? "border border-green-400/30 bg-green-400/15 text-green-300" : richiesteManuali.has(missione.id) ? "border border-amber-300/30 bg-amber-300/10 text-amber-200" : "bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 text-white"}`}>
+                  {missione.completed ? "COMPLETATA ✓" : richiesteManuali.has(missione.id) ? "RICHIESTA INVIATA" : missioneInCorso === missione.id ? "INVIO..." : missione.verificationMode === "manual" ? "RICHIEDI CONVALIDA" : "VERIFICA"}
                 </button>
               </div>
             </motion.article>
