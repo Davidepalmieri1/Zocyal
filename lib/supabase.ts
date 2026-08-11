@@ -7,3 +7,14 @@ export const supabase = createClient(
   supabaseUrl,
   supabaseKey
 )
+
+// Le informazioni generali dell'evento sono pubbliche e non devono dipendere
+// dalla sessione partecipante eventualmente salvata nel browser.
+export const publicSupabase = createClient(supabaseUrl, supabaseKey, {
+  auth: {
+    persistSession: false,
+    autoRefreshToken: false,
+    detectSessionInUrl: false,
+    storageKey: "zocyal-public",
+  },
+})

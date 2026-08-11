@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { publicSupabase, supabase } from "@/lib/supabase"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
 
@@ -82,7 +82,7 @@ export default function MioProfiloPage() {
         return
       }
 
-      const { data: eventData } = await supabase
+      const { data: eventData } = await publicSupabase
         .from("events")
         .select("experience_mode")
         .eq("code", eventCode)

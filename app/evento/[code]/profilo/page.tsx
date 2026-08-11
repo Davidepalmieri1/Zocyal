@@ -3,7 +3,7 @@
 import { FormEvent, useEffect, useState } from "react"
 import Link from "next/link"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { publicSupabase, supabase } from "@/lib/supabase"
 import {
   createParticipantProfile,
   ensureAnonymousSession,
@@ -48,12 +48,12 @@ export default function ProfiloPage() {
   useEffect(() => {
     const eventCode = params.code.trim().toLowerCase()
     void Promise.all([
-      supabase
+      publicSupabase
         .from("events")
         .select("experience_mode")
         .eq("code", eventCode)
         .maybeSingle(),
-      supabase.rpc("get_event_registration_availability", {
+      publicSupabase.rpc("get_event_registration_availability", {
         p_event_code: eventCode,
       }),
     ]).then(([eventResult, availabilityResult]) => {
@@ -63,6 +63,10 @@ export default function ProfiloPage() {
           availabilityResult.error ||
           !availabilityResult.data
         ) {
+          console.error("Errore configurazione evento:", {
+            event: eventResult.error,
+            availability: availabilityResult.error,
+          })
           setErrore("Non siamo riusciti a caricare la configurazione dell’evento.")
           return
         }

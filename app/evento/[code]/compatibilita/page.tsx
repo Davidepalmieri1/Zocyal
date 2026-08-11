@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
-import { supabase } from "@/lib/supabase"
+import { publicSupabase, supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
@@ -448,7 +448,7 @@ export default function CompatibilitaPage() {
       setHaAltriProfili(true)
       setInclusiveSetupRequired(false)
 
-      const { data: eventData, error: eventError } = await supabase
+      const { data: eventData, error: eventError } = await publicSupabase
         .from("events")
         .select("experience_mode")
         .eq("code", eventCode)
