@@ -92,7 +92,7 @@ export async function GET(request: Request) {
 
       if (view === "rewards") {
         stage = "missioni e premi"
-        const [missions, rewards, completions, redemptions, leaderboard, rewardParticipants] = await Promise.all([
+        const [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates] = await Promise.all([
           supabase
             .from("missions")
             .select("id, event_code, code, title, description, points, verification_mode, verification_key, active, created_at")
@@ -119,9 +119,10 @@ export async function GET(request: Request) {
             .limit(1000),
           supabase.rpc("mr_event_leaderboard", { p_event_code: code } as never),
           supabase.from("participants").select("id,nickname").eq("event_code", code).order("nickname"),
+          supabase.from("engagement_templates").select("*").order("updated_at", { ascending: false }).limit(500),
         ])
 
-        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants].find(
+        const failed = [missions, rewards, completions, redemptions, leaderboard, rewardParticipants, templates].find(
           (result) => result.error
         )
       if (failed?.error) throw failed.error
@@ -133,6 +134,7 @@ export async function GET(request: Request) {
           redemptions: redemptions.data || [],
           leaderboard: (leaderboard.data || []).slice(0, 3),
           participants: rewardParticipants.data || [],
+          templates: templates.data || [],
         })
     }
 
