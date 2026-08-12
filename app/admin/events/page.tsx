@@ -21,6 +21,8 @@ export default function EventsPage() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState("")
   const [deleting, setDeleting] = useState("")
+  const [resetting, setResetting] = useState("")
+  const [success, setSuccess] = useState("")
 
   useEffect(() => {
     void fetch("/admin/api/events", { credentials: "same-origin", cache: "no-store" })
@@ -48,6 +50,40 @@ export default function EventsPage() {
     finally{setDeleting("")}
   }
 
+  async function resetParticipants(event: EventItem) {
+    const confirmed = window.confirm(
+      `Svuotare tutti gli utenti di “${event.name}”?\n\nVerranno eliminati profili, match, chat, like, coupon, punti e tavoli attivi. L’evento, il QR, le impostazioni, le missioni e i premi resteranno disponibili.\n\nQuesta operazione non può essere annullata.`,
+    )
+    if (!confirmed) return
+
+    const password = window.prompt("Inserisci la password di sicurezza per confermare la pulizia:")
+    if (password === null) return
+
+    setResetting(event.code)
+    setError("")
+    setSuccess("")
+    try {
+      const response = await fetch("/admin/api/events/reset-participants", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code: event.code, password }),
+      })
+      const body = await response.json()
+      if (!response.ok) throw new Error(body.error || "Pulizia non riuscita.")
+      const deleted = Number(body.deletedParticipants) || 0
+      setSuccess(
+        deleted === 1
+          ? `Evento “${event.name}” ripulito: 1 utente eliminato.`
+          : `Evento “${event.name}” ripulito: ${deleted} utenti eliminati.`,
+      )
+    } catch (cause) {
+      setError(cause instanceof Error ? cause.message : "Errore inatteso.")
+    } finally {
+      setResetting("")
+    }
+  }
+
   return (
     <main className="premium-page px-4 py-8 text-white sm:px-7 lg:py-12">
       <PremiumBackdrop orbs={false} />
@@ -66,6 +102,7 @@ export default function EventsPage() {
         </header>
 
         {error && <p className="mt-8 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-red-200">{error}</p>}
+        {success && <p className="mt-8 rounded-2xl border border-emerald-400/30 bg-emerald-400/10 p-4 text-emerald-200">{success}</p>}
         {loading && <div className="premium-glass mt-10 h-56 animate-pulse rounded-[2rem]" aria-label="Caricamento eventi" />}
 
         {!loading && !error && (
@@ -80,7 +117,12 @@ export default function EventsPage() {
                 <div className="mt-8 border-t border-white/[.07] pt-5"><p className="text-sm text-white/55">⌖ {event.venue || "Luogo non indicato"}</p><p className="mt-2 text-xs text-white/30">{event.starts_at ? new Date(event.starts_at).toLocaleString("it-IT") : "Apertura non impostata"}</p></div>
                 <p className={`mt-4 rounded-xl border p-3 text-[10px] font-black uppercase tracking-wider ${event.experience_mode === "inclusive" ? "border-pink-400/20 bg-pink-400/[.08] text-pink-300" : "border-white/[.07] bg-white/[.025] text-white/40"}`}>{event.experience_mode === "inclusive" ? "Evento inclusivo" : "Evento standard"}</p>
                 {event.code === "test" && <p className="mt-4 rounded-xl border border-sky-400/15 bg-sky-400/[.07] p-3 text-[10px] font-black uppercase tracking-wider text-sky-300">Ambiente di prova</p>}
-                <div className="mt-6 grid grid-cols-[1fr_auto_auto] gap-2"><a href={`/admin/dashboard/${event.code}`} className="rounded-xl bg-white px-4 py-3 text-center text-sm font-black text-black transition hover:bg-pink-100">GESTISCI</a><button type="button" onClick={()=>void deleteEvent(event)} disabled={Boolean(deleting)} aria-label={`Elimina ${event.name}`} className="rounded-xl border border-red-400/20 bg-red-400/[.08] px-4 text-[10px] font-black text-red-300 transition hover:border-red-300/50 hover:bg-red-400/15 disabled:cursor-wait disabled:opacity-45">{deleting===event.code?"…":"ELIMINA"}</button><a href={`/admin/impostazioni/${event.code}`} aria-label={`Impostazioni ${event.name}`} className="flex w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[.035] text-lg transition hover:border-pink-300/30 hover:bg-pink-400/10">⚙</a></div>
+                <div className="mt-6 grid grid-cols-[1fr_auto] gap-2">
+                  <a href={`/admin/dashboard/${event.code}`} className="rounded-xl bg-white px-4 py-3 text-center text-sm font-black text-black transition hover:bg-pink-100">GESTISCI</a>
+                  <a href={`/admin/impostazioni/${event.code}`} aria-label={`Impostazioni ${event.name}`} className="flex w-12 items-center justify-center rounded-xl border border-white/10 bg-white/[.035] text-lg transition hover:border-pink-300/30 hover:bg-pink-400/10">⚙</a>
+                  <button type="button" onClick={() => void resetParticipants(event)} disabled={Boolean(deleting || resetting)} className="rounded-xl border border-amber-300/20 bg-amber-300/[.07] px-4 py-3 text-[10px] font-black text-amber-200 transition hover:border-amber-200/50 hover:bg-amber-300/15 disabled:cursor-wait disabled:opacity-45">{resetting === event.code ? "PULIZIA…" : "SVUOTA UTENTI"}</button>
+                  <button type="button" onClick={()=>void deleteEvent(event)} disabled={Boolean(deleting || resetting)} aria-label={`Elimina ${event.name}`} className="rounded-xl border border-red-400/20 bg-red-400/[.08] px-4 py-3 text-[10px] font-black text-red-300 transition hover:border-red-300/50 hover:bg-red-400/15 disabled:cursor-wait disabled:opacity-45">{deleting===event.code?"…":"ELIMINA EVENTO"}</button>
+                </div>
               </article>
             ))}
             {events.length === 0 && <div className="premium-glass rounded-[2rem] p-10 text-center text-white/45 md:col-span-2 xl:col-span-3">Nessun evento. Creane uno per iniziare.</div>}
