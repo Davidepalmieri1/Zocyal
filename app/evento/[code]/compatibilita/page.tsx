@@ -12,6 +12,7 @@ const PROFILI_PER_PAGINA = 20
 const SOGLIA_COMPATIBILITA_MATCH = 30
 
 type StatoMatch = "match" | "liked" | "received_like" | "none"
+type DisponibilitaInteresse = "available" | "unavailable" | "setup_required"
 
 type PersonaMatch = {
   id: string
@@ -21,6 +22,7 @@ type PersonaMatch = {
   compatibilita: number
   stato: StatoMatch
   match_id: string | null
+  disponibilita: DisponibilitaInteresse
 }
 
 type Risposte = {
@@ -168,13 +170,26 @@ export default function CompatibilitaPage() {
 
         const partecipanti = altriPartecipanti || []
         const participantIds = partecipanti.map((persona) => persona.id)
-        const risposteResult =
-          participantIds.length > 0
-            ? await supabase
+        const [risposteResult, disponibilitaResult] = participantIds.length > 0
+          ? await Promise.all([
+              supabase
                 .from("answers")
                 .select("*")
-                .in("participant_id", participantIds)
-            : { data: [] as Risposte[], error: null }
+                .in("participant_id", participantIds),
+              supabase.rpc("get_interest_availability", {
+                p_target_participants: participantIds,
+              }),
+            ])
+          : [
+              { data: [] as Risposte[], error: null },
+              {
+                data: [] as {
+                  participant_id: string
+                  availability: DisponibilitaInteresse
+                }[],
+                error: null,
+              },
+            ]
 
         if (risposteResult.error) {
           console.error(
@@ -184,7 +199,21 @@ export default function CompatibilitaPage() {
           setErrore("Alcune compatibilità non sono state calcolate.")
         }
 
+        if (disponibilitaResult.error) {
+          console.error(
+            "Errore verifica disponibilità profili:",
+            disponibilitaResult.error
+          )
+          setErrore("Non siamo riusciti a verificare tutte le connessioni disponibili.")
+        }
+
         const risposte = (risposteResult.data || []) as Risposte[]
+        const disponibilita = new Map(
+          ((disponibilitaResult.data || []) as {
+            participant_id: string
+            availability: DisponibilitaInteresse
+          }[]).map((item) => [item.participant_id, item.availability])
+        )
         nuovePersone = partecipanti
           .map((person) => {
             const sueRisposte = risposte.find(
@@ -198,6 +227,7 @@ export default function CompatibilitaPage() {
             return {
               ...person,
               compatibilita,
+              disponibilita: disponibilita.get(person.id) || "unavailable",
               ...trovaStatoPersona(person.id, participantId),
             } as PersonaMatch
           })
@@ -306,6 +336,7 @@ export default function CompatibilitaPage() {
 
   async function inviaInteresse(person: PersonaMatch) {
     if (person.stato !== "none" && person.stato !== "received_like") return
+    if (person.disponibilita !== "available") return
 
     const participantId = mioId
 
@@ -779,6 +810,41 @@ export default function CompatibilitaPage() {
                 </div>
 
                 <div className="p-6">
+                  {person.disponibilita === "unavailable" &&
+                    person.stato !== "match" &&
+                    person.stato !== "liked" && (
+                      <div className="mb-5 overflow-hidden rounded-3xl border border-violet-400/25 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/10 to-pink-500/5 p-5 shadow-[0_0_32px_rgba(168,85,247,0.12)]">
+                        <div className="flex items-start gap-4">
+                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-violet-200">
+                            <svg
+                              aria-hidden="true"
+                              viewBox="0 0 24 24"
+                              fill="none"
+                              className="h-6 w-6"
+                            >
+                              <path
+                                d="M8 10V8a4 4 0 1 1 8 0v2m-9 0h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z"
+                                stroke="currentColor"
+                                strokeWidth="1.8"
+                                strokeLinecap="round"
+                              />
+                            </svg>
+                          </div>
+                          <div>
+                            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">
+                              Connessione non disponibile
+                            </p>
+                            <p className="mt-2 text-sm leading-6 text-white/65">
+                              Le condizioni reciproche per questo incontro non coincidono.
+                            </p>
+                            <p className="mt-2 text-xs leading-5 text-white/40">
+                              Le preferenze personali restano private per entrambi.
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
                   <div className="rounded-3xl border border-white/10 bg-black/35 p-5">
                     <div className="flex items-end justify-between gap-4">
                       <div>
@@ -817,7 +883,8 @@ export default function CompatibilitaPage() {
                     disabled={
                       azioneInCorso === person.id ||
                       person.stato === "liked" ||
-                      person.stato === "match"
+                      person.stato === "match" ||
+                      person.disponibilita !== "available"
                     }
                     className={`mt-5 w-full rounded-full px-6 py-4 font-black transition ${
                       person.stato === "liked"
@@ -827,6 +894,10 @@ export default function CompatibilitaPage() {
                   >
                     {azioneInCorso === person.id
                       ? "INVIO..."
+                      : person.disponibilita === "unavailable" &&
+                          person.stato !== "match" &&
+                          person.stato !== "liked"
+                        ? "CONNESSIONE NON DISPONIBILE"
                       : person.stato === "match"
                         ? "🔥 MATCH FATTO"
                         : person.stato === "liked"
