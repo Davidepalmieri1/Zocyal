@@ -70,6 +70,7 @@ export default function CompatibilitaPage() {
   const [indiceAttivo, setIndiceAttivo] = useState(0)
   const [inclusiveMode, setInclusiveMode] = useState(false)
   const [inclusiveSetupRequired, setInclusiveSetupRequired] = useState(false)
+  const [inclusiveSetupReason, setInclusiveSetupReason] = useState<"consent" | "identity" | "connections" | null>(null)
 
   const mieRisposteRef = useRef<Risposte | null>(null)
   const likesRef = useRef<LikeRecord[]>([])
@@ -438,6 +439,7 @@ export default function CompatibilitaPage() {
       setProssimoIndice(0)
       setHaAltriProfili(true)
       setInclusiveSetupRequired(false)
+      setInclusiveSetupReason(null)
 
       const { data: eventData, error: eventError } = await publicSupabase
         .from("events")
@@ -466,9 +468,21 @@ export default function CompatibilitaPage() {
           return
         }
 
-        const settings = (settingsData || {}) as { complete?: boolean }
+        const settings = (settingsData || {}) as {
+          complete?: boolean
+          consent?: boolean
+          identity_category?: string | null
+          connection_preferences?: string[]
+        }
         if (!settings.complete) {
           setInclusiveSetupRequired(true)
+          setInclusiveSetupReason(
+            !settings.consent
+              ? "consent"
+              : !settings.identity_category
+                ? "identity"
+                : "connections"
+          )
           setLoading(false)
           return
         }
@@ -664,7 +678,11 @@ export default function CompatibilitaPage() {
             <span className="text-5xl">🫶</span>
             <h2 className="mt-5 text-2xl font-black">Completa le preferenze private</h2>
             <p className="mt-3 leading-7 text-gray-300">
-              Per mostrarti match inclusivi dobbiamo verificare che le preferenze siano reciproche. Le tue scelte non saranno mostrate agli altri partecipanti o allo staff.
+              {inclusiveSetupReason === "consent"
+                ? "Le scelte inserite in precedenza non erano state attivate perché mancava il consenso. Conferma la tua categoria, chi desideri conoscere e attiva i match inclusivi."
+                : inclusiveSetupReason === "identity"
+                  ? "Hai attivato i match, ma manca la tua categoria. Serve per verificare in modo reciproco chi può comparire tra i suggerimenti."
+                  : "Hai attivato i match, ma devi ancora indicare chi desideri conoscere. Le tue scelte non saranno mostrate agli altri partecipanti o allo staff."}
             </p>
             <button type="button" onClick={() => router.push(`/evento/${params.code}/preferenze`)} className="mt-7 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white">
               COMPLETA LE PREFERENZE

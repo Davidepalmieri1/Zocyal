@@ -189,6 +189,21 @@ export default function ProfiloPage() {
       return
     }
 
+    const haCompilatoPreferenzePrivate = Boolean(
+      identityCategory || pronouns.trim() || connectionPreferences.length > 0
+    )
+
+    if (
+      eventMode === "inclusive" &&
+      haCompilatoPreferenzePrivate &&
+      !matchingConsent
+    ) {
+      setErrore(
+        "Hai compilato le preferenze private, ma non hai ancora autorizzato il loro utilizzo per i match. Spunta il consenso oppure rimuovi le scelte per continuare senza match inclusivi."
+      )
+      return
+    }
+
     if (
       eventMode === "inclusive" &&
       matchingConsent &&
@@ -539,11 +554,11 @@ export default function ProfiloPage() {
               <fieldset className="rounded-3xl border border-pink-400/20 bg-pink-400/[0.06] p-5">
                 <legend className="px-2 text-sm font-black text-pink-200">Preferenze private per i match</legend>
                 <p className="mt-1 text-xs leading-5 text-gray-400">
-                  Queste informazioni non appariranno sul tuo profilo.
+                  Completa i due passaggi: la tua categoria e chi desideri conoscere. Queste informazioni non appariranno sul tuo profilo.
                 </p>
 
                 <label className="mt-5 block text-sm font-bold text-gray-300">
-                  Categoria con cui ti riconosci
+                  1. La tua categoria
                   <select value={identityCategory} onChange={(event) => setIdentityCategory(event.target.value)} className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-black">
                     <option value="">Preferisco non indicarla</option>
                     <option value="woman">Donna</option>
@@ -559,7 +574,7 @@ export default function ProfiloPage() {
                 </label>
 
                 <div className="mt-5">
-                  <p className="text-sm font-bold text-gray-300">Con chi sei disponibile a creare connessioni?</p>
+                  <p className="text-sm font-bold text-gray-300">2. Chi desideri conoscere?</p>
                   <p className="mt-1 text-xs text-gray-500">
                     {matchingConsent
                       ? "Scegli almeno un’opzione per attivare i match."
@@ -583,7 +598,7 @@ export default function ProfiloPage() {
                 <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/35 p-4 text-xs leading-5 text-gray-300">
                   <input type="checkbox" checked={matchingConsent} onChange={(event) => setMatchingConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-pink-500" />
                   <span>
-                    Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.
+                    3. Attiva i match inclusivi. Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.
                   </span>
                 </label>
                 {matchingConsent && (!identityCategory || connectionPreferences.length === 0) && (

@@ -68,6 +68,13 @@ export default function InclusivePreferencesPage() {
 
   async function save(event: FormEvent<HTMLFormElement>) {
     event.preventDefault()
+    const hasPrivateChoices = Boolean(
+      identityCategory || pronouns.trim() || preferences.length > 0
+    )
+    if (hasPrivateChoices && !consent) {
+      setError("Hai compilato le preferenze private: attiva il consenso per salvarle oppure rimuovi le scelte per continuare senza match inclusivi.")
+      return
+    }
     if (consent && (!identityCategory || preferences.length === 0)) {
       setError("Per attivare i match inclusivi, indica una categoria e almeno una preferenza di connessione.")
       return
@@ -111,7 +118,7 @@ export default function InclusivePreferencesPage() {
 
         <form onSubmit={save} className="premium-glass mt-7 rounded-[2rem] p-6">
           <label className="block text-sm font-bold">
-            Categoria con cui ti riconosci <span className="font-normal text-gray-500">(facoltativa)</span>
+            1. La tua categoria <span className="font-normal text-gray-500">(necessaria per attivare i match)</span>
             <select value={identityCategory} onChange={(event) => setIdentityCategory(event.target.value)} className="mt-2 w-full rounded-2xl bg-white px-4 py-3 text-black">
               <option value="">Preferisco non indicarla</option>
               <option value="woman">Donna</option>
@@ -127,7 +134,7 @@ export default function InclusivePreferencesPage() {
           </label>
 
           <div className="mt-5">
-            <p className="text-sm font-bold">Con chi sei disponibile a creare connessioni?</p>
+            <p className="text-sm font-bold">2. Chi desideri conoscere?</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {options.map((option) => (
                 <label key={option.value} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm">
@@ -145,7 +152,7 @@ export default function InclusivePreferencesPage() {
 
           <label className="mt-5 flex items-start gap-3 rounded-2xl border border-pink-400/20 bg-pink-400/[.06] p-4 text-xs leading-5 text-gray-300">
             <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-pink-500" />
-            <span>Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.</span>
+            <span>3. Attiva i match inclusivi. Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.</span>
           </label>
 
           {!consent && <p className="mt-3 text-xs leading-5 text-amber-200">Senza consenso non salviamo identità, pronomi o preferenze e la funzione match inclusiva resta disattivata.</p>}
