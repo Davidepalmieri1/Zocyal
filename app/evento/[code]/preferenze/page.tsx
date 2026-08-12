@@ -72,7 +72,7 @@ export default function InclusivePreferencesPage() {
       identityCategory || pronouns.trim() || preferences.length > 0
     )
     if (hasPrivateChoices && !consent) {
-      setError("Hai compilato le preferenze private: attiva il consenso per salvarle oppure rimuovi le scelte per continuare senza match inclusivi.")
+      setError("Hai compilato le preferenze private: attiva il consenso per usarle nell’ordine dei suggerimenti oppure rimuovi le scelte. Potrai comunque mettere like a tutti.")
       return
     }
     if (consent && (!identityCategory || preferences.length === 0)) {
@@ -134,7 +134,7 @@ export default function InclusivePreferencesPage() {
           </label>
 
           <div className="mt-5">
-            <p className="text-sm font-bold">2. Chi desideri conoscere?</p>
+            <p className="text-sm font-bold">2. Chi vorresti incontrare più facilmente?</p>
             <div className="mt-3 grid gap-2 sm:grid-cols-2">
               {options.map((option) => (
                 <label key={option.value} className="flex items-center gap-3 rounded-2xl border border-white/10 bg-black/25 p-3 text-sm">
@@ -152,10 +152,10 @@ export default function InclusivePreferencesPage() {
 
           <label className="mt-5 flex items-start gap-3 rounded-2xl border border-pink-400/20 bg-pink-400/[.06] p-4 text-xs leading-5 text-gray-300">
             <input type="checkbox" checked={consent} onChange={(event) => setConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-pink-500" />
-            <span>3. Attiva i match inclusivi. Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.</span>
+            <span>3. Personalizza i suggerimenti. Acconsento all&apos;uso di queste preferenze private esclusivamente per ordinare i profili suggeriti in questo evento. Non impediranno a nessuno di mostrare interesse, non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.</span>
           </label>
 
-          {!consent && <p className="mt-3 text-xs leading-5 text-amber-200">Senza consenso non salviamo identità, pronomi o preferenze e la funzione match inclusiva resta disattivata.</p>}
+          {!consent && <p className="mt-3 text-xs leading-5 text-amber-200">Senza consenso non salviamo identità, pronomi o preferenze. Like e match reciproci restano comunque disponibili.</p>}
           {error && <p className="mt-4 rounded-2xl border border-red-400/30 bg-red-400/10 p-4 text-sm text-red-200">{error}</p>}
 
           <button disabled={saving} className="mt-6 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black disabled:opacity-60">{saving ? "SALVATAGGIO…" : "SALVA E CERCA MATCH"}</button>

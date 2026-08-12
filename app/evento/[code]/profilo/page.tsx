@@ -199,7 +199,7 @@ export default function ProfiloPage() {
       !matchingConsent
     ) {
       setErrore(
-        "Hai compilato le preferenze private, ma non hai ancora autorizzato il loro utilizzo per i match. Spunta il consenso oppure rimuovi le scelte per continuare senza match inclusivi."
+        "Hai compilato le preferenze private, ma non hai autorizzato il loro utilizzo per ordinare i suggerimenti. Spunta il consenso oppure rimuovi le scelte: potrai comunque mettere like a tutti."
       )
       return
     }
@@ -574,7 +574,7 @@ export default function ProfiloPage() {
                 </label>
 
                 <div className="mt-5">
-                  <p className="text-sm font-bold text-gray-300">2. Chi desideri conoscere?</p>
+                  <p className="text-sm font-bold text-gray-300">2. Chi vorresti incontrare più facilmente?</p>
                   <p className="mt-1 text-xs text-gray-500">
                     {matchingConsent
                       ? "Scegli almeno un’opzione per attivare i match."
@@ -598,7 +598,7 @@ export default function ProfiloPage() {
                 <label className="mt-5 flex items-start gap-3 rounded-2xl border border-white/10 bg-black/35 p-4 text-xs leading-5 text-gray-300">
                   <input type="checkbox" checked={matchingConsent} onChange={(event) => setMatchingConsent(event.target.checked)} className="mt-1 h-4 w-4 shrink-0 accent-pink-500" />
                   <span>
-                    3. Attiva i match inclusivi. Acconsento all&apos;uso di queste preferenze private esclusivamente per filtrare in modo reciproco i possibili match in questo evento. Non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.
+                    3. Personalizza i suggerimenti. Acconsento all&apos;uso di queste preferenze private esclusivamente per ordinare i profili suggeriti in questo evento. Non impediranno a nessuno di mostrare interesse, non saranno mostrate ad altri partecipanti o allo staff e saranno eliminate insieme ai miei dati dell&apos;evento.
                   </span>
                 </label>
                 {matchingConsent && (!identityCategory || connectionPreferences.length === 0) && (
@@ -606,7 +606,7 @@ export default function ProfiloPage() {
                     Per attivare i match, completa la categoria e scegli almeno una preferenza qui sopra.
                   </p>
                 )}
-                {!matchingConsent && <p className="mt-3 text-xs leading-5 text-amber-200">Puoi continuare senza consenso, ma la funzione match inclusiva resterà disattivata finché non completerai queste preferenze.</p>}
+                {!matchingConsent && <p className="mt-3 text-xs leading-5 text-amber-200">Puoi continuare senza consenso e mettere like normalmente. Le preferenze servono solo a personalizzare l&apos;ordine dei suggerimenti.</p>}
               </fieldset>
             )}
 

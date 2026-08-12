@@ -12,8 +12,6 @@ const PROFILI_PER_PAGINA = 20
 const SOGLIA_COMPATIBILITA_MATCH = 30
 
 type StatoMatch = "match" | "liked" | "received_like" | "none"
-type DisponibilitaInteresse = "available" | "unavailable" | "setup_required"
-
 type PersonaMatch = {
   id: string
   nickname: string | null
@@ -22,7 +20,7 @@ type PersonaMatch = {
   compatibilita: number
   stato: StatoMatch
   match_id: string | null
-  disponibilita: DisponibilitaInteresse
+  preferenzaPrioritaria: boolean
 }
 
 type Risposte = {
@@ -71,8 +69,6 @@ export default function CompatibilitaPage() {
   const [mioId, setMioId] = useState<string | null>(null)
   const [indiceAttivo, setIndiceAttivo] = useState(0)
   const [inclusiveMode, setInclusiveMode] = useState(false)
-  const [inclusiveSetupRequired, setInclusiveSetupRequired] = useState(false)
-  const [inclusiveSetupReason, setInclusiveSetupReason] = useState<"consent" | "identity" | "connections" | null>(null)
 
   const mieRisposteRef = useRef<Risposte | null>(null)
   const likesRef = useRef<LikeRecord[]>([])
@@ -170,13 +166,13 @@ export default function CompatibilitaPage() {
 
         const partecipanti = altriPartecipanti || []
         const participantIds = partecipanti.map((persona) => persona.id)
-        const [risposteResult, disponibilitaResult] = participantIds.length > 0
+        const [risposteResult, prioritaResult] = participantIds.length > 0
           ? await Promise.all([
               supabase
                 .from("answers")
                 .select("*")
                 .in("participant_id", participantIds),
-              supabase.rpc("get_interest_availability", {
+              supabase.rpc("get_interest_suggestions", {
                 p_target_participants: participantIds,
               }),
             ])
@@ -185,7 +181,7 @@ export default function CompatibilitaPage() {
               {
                 data: [] as {
                   participant_id: string
-                  availability: DisponibilitaInteresse
+                  preference_priority: boolean
                 }[],
                 error: null,
               },
@@ -199,20 +195,20 @@ export default function CompatibilitaPage() {
           setErrore("Alcune compatibilità non sono state calcolate.")
         }
 
-        if (disponibilitaResult.error) {
+        if (prioritaResult.error) {
           console.error(
             "Errore verifica disponibilità profili:",
-            disponibilitaResult.error
+            prioritaResult.error
           )
           setErrore("Non siamo riusciti a verificare tutte le connessioni disponibili.")
         }
 
         const risposte = (risposteResult.data || []) as Risposte[]
-        const disponibilita = new Map(
-          ((disponibilitaResult.data || []) as {
+        const priorita = new Map(
+          ((prioritaResult.data || []) as {
             participant_id: string
-            availability: DisponibilitaInteresse
-          }[]).map((item) => [item.participant_id, item.availability])
+            preference_priority: boolean
+          }[]).map((item) => [item.participant_id, item.preference_priority])
         )
         nuovePersone = partecipanti
           .map((person) => {
@@ -227,7 +223,7 @@ export default function CompatibilitaPage() {
             return {
               ...person,
               compatibilita,
-              disponibilita: disponibilita.get(person.id) || "unavailable",
+              preferenzaPrioritaria: priorita.get(person.id) || false,
               ...trovaStatoPersona(person.id, participantId),
             } as PersonaMatch
           })
@@ -248,9 +244,13 @@ export default function CompatibilitaPage() {
           mappa.set(persona.id, persona)
         })
 
-        return Array.from(mappa.values()).sort(
-          (a, b) => b.compatibilita - a.compatibilita
-        )
+        return Array.from(mappa.values()).sort((a, b) => {
+          if (a.preferenzaPrioritaria !== b.preferenzaPrioritaria) {
+            return Number(b.preferenzaPrioritaria) - Number(a.preferenzaPrioritaria)
+          }
+
+          return b.compatibilita - a.compatibilita
+        })
       })
 
       setProssimoIndice(indiceCorrente)
@@ -336,7 +336,6 @@ export default function CompatibilitaPage() {
 
   async function inviaInteresse(person: PersonaMatch) {
     if (person.stato !== "none" && person.stato !== "received_like") return
-    if (person.disponibilita !== "available") return
 
     const participantId = mioId
 
@@ -355,22 +354,7 @@ export default function CompatibilitaPage() {
       )
 
       if (interestError) {
-        if (interestError.message.includes("Inclusive matching setup incomplete")) {
-          setInclusiveSetupRequired(true)
-          setErrore("Completa le preferenze private per usare i match inclusivi.")
-        } else if (interestError.message.includes("Inclusive pair unavailable")) {
-          setMatches((attuali) =>
-            attuali.filter((persona) => persona.id !== person.id)
-          )
-          setIndiceAttivo((indice) =>
-            Math.max(0, Math.min(indice, matches.length - 2))
-          )
-          setErrore(
-            `${person.nickname || "Questa persona"} non è disponibile in base alle preferenze reciproche. Ti mostriamo il prossimo profilo.`
-          )
-        } else {
-          setErrore(`Errore durante l’invio dell’interesse: ${interestError.message}`)
-        }
+        setErrore(`Errore durante l’invio dell’interesse: ${interestError.message}`)
         return
       }
 
@@ -479,8 +463,6 @@ export default function CompatibilitaPage() {
       setIndiceAttivo(0)
       setProssimoIndice(0)
       setHaAltriProfili(true)
-      setInclusiveSetupRequired(false)
-      setInclusiveSetupReason(null)
 
       const { data: eventData, error: eventError } = await publicSupabase
         .from("events")
@@ -496,38 +478,6 @@ export default function CompatibilitaPage() {
 
       const isInclusive = eventData.experience_mode === "inclusive"
       setInclusiveMode(isInclusive)
-
-      if (isInclusive) {
-        const { data: settingsData, error: settingsError } = await supabase.rpc(
-          "get_inclusive_matching_settings",
-          { p_event_code: eventCode }
-        )
-
-        if (settingsError) {
-          setErrore("Non siamo riusciti a verificare le preferenze private.")
-          setLoading(false)
-          return
-        }
-
-        const settings = (settingsData || {}) as {
-          complete?: boolean
-          consent?: boolean
-          identity_category?: string | null
-          connection_preferences?: string[]
-        }
-        if (!settings.complete) {
-          setInclusiveSetupRequired(true)
-          setInclusiveSetupReason(
-            !settings.consent
-              ? "consent"
-              : !settings.identity_category
-                ? "identity"
-                : "connections"
-          )
-          setLoading(false)
-          return
-        }
-      }
 
       const [risposteResult, likesResult, matchesResult] = await Promise.all([
         supabase
@@ -697,7 +647,7 @@ export default function CompatibilitaPage() {
             {socialPersonId
               ? "Qui puoi vedere l’affinità reale del questionario anche quando è inferiore alla soglia della sezione match."
               : inclusiveMode
-              ? `Mostriamo profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, senza rendere pubbliche le vostre scelte.`
+              ? "Puoi conoscere tutti. Le preferenze private servono solo a mostrarti prima i profili più affini, senza limitare i like."
               : `Mostriamo profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità, caricati a gruppi per mantenere la serata veloce.`}
           </p>
 
@@ -714,22 +664,7 @@ export default function CompatibilitaPage() {
           </p>
         )}
 
-        {inclusiveSetupRequired ? (
-          <div className="mt-8 rounded-3xl border border-pink-400/25 bg-pink-400/[.07] p-8 text-center backdrop-blur-xl">
-            <span className="text-5xl">🫶</span>
-            <h2 className="mt-5 text-2xl font-black">Completa le preferenze private</h2>
-            <p className="mt-3 leading-7 text-gray-300">
-              {inclusiveSetupReason === "consent"
-                ? "Le scelte inserite in precedenza non erano state attivate perché mancava il consenso. Conferma la tua categoria, chi desideri conoscere e attiva i match inclusivi."
-                : inclusiveSetupReason === "identity"
-                  ? "Hai attivato i match, ma manca la tua categoria. Serve per verificare in modo reciproco chi può comparire tra i suggerimenti."
-                  : "Hai attivato i match, ma devi ancora indicare chi desideri conoscere. Le tue scelte non saranno mostrate agli altri partecipanti o allo staff."}
-            </p>
-            <button type="button" onClick={() => router.push(`/evento/${params.code}/preferenze`)} className="mt-7 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white">
-              COMPLETA LE PREFERENZE
-            </button>
-          </div>
-        ) : matches.length === 0 ? (
+        {matches.length === 0 ? (
           <div className="mt-8 rounded-3xl border border-white/10 bg-white/[0.05] p-8 text-center backdrop-blur-xl">
             <span className="text-5xl">✨</span>
 
@@ -741,7 +676,7 @@ export default function CompatibilitaPage() {
               {socialPersonId
                 ? "Questo profilo non è più disponibile oppure non ha ancora completato il questionario."
                 : inclusiveMode
-                ? `Al momento non ci sono profili con preferenze reciproche e almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere persone con interessi diversi.`
+                ? `Al momento non ci sono profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere tutte le persone presenti.`
                 : `Al momento non ci sono profili con almeno il ${SOGLIA_COMPATIBILITA_MATCH}% di affinità. In modalità social puoi comunque conoscere nuove persone.`}
             </p>
 
@@ -810,41 +745,6 @@ export default function CompatibilitaPage() {
                 </div>
 
                 <div className="p-6">
-                  {person.disponibilita === "unavailable" &&
-                    person.stato !== "match" &&
-                    person.stato !== "liked" && (
-                      <div className="mb-5 overflow-hidden rounded-3xl border border-violet-400/25 bg-gradient-to-br from-violet-500/15 via-fuchsia-500/10 to-pink-500/5 p-5 shadow-[0_0_32px_rgba(168,85,247,0.12)]">
-                        <div className="flex items-start gap-4">
-                          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-white/[0.06] text-violet-200">
-                            <svg
-                              aria-hidden="true"
-                              viewBox="0 0 24 24"
-                              fill="none"
-                              className="h-6 w-6"
-                            >
-                              <path
-                                d="M8 10V8a4 4 0 1 1 8 0v2m-9 0h10a2 2 0 0 1 2 2v6a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2v-6a2 2 0 0 1 2-2Z"
-                                stroke="currentColor"
-                                strokeWidth="1.8"
-                                strokeLinecap="round"
-                              />
-                            </svg>
-                          </div>
-                          <div>
-                            <p className="text-xs font-black uppercase tracking-[0.18em] text-violet-200">
-                              Connessione non disponibile
-                            </p>
-                            <p className="mt-2 text-sm leading-6 text-white/65">
-                              Le condizioni reciproche per questo incontro non coincidono.
-                            </p>
-                            <p className="mt-2 text-xs leading-5 text-white/40">
-                              Le preferenze personali restano private per entrambi.
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
                   <div className="rounded-3xl border border-white/10 bg-black/35 p-5">
                     <div className="flex items-end justify-between gap-4">
                       <div>
@@ -883,8 +783,7 @@ export default function CompatibilitaPage() {
                     disabled={
                       azioneInCorso === person.id ||
                       person.stato === "liked" ||
-                      person.stato === "match" ||
-                      person.disponibilita !== "available"
+                      person.stato === "match"
                     }
                     className={`mt-5 w-full rounded-full px-6 py-4 font-black transition ${
                       person.stato === "liked"
@@ -894,10 +793,6 @@ export default function CompatibilitaPage() {
                   >
                     {azioneInCorso === person.id
                       ? "INVIO..."
-                      : person.disponibilita === "unavailable" &&
-                          person.stato !== "match" &&
-                          person.stato !== "liked"
-                        ? "CONNESSIONE NON DISPONIBILE"
                       : person.stato === "match"
                         ? "🔥 MATCH FATTO"
                         : person.stato === "liked"
