@@ -6,12 +6,12 @@ import Link from "next/link"
 import Sidebar from "@/app/admin/components/Sidebar"
 import { fetchAdminData } from "@/app/admin/data-client"
 
-type Mission = { id:string; title:string; description:string; points:number; verification_mode:"automatic"|"manual"; active:boolean }
+type Mission = { id:string; title:string; description:string; points:number; difficulty:"easy"|"medium"|"special"; verification_mode:"automatic"|"manual"; active:boolean }
 type Reward = { id:string; name:string; description:string; points_cost:number; quantity_total:number; reward_type:"threshold"|"podium_position"; threshold_points:number|null; podium_position:number|null; active:boolean }
 type Person = { id:string; nickname:string|null }
 type Leader = { nickname:string; avatar_url:string|null; points:number; rank_position:number }
 type Redemption = { id:string; status:string; redeemed_at:string; points_spent:number; claim_code:string|null; reward:{name:string}|null; participant:{nickname:string|null}|null }
-type Template = { id:string; template_type:"mission"|"reward"; title:string; description:string; points:number|null; verification_mode:"automatic"|"manual"|null; verification_key:string|null; points_cost:number|null; quantity_total:number|null; threshold_points:number|null }
+type Template = { id:string; template_type:"mission"|"reward"; title:string; description:string; points:number|null; difficulty:"easy"|"medium"|"special"|null; verification_mode:"automatic"|"manual"|null; verification_key:string|null; points_cost:number|null; quantity_total:number|null; threshold_points:number|null }
 type Data = { missions:Mission[]; rewards:Reward[]; participants:Person[]; leaderboard:Leader[]; redemptions:Redemption[]; templates:Template[] }
 
 const AUTOMATIC = [
@@ -67,6 +67,7 @@ export default function RewardsAdminPage() {
       <form onSubmit={e=>submit(e,"create_mission")} className="rounded-3xl border border-white/10 bg-white/[.05] p-5"><h2 className="text-xl font-black">Nuova missione</h2>
         <label className="mt-5 block text-sm">Titolo<input name="title" required maxLength={120} className="mt-2 w-full rounded-xl bg-white p-3 text-black"/></label>
         <label className="mt-4 block text-sm">Descrizione<textarea name="description" className="mt-2 w-full rounded-xl bg-white p-3 text-black"/></label>
+        <label className="mt-4 block text-sm">Difficoltà<select name="difficulty" defaultValue="easy" className="mt-2 w-full rounded-xl bg-white p-3 text-black"><option value="easy">🌱 Facile · 5–10 punti</option><option value="medium">⚡ Intermedia · 15–25 punti</option><option value="special">🔥 Sfida speciale · 30+ punti</option></select></label>
         <label className="mt-4 block text-sm">Punti<input name="points" type="number" min="1" defaultValue="10" required className="mt-2 w-full rounded-xl bg-white p-3 text-black"/></label>
         <label className="mt-4 block text-sm">Verifica<select name="verification_mode" value={missionMode} onChange={e=>setMissionMode(e.target.value as typeof missionMode)} className="mt-2 w-full rounded-xl bg-white p-3 text-black"><option value="automatic">Automatica</option><option value="manual">Approvazione staff</option></select></label>
         {missionMode==="automatic"&&<label className="mt-4 block text-sm">Evento verificato<select name="verification_key" className="mt-2 w-full rounded-xl bg-white p-3 text-black">{AUTOMATIC.map(([v,l])=><option key={v} value={v}>{l}</option>)}</select></label>}

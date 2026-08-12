@@ -38,6 +38,10 @@ function number(value: unknown, min = 0, max = 1000000) {
   return Number.isSafeInteger(parsed) && parsed >= min && parsed <= max ? parsed : null
 }
 
+function difficulty(value: unknown) {
+  return value === "medium" || value === "special" ? value : "easy"
+}
+
 export async function POST(request: Request) {
   if (!(await authorized(request))) return reply({ error: "Accesso non valido." }, 401)
   const body = await input(request)
@@ -56,6 +60,7 @@ export async function POST(request: Request) {
       const { data, error } = await supabase.from("missions").insert({
         event_code: code, code: `mission-${crypto.randomUUID()}`, title,
         description: cleanText(body.description, 1000), points,
+        difficulty: difficulty(body.difficulty),
         verification_mode: mode, verification_key: key, active: true,
       } as never).select("*").single()
       if (error) throw error
@@ -86,15 +91,15 @@ export async function POST(request: Request) {
 
       if (resource === "mission") {
         const { data: source, error: sourceError } = await supabase.from("missions")
-          .select("title,description,points,verification_mode,verification_key")
+          .select("title,description,points,difficulty,verification_mode,verification_key")
           .eq("id", id).eq("event_code", code).maybeSingle()
         if (sourceError) throw sourceError
         if (!source) return reply({ error: "Missione non trovata." }, 404)
-        const mission = source as { title:string; description:string; points:number; verification_mode:string; verification_key:string|null }
+        const mission = source as { title:string; description:string; points:number; difficulty:string; verification_mode:string; verification_key:string|null }
         const { data, error } = await supabase.from("engagement_templates").insert({
           template_type: "mission", title: mission.title, description: mission.description,
           points: mission.points, verification_mode: mission.verification_mode,
-          verification_key: mission.verification_key,
+          verification_key: mission.verification_key, difficulty: mission.difficulty,
         } as never).select("*").single()
         if (error) throw error
         return reply({ item: data }, 201)
@@ -122,12 +127,13 @@ export async function POST(request: Request) {
         .select("*").eq("id", templateId).maybeSingle()
       if (templateError) throw templateError
       if (!template) return reply({ error: "Modello non trovato." }, 404)
-      const saved = template as { template_type:string; title:string; description:string; points:number|null; verification_mode:string|null; verification_key:string|null; points_cost:number|null; quantity_total:number|null; threshold_points:number|null }
+      const saved = template as { template_type:string; title:string; description:string; points:number|null; difficulty:string|null; verification_mode:string|null; verification_key:string|null; points_cost:number|null; quantity_total:number|null; threshold_points:number|null }
 
       if (saved.template_type === "mission") {
         const { data, error } = await supabase.from("missions").insert({
           event_code: code, code: `mission-${crypto.randomUUID()}`, title: saved.title,
           description: saved.description, points: saved.points,
+          difficulty: saved.difficulty || "easy",
           verification_mode: saved.verification_mode, verification_key: saved.verification_key,
           active: true,
         } as never).select("*").single()
@@ -255,7 +261,7 @@ export async function PATCH(request: Request) {
     if (table === "missions") {
       const points = number(body.points, 1, 10000)
       if (points === null) return reply({ error: "Punti non validi." }, 400)
-      changes = { title, description, points }
+      changes = { title, description, points, difficulty: difficulty(body.difficulty) }
     } else if (table === "rewards") {
       const pointsCost = number(body.points_cost, 0, 1000000)
       const quantity = number(body.quantity_total, 1, 100000)

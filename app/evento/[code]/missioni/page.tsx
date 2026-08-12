@@ -54,6 +54,14 @@ type MissionDashboard = {
 
 type JsonRecord = Record<string, unknown>
 
+const DIFFICULTY = {
+  easy: { label: "Facili", icon: "🌱", description: "Inizia da qui: azioni rapide per entrare nel vivo della serata.", tone: "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200" },
+  medium: { label: "Intermedie", icon: "⚡", description: "Fai nuove connessioni e aumenta il tuo punteggio.", tone: "border-amber-300/25 bg-amber-300/[0.06] text-amber-200" },
+  special: { label: "Sfide speciali", icon: "🔥", description: "Le missioni più coinvolgenti, con le ricompense più alte.", tone: "border-fuchsia-400/25 bg-fuchsia-400/[0.06] text-fuchsia-200" },
+} as const
+
+type DifficultyKey = keyof typeof DIFFICULTY
+
 function record(value: unknown): JsonRecord {
   return value && typeof value === "object" && !Array.isArray(value)
     ? (value as JsonRecord)
@@ -94,7 +102,9 @@ function normalizeDashboard(data: unknown): MissionDashboard {
       description: text(mission.description),
       points: number(mission.points),
       icon: text(mission.icon, "🎯"),
-      difficulty: text(mission.difficulty, "Missione"),
+      difficulty: ["easy", "medium", "special"].includes(text(mission.difficulty))
+        ? text(mission.difficulty)
+        : "easy",
       verificationMode: text(mission.verification_mode, "automatic"),
       completed: boolean(mission.completed ?? mission.is_completed),
       completedAt: text(
@@ -292,6 +302,15 @@ export default function MissioniPage() {
     : 0
   const premiSoglia = dashboard?.rewards
     .filter((premio) => premio.rewardType !== "podium_position") ?? []
+  const missioniPerDifficolta = useMemo(
+    () => (Object.keys(DIFFICULTY) as DifficultyKey[]).map((difficulty) => ({
+      difficulty,
+      missions: (dashboard?.missions || [])
+        .filter((mission) => mission.difficulty === difficulty)
+        .sort((a, b) => Number(a.completed) - Number(b.completed) || a.points - b.points),
+    })).filter((group) => group.missions.length > 0),
+    [dashboard]
+  )
 
   async function completaMissione(missionId: string) {
     if (missioneInCorso) return
@@ -454,15 +473,40 @@ export default function MissioniPage() {
           )}
         </section>
 
-        <section className="mt-10 grid gap-5 sm:grid-cols-2">
-          {dashboard?.missions.map((missione, index) => (
+        <section className="mt-10 rounded-[30px] border border-sky-400/20 bg-sky-400/[0.06] p-6">
+          <div className="flex items-start gap-4">
+            <span aria-hidden="true" className="text-3xl">💡</span>
+            <div>
+              <h2 className="text-xl font-black">Come funzionano i punti?</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-300">
+                Completa una missione e premi Verifica. Quelle automatiche vengono controllate subito; quelle speciali possono richiedere la conferma dello staff. I punti ottenuti sbloccano i premi qui sotto.
+              </p>
+            </div>
+          </div>
+        </section>
+
+        <div className="mt-10 space-y-9">
+          {missioniPerDifficolta.map(({ difficulty, missions }) => {
+            const meta = DIFFICULTY[difficulty]
+            return <section key={difficulty}>
+              <div className={`rounded-3xl border p-5 ${meta.tone}`}>
+                <div className="flex items-center gap-3">
+                  <span aria-hidden="true" className="text-3xl">{meta.icon}</span>
+                  <div>
+                    <h2 className="text-2xl font-black">{meta.label}</h2>
+                    <p className="mt-1 text-sm text-white/55">{meta.description}</p>
+                  </div>
+                </div>
+              </div>
+              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+          {missions.map((missione, index) => (
             <motion.article key={missione.id} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} className={`relative overflow-hidden rounded-[28px] border p-5 backdrop-blur-xl ${missione.completed ? "border-green-400/30 bg-green-400/10" : "border-white/10 bg-white/[0.05]"}`}>
               <div className="flex items-start gap-4">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-4xl">{missione.icon}</div>
                 <div className="min-w-0 flex-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-lg font-black">{missione.title}</h2>
-                    <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-gray-300">{missione.difficulty}</span>
+                    <span className="rounded-full border border-white/10 bg-white/[0.06] px-2.5 py-1 text-[9px] font-black uppercase tracking-wider text-gray-300">{meta.icon} {meta.label}</span>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-gray-400">{missione.description}</p>
                 </div>
@@ -475,7 +519,10 @@ export default function MissioniPage() {
               </div>
             </motion.article>
           ))}
-        </section>
+              </div>
+            </section>
+          })}
+        </div>
 
         {dashboard && dashboard.missions.length === 0 && (
           <section className="mt-10 rounded-[30px] border border-white/10 bg-white/[0.04] p-7 text-center text-gray-400">
