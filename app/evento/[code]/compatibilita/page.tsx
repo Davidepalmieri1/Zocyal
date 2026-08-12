@@ -324,9 +324,19 @@ export default function CompatibilitaPage() {
       )
 
       if (interestError) {
-        if (interestError.message.includes("Inclusive matching preferences required")) {
+        if (interestError.message.includes("Inclusive matching setup incomplete")) {
           setInclusiveSetupRequired(true)
           setErrore("Completa le preferenze private per usare i match inclusivi.")
+        } else if (interestError.message.includes("Inclusive pair unavailable")) {
+          setMatches((attuali) =>
+            attuali.filter((persona) => persona.id !== person.id)
+          )
+          setIndiceAttivo((indice) =>
+            Math.max(0, Math.min(indice, matches.length - 2))
+          )
+          setErrore(
+            `${person.nickname || "Questa persona"} non è disponibile in base alle preferenze reciproche. Ti mostriamo il prossimo profilo.`
+          )
         } else {
           setErrore(`Errore durante l’invio dell’interesse: ${interestError.message}`)
         }
