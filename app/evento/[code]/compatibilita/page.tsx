@@ -65,6 +65,7 @@ export default function CompatibilitaPage() {
   const [haAltriProfili, setHaAltriProfili] = useState(true)
   const [prossimoIndice, setProssimoIndice] = useState(0)
   const [errore, setErrore] = useState("")
+  const [avviso, setAvviso] = useState("")
   const [azioneInCorso, setAzioneInCorso] = useState<string | null>(null)
   const [mioId, setMioId] = useState<string | null>(null)
   const [indiceAttivo, setIndiceAttivo] = useState(0)
@@ -200,7 +201,9 @@ export default function CompatibilitaPage() {
             "Errore verifica disponibilità profili:",
             prioritaResult.error
           )
-          setErrore("Non siamo riusciti a verificare tutte le connessioni disponibili.")
+          setAvviso(
+            "I profili sono organizzati in base alle risposte del questionario. Puoi esplorarli e mettere like normalmente."
+          )
         }
 
         const risposte = (risposteResult.data || []) as Risposte[]
@@ -459,6 +462,7 @@ export default function CompatibilitaPage() {
     async function inizializzaPagina() {
       setLoading(true)
       setErrore("")
+      setAvviso("")
       setMatches([])
       setIndiceAttivo(0)
       setProssimoIndice(0)
@@ -662,6 +666,22 @@ export default function CompatibilitaPage() {
           <p className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm leading-6 text-red-300">
             {errore}
           </p>
+        )}
+
+        {avviso && (
+          <div className="mt-6 rounded-3xl border border-violet-400/25 bg-gradient-to-r from-violet-500/10 via-fuchsia-500/10 to-pink-500/10 p-5 shadow-[0_0_28px_rgba(168,85,247,0.1)]">
+            <div className="flex items-start gap-4">
+              <span aria-hidden="true" className="text-2xl">✨</span>
+              <div>
+                <p className="font-black text-violet-100">
+                  Continua a scoprire nuove affinità
+                </p>
+                <p className="mt-2 text-sm leading-6 text-white/60">
+                  {avviso}
+                </p>
+              </div>
+            </div>
+          </div>
         )}
 
         {matches.length === 0 ? (
