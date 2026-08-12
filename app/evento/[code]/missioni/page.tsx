@@ -56,8 +56,8 @@ type JsonRecord = Record<string, unknown>
 
 const DIFFICULTY = {
   easy: { label: "Facili", icon: "🌱", description: "Inizia da qui: azioni rapide per entrare nel vivo della serata.", tone: "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200" },
-  medium: { label: "Intermedie", icon: "⚡", description: "Fai nuove connessioni e aumenta il tuo punteggio.", tone: "border-amber-300/25 bg-amber-300/[0.06] text-amber-200" },
-  special: { label: "Sfide speciali", icon: "🔥", description: "Le missioni più coinvolgenti, con le ricompense più alte.", tone: "border-fuchsia-400/25 bg-fuchsia-400/[0.06] text-fuchsia-200" },
+  medium: { label: "Intermedie", icon: "⚡", description: "Richiedono più partecipazione e possono valere fino a 70 punti.", tone: "border-amber-300/25 bg-amber-300/[0.06] text-amber-200" },
+  special: { label: "Missioni difficili", icon: "🔥", description: "Richiedono più impegno e costanza: completarle sarà una vera conquista.", tone: "border-fuchsia-400/25 bg-fuchsia-400/[0.06] text-fuchsia-200" },
 } as const
 
 type DifficultyKey = keyof typeof DIFFICULTY
@@ -479,7 +479,7 @@ export default function MissioniPage() {
             <div>
               <h2 className="text-xl font-black">Come funzionano i punti?</h2>
               <p className="mt-2 text-sm leading-6 text-gray-300">
-                Completa una missione e premi Verifica. Quelle automatiche vengono controllate subito; quelle speciali possono richiedere la conferma dello staff. I punti ottenuti sbloccano i premi qui sotto.
+                Completa una missione e premi Verifica. Quelle automatiche vengono controllate subito; le missioni più difficili possono richiedere la conferma dello staff. I punti ottenuti sbloccano i premi qui sotto.
               </p>
             </div>
           </div>

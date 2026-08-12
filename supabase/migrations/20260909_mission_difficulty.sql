@@ -20,14 +20,9 @@ alter table public.engagement_templates
 
 update public.missions
 set difficulty = case
-  when verification_key in ('profile_completed', 'questionnaire_completed') then 'easy'
-  when verification_key in ('interests_sent', 'messages_sent') then 'medium'
-  when verification_key = 'matches_created' then 'special'
-  when verification_mode = 'manual' and points >= 30 then 'special'
-  when verification_mode = 'manual' and points >= 15 then 'medium'
-  when points >= 30 then 'special'
-  when points >= 15 then 'medium'
-  else 'easy'
+  when verification_key in ('profile_completed', 'questionnaire_completed', 'matches_created') then 'easy'
+  when points <= 70 then 'medium'
+  else 'special'
 end;
 
 create or replace function public.get_missions_rewards_for_event(
