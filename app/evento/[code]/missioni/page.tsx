@@ -55,9 +55,9 @@ type MissionDashboard = {
 type JsonRecord = Record<string, unknown>
 
 const DIFFICULTY = {
-  easy: { label: "Facili", icon: "🌱", description: "Inizia da qui: azioni rapide per entrare nel vivo della serata.", tone: "border-emerald-400/25 bg-emerald-400/[0.06] text-emerald-200" },
-  medium: { label: "Intermedie", icon: "⚡", description: "Richiedono più partecipazione e possono valere fino a 70 punti.", tone: "border-amber-300/25 bg-amber-300/[0.06] text-amber-200" },
-  special: { label: "Missioni difficili", icon: "🔥", description: "Richiedono più impegno e costanza: completarle sarà una vera conquista.", tone: "border-fuchsia-400/25 bg-fuchsia-400/[0.06] text-fuchsia-200" },
+  easy: { label: "Facili", icon: "🌱", description: "Inizia da qui: azioni rapide per entrare nel vivo della serata.", tone: "border-emerald-400/30 bg-gradient-to-br from-emerald-400/[0.13] via-emerald-400/[0.05] to-transparent", card: "border-emerald-300/20 bg-emerald-400/[0.055]", accent: "text-emerald-200" },
+  medium: { label: "Intermedie", icon: "⚡", description: "Richiedono più partecipazione e possono valere fino a 70 punti.", tone: "border-amber-300/30 bg-gradient-to-br from-amber-300/[0.13] via-orange-400/[0.05] to-transparent", card: "border-amber-300/20 bg-amber-300/[0.055]", accent: "text-amber-200" },
+  special: { label: "Missioni difficili", icon: "🔥", description: "Richiedono più impegno e costanza: completarle sarà una vera conquista.", tone: "border-fuchsia-400/30 bg-gradient-to-br from-fuchsia-500/[0.15] via-violet-500/[0.07] to-transparent", card: "border-fuchsia-400/20 bg-fuchsia-500/[0.06]", accent: "text-fuchsia-200" },
 } as const
 
 type DifficultyKey = keyof typeof DIFFICULTY
@@ -488,19 +488,33 @@ export default function MissioniPage() {
         <div className="mt-10 space-y-9">
           {missioniPerDifficolta.map(({ difficulty, missions }) => {
             const meta = DIFFICULTY[difficulty]
-            return <section key={difficulty}>
-              <div className={`rounded-3xl border p-5 ${meta.tone}`}>
-                <div className="flex items-center gap-3">
-                  <span aria-hidden="true" className="text-3xl">{meta.icon}</span>
+            const completateGruppo = missions.filter((mission) => mission.completed).length
+            const puntiDisponibili = missions
+              .filter((mission) => !mission.completed)
+              .reduce((total, mission) => total + mission.points, 0)
+            return <section key={difficulty} className={`overflow-hidden rounded-[34px] border p-4 shadow-[0_18px_70px_rgba(0,0,0,0.28)] sm:p-6 ${meta.tone}`}>
+              <div className="flex flex-col gap-5 sm:flex-row sm:items-center sm:justify-between">
+                <div className="flex items-center gap-4">
+                  <span aria-hidden="true" className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/25 text-4xl shadow-inner">{meta.icon}</span>
                   <div>
-                    <h2 className="text-2xl font-black">{meta.label}</h2>
-                    <p className="mt-1 text-sm text-white/55">{meta.description}</p>
+                    <h2 className={`text-2xl font-black ${meta.accent}`}>{meta.label}</h2>
+                    <p className="mt-1 max-w-xl text-sm leading-6 text-white/55">{meta.description}</p>
+                  </div>
+                </div>
+                <div className="grid grid-cols-2 gap-2 text-center sm:min-w-64">
+                  <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                    <p className={`text-xl font-black ${meta.accent}`}>{missions.length - completateGruppo}</p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-white/40">Da fare</p>
+                  </div>
+                  <div className="rounded-2xl border border-white/10 bg-black/25 px-4 py-3">
+                    <p className={`text-xl font-black ${meta.accent}`}>+{puntiDisponibili}</p>
+                    <p className="mt-1 text-[10px] font-black uppercase tracking-wider text-white/40">Punti</p>
                   </div>
                 </div>
               </div>
-              <div className="mt-4 grid gap-5 sm:grid-cols-2">
+              <div className="mt-6 grid gap-4 sm:grid-cols-2">
           {missions.map((missione, index) => (
-            <motion.article key={missione.id} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} className={`relative overflow-hidden rounded-[28px] border p-5 backdrop-blur-xl ${missione.completed ? "border-green-400/30 bg-green-400/10" : "border-white/10 bg-white/[0.05]"}`}>
+            <motion.article key={missione.id} initial={{ opacity: 0, y: 24 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: index * 0.06 }} className={`relative overflow-hidden rounded-[26px] border p-5 backdrop-blur-xl ${missione.completed ? "border-green-400/30 bg-green-400/10" : meta.card}`}>
               <div className="flex items-start gap-4">
                 <div className="flex h-16 w-16 shrink-0 items-center justify-center rounded-2xl border border-white/10 bg-black/30 text-4xl">{missione.icon}</div>
                 <div className="min-w-0 flex-1">
