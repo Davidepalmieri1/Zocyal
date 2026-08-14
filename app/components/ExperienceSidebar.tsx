@@ -8,8 +8,9 @@ import {
   useRouter,
 } from "next/navigation"
 import Logo from "@/app/components/Logo"
+import { publicSupabase } from "@/lib/supabase"
 
-type AttivitaId = "match" | "social" | "missioni" | "tavoli"
+type AttivitaId = "match" | "social" | "missioni" | "tavoli" | "balla"
 
 type VoceMenu = {
   id: AttivitaId
@@ -21,12 +22,20 @@ type VoceMenu = {
 
 const MENU_ICONS: Record<AttivitaId, string> = {
   tavoli: "\u{1F3B2}",
+  balla: "\u{1F483}",
   match: "\u2665",
   social: "\u{1F91D}",
   missioni: "\u{1F3AF}",
 }
 
 const vociMenu: VoceMenu[] = [
+  {
+    id: "balla",
+    icon: "💃",
+    title: "Invita a ballare",
+    description: "Trova skill compatibili e manda un invito in pista.",
+    badge: "Live",
+  },
   {
     id: "tavoli",
     icon: "🎲",
@@ -67,6 +76,7 @@ export default function ExperienceSidebar() {
   const router = useRouter()
 
   const [aperto, setAperto] = useState(false)
+  const [caribbeanMode, setCaribbeanMode] = useState(false)
   const [attivitaAttuale, setAttivitaAttuale] =
     useState<AttivitaId>("match")
   const [notificheAttive, setNotificheAttive] =
@@ -77,6 +87,11 @@ export default function ExperienceSidebar() {
     )
 
   const eventCode = params.code
+
+  useEffect(() => {
+    void publicSupabase.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
+      .then(({data}) => setCaribbeanMode(data?.experience_mode === "caribbean"))
+  }, [eventCode])
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
@@ -94,6 +109,11 @@ export default function ExperienceSidebar() {
 
   useEffect(() => {
     const timer = window.setTimeout(() => {
+    if (pathname.includes("/balla")) {
+      setAttivitaAttuale("balla")
+      localStorage.setItem("zocyal_activity", "balla")
+      return
+    }
     if (pathname.includes("/tavoli")) {
       setAttivitaAttuale("tavoli")
       localStorage.setItem("zocyal_activity", "tavoli")
@@ -131,7 +151,7 @@ export default function ExperienceSidebar() {
       attivitaSalvata === "match" ||
       attivitaSalvata === "social" ||
       attivitaSalvata === "missioni"
-      || attivitaSalvata === "tavoli"
+      || attivitaSalvata === "tavoli" || attivitaSalvata === "balla"
     ) {
       setAttivitaAttuale(attivitaSalvata)
     }
@@ -228,6 +248,11 @@ export default function ExperienceSidebar() {
     setAttivitaAttuale(attivita)
     localStorage.setItem("zocyal_activity", attivita)
     setAperto(false)
+
+    if (attivita === "balla") {
+      router.push(`/evento/${eventCode}/balla`)
+      return
+    }
 
     if (attivita === "tavoli") {
       router.push(`/evento/${eventCode}/tavoli`)
@@ -389,7 +414,7 @@ export default function ExperienceSidebar() {
                 </button>
 
                 <div className="mt-7 border-t border-white/[.08] pt-5"><div className="mb-3 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[.2em] text-white/35">Esperienze</p><span className="text-[10px] font-bold text-white/25">Scegline una</span></div><div className="grid gap-2">
-                  {vociMenu.map((voce, index) => {
+                  {vociMenu.filter(voce => caribbeanMode ? voce.id !== "tavoli" : voce.id !== "balla").map((voce, index) => {
                     const attiva = attivitaAttuale === voce.id
 
                     return (

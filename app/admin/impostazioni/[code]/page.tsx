@@ -5,7 +5,7 @@ import { useParams } from "next/navigation"
 import { QRCodeCanvas } from "qrcode.react"
 import Sidebar from "@/app/admin/components/Sidebar"
 
-type EventSettings={name:string;venue:string|null;code:string;description:string;starts_at:string|null;ends_at:string|null;timezone:string;status:"draft"|"open"|"closed";experience_mode:"standard"|"inclusive";venue_logo_url:string|null;venue_poster_url:string|null;updated_at:string}
+type EventSettings={name:string;venue:string|null;code:string;description:string;starts_at:string|null;ends_at:string|null;timezone:string;status:"draft"|"open"|"closed";experience_mode:"standard"|"inclusive"|"caribbean";venue_logo_url:string|null;venue_poster_url:string|null;updated_at:string}
 const LOGO_MAX_SIZE=3*1024*1024,POSTER_MAX_SIZE=8*1024*1024,LOGO_UPLOAD_SIZE=900*1024,POSTER_UPLOAD_SIZE=2800*1024
 function localDate(value:string|null){if(!value)return "";const date=new Date(value);return new Date(date.getTime()-date.getTimezoneOffset()*60000).toISOString().slice(0,16)}
 function iso(value:string){return value?new Date(value).toISOString():null}

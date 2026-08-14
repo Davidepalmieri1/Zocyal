@@ -33,7 +33,7 @@ export default function ProfiloPage() {
   const [age, setAge] = useState("")
   const [gender, setGender] = useState("")
   const [goal, setGoal] = useState("")
-  const [eventMode, setEventMode] = useState<"standard" | "inclusive" | null>(null)
+  const [eventMode, setEventMode] = useState<"standard" | "inclusive" | "caribbean" | null>(null)
   const [identityCategory, setIdentityCategory] = useState("")
   const [pronouns, setPronouns] = useState("")
   const [connectionPreferences, setConnectionPreferences] = useState<string[]>([])
@@ -98,11 +98,7 @@ export default function ProfiloPage() {
           return
         }
 
-        setEventMode(
-          eventResult.data.experience_mode === "inclusive"
-            ? "inclusive"
-            : "standard"
-        )
+        setEventMode(eventResult.data.experience_mode === "inclusive" ? "inclusive" : eventResult.data.experience_mode === "caribbean" ? "caribbean" : "standard")
         setRegistrationAvailability(
           availabilityResult.data as RegistrationAvailability
         )
@@ -174,7 +170,7 @@ export default function ProfiloPage() {
       return
     }
 
-    if (eventMode === "standard" && !gender) {
+    if ((eventMode === "standard" || eventMode === "caribbean") && !gender) {
       setErrore("Seleziona il tuo genere.")
       return
     }
@@ -528,7 +524,7 @@ export default function ProfiloPage() {
               />
             </div>
 
-            {eventMode === "standard" && (
+            {(eventMode === "standard" || eventMode === "caribbean") && (
               <div>
                 <label htmlFor="gender" className="mb-2 block text-sm font-bold text-gray-300">
                   Genere
