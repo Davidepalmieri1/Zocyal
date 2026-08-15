@@ -6,7 +6,7 @@ import { getSupabaseAdmin } from "@/app/lib/supabase-admin"
 export const dynamic = "force-dynamic"
 const EVENT = /^[a-z0-9_-]{1,64}$/
 const STATES = new Set(["draft", "open", "closed"])
-const EXPERIENCE_MODES = new Set(["standard", "inclusive"])
+const EXPERIENCE_MODES = new Set(["standard", "inclusive", "caribbean"])
 const IMAGE_TYPES = new Map([["image/jpeg", "jpg"], ["image/png", "png"], ["image/webp", "webp"]])
 function reply(body:unknown,status=200){return NextResponse.json(body,{status,headers:{"Cache-Control":"private, no-store"}})}
 async function authenticated(){return verifyAdminSessionToken((await cookies()).get(ADMIN_SESSION_COOKIE)?.value)}

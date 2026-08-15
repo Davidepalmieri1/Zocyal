@@ -5,11 +5,12 @@ import { useParams, useRouter } from "next/navigation"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
-type NoticeKind = "interest" | "match" | "message" | "mission" | "drink" | "table" | "reward"
+type NoticeKind = "interest" | "match" | "message" | "mission" | "drink" | "table" | "dance" | "reward"
 type Notice = { id:string; kind:NoticeKind; title:string; detail:string; href:string }
 type MatchRow = { id:string; user_one:string; user_two:string; created_at:string|null }
 
 const appearance:Record<NoticeKind,{icon:string;label:string;classes:string}> = {
+  dance: { icon:"💃", label:"Invito a ballare", classes:"border-orange-400/25 bg-orange-500/15 text-orange-100" },
   interest: { icon:"✨", label:"Nuovo interesse", classes:"border-fuchsia-400/25 bg-fuchsia-500/15 text-fuchsia-100" },
   match: { icon:"♥", label:"Nuovo match", classes:"border-pink-400/25 bg-pink-500/15 text-pink-100" },
   message: { icon:"💬", label:"Messaggio", classes:"border-sky-400/25 bg-sky-500/15 text-sky-100" },
@@ -65,7 +66,7 @@ export default function NotificationCenter() {
       const matchIds = matches.map(match => match.id)
       matchIdsRef.current = new Set(matchIds)
 
-      const [messagesResult,invitesResult,rewardsResult,interestsResult,missionsResult,serverReadsResult,drinkOffersResult] = await Promise.all([
+      const [messagesResult,invitesResult,rewardsResult,interestsResult,missionsResult,serverReadsResult,drinkOffersResult,danceInvitesResult] = await Promise.all([
         supabase.rpc("get_unread_notification_messages",{p_event_code:code}),
         supabase.from("game_table_invitations").select("id,table:game_tables(name,game)").eq("participant_id",participantId).eq("status","pending").order("invited_at",{ascending:false}),
         supabase.rpc("get_missions_rewards_for_event",{p_event_code:code}),
@@ -73,6 +74,7 @@ export default function NotificationCenter() {
         supabase.from("participant_mission_completions").select("id,points_awarded,mission:missions(title,event_code)").eq("participant_id",participantId).order("completed_at",{ascending:false}).limit(100),
         supabase.from("participant_notification_reads").select("notification_id").eq("participant_id",participantId),
         supabase.from("drink_offers").select("id,match_id,sender_id,status").eq("receiver_id",participantId).eq("status","pending").order("created_at",{ascending:false}),
+        supabase.from("dance_invitations").select("id,style,sender:participants!dance_invitations_sender_id_fkey(nickname)").eq("receiver_id",participantId).eq("status","pending").order("created_at",{ascending:false}),
       ])
 
       if (interestsResult.error) throw interestsResult.error
@@ -112,6 +114,7 @@ export default function NotificationCenter() {
         return {id:`drink-${offer.id}`,kind:"drink",title:"Ti hanno offerto un drink",detail:nickname ? `${nickname} ti ha inviato una proposta. Rispondi ora.` : "Hai ricevuto una nuova proposta drink.",href:`/evento/${code}/chat/${offer.match_id}`}
       })
       const inviteNotices:Notice[] = (invitesResult.data || []).map(invite => { const table=invite.table as unknown as {name?:string;game?:string}|null; return {id:`table-${invite.id}`,kind:"table",title:"Invito al tavolo",detail:table?.name || table?.game || "Hai un nuovo invito.",href:`/evento/${code}/tavoli`} })
+      const danceNotices:Notice[] = (danceInvitesResult.data || []).map(invite => { const sender=invite.sender as unknown as {nickname?:string}|null; return {id:`dance-${invite.id}`,kind:"dance",title:"Ti invitano a ballare",detail:sender?.nickname ? `${sender.nickname} ti aspetta in pista.` : "Hai ricevuto un nuovo invito.",href:`/evento/${code}/balla`} })
       const rewardNotices:Notice[] = ((rewardsResult.data as {rewards?:Array<{id:string;name:string;redeemed:boolean;redemption_status?:string}>}|null)?.rewards || []).filter(reward => reward.redeemed && reward.redemption_status === "redeemed").map(reward => ({id:`reward-${reward.id}`,kind:"reward",title:"Premio da ritirare",detail:reward.name || "Mostra il codice allo staff.",href:`/evento/${code}/missioni`}))
       const alreadyRead = readIds()
       if (!serverReadsResult.error) {
@@ -119,7 +122,7 @@ export default function NotificationCenter() {
       } else {
         console.warn("Ricevute notifiche non disponibili:",serverReadsResult.error)
       }
-      const next = [...drinkNotices,...interestNotices,...messageNotices,...matchNotices,...missionNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
+      const next = [...danceNotices,...drinkNotices,...interestNotices,...messageNotices,...matchNotices,...missionNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
 
       const fresh = initialized.current
         ? next.filter(item => !knownIds.current.has(item.id))
@@ -168,6 +171,7 @@ export default function NotificationCenter() {
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"participant_mission_completions",filter:`participant_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"drink_offers",filter:`receiver_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations",filter:`participant_id=eq.${participantId}`},refresh)
+        .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`receiver_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions",filter:`participant_id=eq.${participantId}`},refresh)
         .subscribe(status => { if(status === "SUBSCRIBED") refresh() })
       poll = window.setInterval(() => { if(!document.hidden) refresh() },30000)

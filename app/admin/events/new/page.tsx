@@ -111,7 +111,7 @@ export default function NewEventPage() {
           <fieldset className="rounded-2xl border border-white/10 bg-black/20 p-4">
             <legend className="px-2 text-sm font-black">Tipo di esperienza</legend>
             <p className="mt-1 text-xs leading-5 text-zinc-400">Sceglilo ora: resterà collegato a questo evento.</p>
-            <div className="mt-4 grid gap-3 sm:grid-cols-2">
+            <div className="mt-4 grid gap-3 sm:grid-cols-3">
               <label className="cursor-pointer rounded-2xl border border-white/10 bg-white/[.04] p-4 has-[:checked]:border-pink-400/60 has-[:checked]:bg-pink-400/10">
                 <input type="radio" name="experience_mode" value="standard" defaultChecked className="accent-pink-500" />
                 <span className="ml-2 font-black">Evento standard</span>
@@ -121,6 +121,11 @@ export default function NewEventPage() {
                 <input type="radio" name="experience_mode" value="inclusive" className="accent-pink-500" />
                 <span className="ml-2 font-black">Evento inclusivo</span>
                 <span className="mt-2 block text-xs leading-5 text-zinc-400">Esperienza progettata per accogliere modalità di partecipazione e matching più inclusive.</span>
+              </label>
+              <label className="cursor-pointer rounded-2xl border border-white/10 bg-white/[.04] p-4 has-[:checked]:border-orange-300/60 has-[:checked]:bg-orange-300/10">
+                <input type="radio" name="experience_mode" value="caribbean" className="accent-orange-400" />
+                <span className="ml-2 font-black">Evento caraibico</span>
+                <span className="mt-2 block text-xs leading-5 text-zinc-400">Skill di ballo, ruoli leader/follower e inviti live in pista. Senza tavoli.</span>
               </label>
             </div>
           </fieldset>
