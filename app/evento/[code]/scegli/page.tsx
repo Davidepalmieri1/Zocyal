@@ -1,7 +1,9 @@
 "use client"
 
+import { useEffect } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Logo from "@/app/components/Logo"
+import { publicSupabase } from "@/lib/supabase"
 
 type SceltaId = "match" | "social" | "missioni"
 
@@ -47,6 +49,14 @@ const scelte: Scelta[] = [
 export default function ScegliEsperienzaPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
+
+  useEffect(() => {
+    const eventCode = params.code.trim().toLowerCase()
+    void publicSupabase.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
+      .then(({ data }) => {
+        if (data?.experience_mode === "caribbean") router.replace(`/evento/${eventCode}/balla`)
+      })
+  }, [params.code, router])
 
   function seleziona(scelta: SceltaId) {
     localStorage.setItem("zocyal_activity", scelta)

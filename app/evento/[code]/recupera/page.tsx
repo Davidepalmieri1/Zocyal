@@ -7,6 +7,7 @@ import {
   recoveryErrorMessage,
 } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
+import { publicSupabase } from "@/lib/supabase"
 
 export default function RecuperaProfiloPage() {
   const params = useParams<{ code: string }>()
@@ -44,11 +45,17 @@ export default function RecuperaProfiloPage() {
       return
     }
 
-    router.push(
-      participant.completedTest
+    const { data: eventData } = await publicSupabase
+      .from("events")
+      .select("experience_mode")
+      .eq("code", eventCode)
+      .maybeSingle()
+
+    router.push(eventData?.experience_mode === "caribbean"
+      ? `/evento/${eventCode}/balla`
+      : participant.completedTest
         ? `/evento/${eventCode}/scegli`
-        : `/evento/${eventCode}/questionario`
-    )
+        : `/evento/${eventCode}/questionario`)
   }
 
   return (

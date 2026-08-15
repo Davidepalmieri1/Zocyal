@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { ensureAnonymousSession } from "@/app/lib/participant-session"
+import { publicSupabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 
 export default function CodiceAccessoPage() {
@@ -13,6 +14,7 @@ export default function CodiceAccessoPage() {
   const [copiato, setCopiato] = useState(false)
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
+  const [caribbeanMode, setCaribbeanMode] = useState(false)
 
   useEffect(() => {
     async function caricaCodice() {
@@ -29,6 +31,12 @@ export default function CodiceAccessoPage() {
       const codiceSalvato = localStorage.getItem("recovery_code")
       const eventCode = params.code.trim().toLowerCase()
       const savedEventCode = localStorage.getItem("event_code")
+      const { data: eventData } = await publicSupabase
+        .from("events")
+        .select("experience_mode")
+        .eq("code", eventCode)
+        .maybeSingle()
+      setCaribbeanMode(eventData?.experience_mode === "caribbean")
 
       if (codiceSalvato && savedEventCode === eventCode) {
         setCodice(codiceSalvato)
@@ -131,7 +139,7 @@ export default function CodiceAccessoPage() {
             <button
               type="button"
               onClick={() =>
-                router.push(`/evento/${params.code}/questionario`)
+                router.push(`/evento/${params.code}/${caribbeanMode ? "balla" : "questionario"}`)
               }
               className="mt-6 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 text-lg font-black text-white shadow-[0_0_35px_rgba(236,72,153,0.22)] transition hover:scale-[1.02]"
             >
