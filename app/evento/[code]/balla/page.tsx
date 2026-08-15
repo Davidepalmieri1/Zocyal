@@ -16,6 +16,9 @@ const LEVELS = { beginner:"Principiante", intermediate:"Intermedio", advanced:"A
 type Role="leader"|"follower"|"both"; type Level=keyof typeof LEVELS
 type Dancer={participant_id:string;role:Role;skills:Record<string,Level>;available:boolean;participant:{nickname:string;avatar_url:string|null}|null}
 type Invite={id:string;sender_id:string;receiver_id:string;style:string;status:string;created_at:string;sender:{nickname:string}|null;receiver:{nickname:string}|null}
+type DanceProfileRow=Omit<Dancer,"participant">
+type InviteRow=Omit<Invite,"sender"|"receiver">
+type PersonRow={id:string;nickname:string;avatar_url:string|null}
 
 export default function DancePage(){
   const {code:raw}=useParams<{code:string}>(),code=raw.toLowerCase(),router=useRouter()
@@ -25,20 +28,30 @@ export default function DancePage(){
   const labels=useMemo(()=>new Map<string,string>(STYLES),[])
   const load=useCallback(async(id:string)=>{
     const [profilesResult,invitesResult]=await Promise.all([
-      supabase.from("participant_dance_profiles").select("participant_id,role,skills,available,participant:participants(nickname,avatar_url)"),
-      supabase.from("dance_invitations").select("id,sender_id,receiver_id,style,status,created_at,sender:participants!dance_invitations_sender_id_fkey(nickname),receiver:participants!dance_invitations_receiver_id_fkey(nickname)").or(`sender_id.eq.${id},receiver_id.eq.${id}`).order("created_at",{ascending:false}).limit(30),
+      supabase.from("participant_dance_profiles").select("participant_id,role,skills,available"),
+      supabase.from("dance_invitations").select("id,sender_id,receiver_id,style,status,created_at").or(`sender_id.eq.${id},receiver_id.eq.${id}`).order("created_at",{ascending:false}).limit(30),
     ])
     if(profilesResult.error)throw profilesResult.error;if(invitesResult.error)throw invitesResult.error
-    const profiles=(profilesResult.data||[]) as unknown as Dancer[],own=profiles.find(item=>item.participant_id===id)
+    const profileRows=(profilesResult.data||[]) as DanceProfileRow[]
+    const inviteRows=(invitesResult.data||[]) as InviteRow[]
+    const personIds=[...new Set([...profileRows.map(item=>item.participant_id),...inviteRows.flatMap(item=>[item.sender_id,item.receiver_id])])]
+    const peopleResult=personIds.length
+      ? await supabase.from("participants").select("id,nickname,avatar_url").in("id",personIds)
+      : {data:[] as PersonRow[],error:null}
+    if(peopleResult.error)throw peopleResult.error
+    const people=new Map((peopleResult.data||[]).map(person=>[person.id,person as PersonRow]))
+    const profiles:Dancer[]=profileRows.map(profile=>({...profile,participant:people.get(profile.participant_id)||null}))
+    const loadedInvites:Invite[]=inviteRows.map(invite=>({...invite,sender:people.get(invite.sender_id)||null,receiver:people.get(invite.receiver_id)||null}))
+    const own=profiles.find(item=>item.participant_id===id)
     if(own){setRole(own.role);setSkills(own.skills);setAvailable(own.available)}
-    setDancers(profiles.filter(item=>item.participant_id!==id));setInvites((invitesResult.data||[]) as unknown as Invite[])
+    setDancers(profiles.filter(item=>item.participant_id!==id));setInvites(loadedInvites)
   },[])
   useEffect(()=>{let active=true;(async()=>{try{
     const event=await publicSupabase.from("events").select("experience_mode").eq("code",code).maybeSingle()
     if(event.data?.experience_mode!=="caribbean"){router.replace(`/evento/${code}`);return}
     const id=await resolveCurrentParticipant(code);if(!id)throw new Error("Profilo partecipante non trovato.");if(!active)return
     setMine(id);await load(id)
-  }catch(error){if(active)setMessage(error instanceof Error?error.message:"Impossibile aprire la pista.")}finally{if(active)setLoading(false)}})();return()=>{active=false}},[code,load,router])
+  }catch(error){if(active){const detail=error&&typeof error==="object"&&"message" in error?String(error.message):"";setMessage(detail||"Impossibile aprire la pista.")}}finally{if(active)setLoading(false)}})();return()=>{active=false}},[code,load,router])
   async function save(){if(!Object.keys(skills).length){setMessage("Seleziona almeno uno stile di ballo.");return}setBusy("profile");setMessage("");const {error}=await supabase.rpc("save_dance_profile",{p_event_code:code,p_role:role,p_skills:skills,p_available:available});if(error)setMessage(error.message);else{await load(mine);setMessage("Profilo da ballerino aggiornato.")}setBusy("")}
   function toggle(style:string){setSkills(current=>{const next={...current};if(next[style])delete next[style];else next[style]="beginner";return next})}
   async function invite(dancer:Dancer){const shared=Object.keys(skills).filter(style=>dancer.skills[style]);if(!shared.length){setMessage("Non avete ancora uno stile in comune.");return}setBusy(dancer.participant_id);setMessage("");const {error}=await supabase.rpc("send_dance_invitation",{p_event_code:code,p_receiver_id:dancer.participant_id,p_style:shared[0],p_message:null});if(error)setMessage(error.message.includes("Active invitation")?"Hai già un invito attivo.":error.message);else{await load(mine);setMessage(`Invito inviato per ${labels.get(shared[0])}.`)}setBusy("")}

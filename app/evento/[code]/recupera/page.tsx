@@ -51,11 +51,11 @@ export default function RecuperaProfiloPage() {
       .eq("code", eventCode)
       .maybeSingle()
 
-    router.push(eventData?.experience_mode === "caribbean"
-      ? `/evento/${eventCode}/balla`
-      : participant.completedTest
-        ? `/evento/${eventCode}/scegli`
-        : `/evento/${eventCode}/questionario`)
+    router.push(participant.completedTest
+      ? eventData?.experience_mode === "caribbean"
+        ? `/evento/${eventCode}/balla`
+        : `/evento/${eventCode}/scegli`
+      : `/evento/${eventCode}/questionario`)
   }
 
   return (
