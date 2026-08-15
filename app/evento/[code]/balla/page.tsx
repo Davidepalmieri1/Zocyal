@@ -16,9 +16,7 @@ const LEVELS = { beginner:"Principiante", intermediate:"Intermedio", advanced:"A
 type Role="leader"|"follower"|"both"; type Level=keyof typeof LEVELS
 type Dancer={participant_id:string;role:Role;skills:Record<string,Level>;available:boolean;participant:{nickname:string;avatar_url:string|null}|null}
 type Invite={id:string;sender_id:string;receiver_id:string;style:string;status:string;created_at:string;sender:{nickname:string}|null;receiver:{nickname:string}|null}
-type DanceProfileRow=Omit<Dancer,"participant">
-type InviteRow=Omit<Invite,"sender"|"receiver">
-type PersonRow={id:string;nickname:string;avatar_url:string|null}
+type DanceLobby={profiles:Dancer[];invitations:Invite[]}
 
 export default function DancePage(){
   const {code:raw}=useParams<{code:string}>(),code=raw.toLowerCase(),router=useRouter()
@@ -27,25 +25,14 @@ export default function DancePage(){
   const [loading,setLoading]=useState(true); const [busy,setBusy]=useState(""); const [message,setMessage]=useState(""); const [profileFeedback,setProfileFeedback]=useState("")
   const labels=useMemo(()=>new Map<string,string>(STYLES),[])
   const load=useCallback(async(id:string)=>{
-    const [profilesResult,invitesResult]=await Promise.all([
-      supabase.from("participant_dance_profiles").select("participant_id,role,skills,available"),
-      supabase.from("dance_invitations").select("id,sender_id,receiver_id,style,status,created_at").or(`sender_id.eq.${id},receiver_id.eq.${id}`).order("created_at",{ascending:false}).limit(30),
-    ])
-    if(profilesResult.error)throw profilesResult.error;if(invitesResult.error)throw invitesResult.error
-    const profileRows=(profilesResult.data||[]) as DanceProfileRow[]
-    const inviteRows=(invitesResult.data||[]) as InviteRow[]
-    const personIds=[...new Set([...profileRows.map(item=>item.participant_id),...inviteRows.flatMap(item=>[item.sender_id,item.receiver_id])])]
-    const peopleResult=personIds.length
-      ? await supabase.from("participants").select("id,nickname,avatar_url").in("id",personIds)
-      : {data:[] as PersonRow[],error:null}
-    if(peopleResult.error)throw peopleResult.error
-    const people=new Map((peopleResult.data||[]).map(person=>[person.id,person as PersonRow]))
-    const profiles:Dancer[]=profileRows.map(profile=>({...profile,participant:people.get(profile.participant_id)||null}))
-    const loadedInvites:Invite[]=inviteRows.map(invite=>({...invite,sender:people.get(invite.sender_id)||null,receiver:people.get(invite.receiver_id)||null}))
+    const {data,error}=await supabase.rpc("get_dance_lobby",{p_event_code:code})
+    if(error)throw error
+    const lobby=(data||{profiles:[],invitations:[]}) as DanceLobby
+    const profiles=lobby.profiles||[],loadedInvites=lobby.invitations||[]
     const own=profiles.find(item=>item.participant_id===id)
     if(own){setRole(own.role);setSkills(own.skills);setAvailable(own.available)}
     setDancers(profiles.filter(item=>item.participant_id!==id));setInvites(loadedInvites)
-  },[])
+  },[code])
   useEffect(()=>{let active=true;(async()=>{try{
     const event=await publicSupabase.from("events").select("experience_mode").eq("code",code).maybeSingle()
     if(event.data?.experience_mode!=="caribbean"){router.replace(`/evento/${code}`);return}
