@@ -52,7 +52,7 @@ begin
   select p.id into v_participant from participants p join events e on e.code=p.event_code
   where p.auth_user_id=auth.uid() and p.event_code=lower(trim(p_event_code)) and e.experience_mode='caribbean';
   if v_participant is null then raise exception 'Caribbean participant not found'; end if;
-  if p_role not in ('leader','follower','both') or jsonb_typeof(p_skills) <> 'object' or jsonb_object_length(p_skills) = 0 then
+  if p_role not in ('leader','follower','both') or jsonb_typeof(p_skills) <> 'object' or not exists (select 1 from jsonb_object_keys(p_skills)) then
     raise exception 'Invalid dance profile';
   end if;
   for v_skill, v_level in select key, value #>> '{}' from jsonb_each(p_skills) loop
