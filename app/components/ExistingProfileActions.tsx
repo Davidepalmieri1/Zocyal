@@ -6,10 +6,12 @@ import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type ExistingProfileActionsProps = {
   eventCode: string
+  experienceMode?: string
 }
 
 export default function ExistingProfileActions({
   eventCode,
+  experienceMode,
 }: ExistingProfileActionsProps) {
   const [loading, setLoading] = useState(true)
   const [profiloTrovato, setProfiloTrovato] = useState(false)
@@ -79,7 +81,7 @@ export default function ExistingProfileActions({
         </div>
 
         <Link
-          href={`/evento/${eventCode}/scegli`}
+          href={`/evento/${eventCode}/${experienceMode === "caribbean" ? "balla" : "scegli"}`}
           className="mt-4 block w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-8 py-4 text-lg font-black text-white shadow-[0_0_40px_rgba(236,72,153,0.25)] transition hover:scale-[1.02]"
         >
           CONTINUA LA SERATA

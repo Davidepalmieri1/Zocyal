@@ -20,7 +20,7 @@ export default async function EventoPage({
 
   const { data: event, error } = await supabase
     .from("events")
-    .select("name, venue, code, status, starts_at, ends_at, venue_logo_url, venue_poster_url")
+    .select("name, venue, code, status, starts_at, ends_at, experience_mode, venue_logo_url, venue_poster_url")
     .eq("code", eventCode)
     .maybeSingle()
 
@@ -109,7 +109,7 @@ export default async function EventoPage({
             </p>
           </div>
 
-          <ExistingProfileActions eventCode={event.code} />
+          <ExistingProfileActions eventCode={event.code} experienceMode={event.experience_mode} />
           </div>
         </div>
 
