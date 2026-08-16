@@ -1,12 +1,12 @@
 "use client"
 
-import { useCallback, useEffect, useMemo, useState } from "react"
+import { useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { motion } from "framer-motion"
 import Image from "next/image"
-import { useParams, useRouter } from "next/navigation"
+import { useParams } from "next/navigation"
 import { QRCodeSVG } from "qrcode.react"
 import Logo from "@/app/components/Logo"
-import { ActionFeedback, EmptyState, LiveSyncStatus } from "@/app/components/EventUi"
+import { ActionFeedback, ConfirmDialog, EmptyState, EventBackButton, LiveSyncStatus } from "@/app/components/EventUi"
 import { ensureAnonymousSession, resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
@@ -189,7 +189,6 @@ function errorMessage(error: unknown) {
 
 export default function MissioniPage() {
   const params = useParams<{ code: string }>()
-  const router = useRouter()
   const eventCode = params.code.trim().toLowerCase()
 
   const [dashboard, setDashboard] = useState<MissionDashboard | null>(null)
@@ -199,7 +198,9 @@ export default function MissioniPage() {
   const [missioneNonCompletata, setMissioneNonCompletata] = useState<string | null>(null)
   const [richiesteManuali, setRichiesteManuali] = useState<Set<string>>(new Set())
   const [premioInCorso, setPremioInCorso] = useState<string | null>(null)
+  const [premioDaRiscattare, setPremioDaRiscattare] = useState<Premio | null>(null)
   const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
+  const actionLocks = useRef(new Set<string>())
 
   const caricaDashboard = useCallback(async () => {
     await ensureAnonymousSession()
@@ -317,7 +318,8 @@ export default function MissioniPage() {
   )
 
   async function completaMissione(missionId: string) {
-    if (missioneInCorso) return
+    if (missioneInCorso || actionLocks.current.has("mission")) return
+    actionLocks.current.add("mission")
 
     setMissioneInCorso(missionId)
     setErrore("")
@@ -343,12 +345,14 @@ export default function MissioniPage() {
       }
       setErrore("Missione non completata. Riprova tra poco.")
     } finally {
+      actionLocks.current.delete("mission")
       setMissioneInCorso(null)
     }
   }
 
   async function richiediConvalida(missionId:string) {
-    if (missioneInCorso || richiesteManuali.has(missionId)) return
+    if (missioneInCorso || richiesteManuali.has(missionId) || actionLocks.current.has("mission")) return
+    actionLocks.current.add("mission")
     setMissioneInCorso(missionId)
     setErrore("")
     try {
@@ -371,12 +375,14 @@ export default function MissioniPage() {
       console.error("Errore richiesta convalida:",error)
       setErrore(error instanceof Error ? error.message : "Non siamo riusciti a inviare la richiesta allo staff.")
     } finally {
+      actionLocks.current.delete("mission")
       setMissioneInCorso(null)
     }
   }
 
   async function riscattaPremio(rewardId: string) {
-    if (premioInCorso) return
+    if (premioInCorso || actionLocks.current.has("reward")) return
+    actionLocks.current.add("reward")
     setPremioInCorso(rewardId)
     setErrore("")
     try {
@@ -390,6 +396,7 @@ export default function MissioniPage() {
       console.error("Errore riscatto premio:", error)
       setErrore("Premio non riscattato. Controlla punti e disponibilità.")
     } finally {
+      actionLocks.current.delete("reward")
       setPremioInCorso(null)
     }
   }
@@ -408,8 +415,22 @@ export default function MissioniPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 pb-28 pt-6 text-white">
+      <ConfirmDialog
+        open={Boolean(premioDaRiscattare)}
+        title="Riscattare questo premio?"
+        description={premioDaRiscattare ? `${premioDaRiscattare.title}: dopo la conferma il riscatto verrà registrato e il QR sarà personale.` : ""}
+        confirmLabel="RISCATTA"
+        tone="primary"
+        busy={premioInCorso !== null}
+        onCancel={() => setPremioDaRiscattare(null)}
+        onConfirm={() => {
+          if (!premioDaRiscattare) return
+          const rewardId = premioDaRiscattare.id
+          void riscattaPremio(rewardId).then(() => setPremioDaRiscattare(null))
+        }}
+      />
       {missioneNonCompletata && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm" role="presentation">
+        <div className="fixed inset-0 z-[110] flex items-center justify-center overflow-y-auto bg-black/75 px-4 py-6 backdrop-blur-sm" role="presentation">
           <motion.section
             initial={{ opacity: 0, scale: 0.92, y: 18 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -440,9 +461,7 @@ export default function MissioniPage() {
 
       <div className="relative mx-auto w-full max-w-5xl">
         <header className="flex items-center justify-between gap-4">
-          <button type="button" onClick={() => router.back()} aria-label="Torna indietro" className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl transition hover:border-pink-400/40 hover:bg-pink-500/10">
-            ‹
-          </button>
+          <EventBackButton href={`/evento/${eventCode}`} label="Torna all’evento" />
           <Logo size="small" />
         </header>
 
@@ -611,7 +630,7 @@ export default function MissioniPage() {
                   </div>
                 )}
                 {premio.available && !premio.claimed && (
-                  <button type="button" disabled={premioInCorso !== null} onClick={() => void riscattaPremio(premio.id)} className="mt-4 w-full rounded-xl bg-green-400 px-4 py-3 text-sm font-black text-black disabled:opacity-60">
+                  <button type="button" disabled={premioInCorso !== null} onClick={() => setPremioDaRiscattare(premio)} className="mt-4 w-full rounded-xl bg-green-400 px-4 py-3 text-sm font-black text-black disabled:opacity-60">
                     {premioInCorso === premio.id ? "RISCATTO..." : `RISCATTA${premio.pointsCost ? ` · ${premio.pointsCost} PT` : ""}`}
                   </button>
                 )}

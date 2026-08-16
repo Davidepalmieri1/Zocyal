@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useCallback, useEffect, useMemo, useState } from "react"
+import { FormEvent, useCallback, useEffect, useMemo, useRef, useState } from "react"
 import { useParams } from "next/navigation"
 import Sidebar from "@/app/admin/components/Sidebar"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -98,6 +98,7 @@ export default function GameTablesAdminPage() {
   const [selectedTemplate, setSelectedTemplate] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
   const [busy, setBusy] = useState(false)
+  const actionLock = useRef(false)
   const [message, setMessage] = useState("")
 
   const load = useCallback(async () => {
@@ -142,6 +143,8 @@ export default function GameTablesAdminPage() {
   }, [tables])
 
   async function mutate(body: Record<string, unknown>) {
+    if (actionLock.current) return null
+    actionLock.current = true
     setBusy(true)
     setMessage("")
     try {
@@ -158,6 +161,7 @@ export default function GameTablesAdminPage() {
       setMessage(error instanceof Error ? error.message : "Operazione non riuscita.")
       return null
     } finally {
+      actionLock.current = false
       setBusy(false)
     }
   }
@@ -196,6 +200,7 @@ export default function GameTablesAdminPage() {
   }
 
   async function deleteGame(template: GameTemplate) {
+    if (!window.confirm(`Rimuovere “${template.name}” dal catalogo dei giochi? I tavoli già creati non verranno modificati.`)) return
     const payload = await mutate({
       action: "delete_template",
       template_id: template.id,
@@ -204,6 +209,11 @@ export default function GameTablesAdminPage() {
       if (selectedTemplate === template.id) setSelectedTemplate(null)
       setMessage(`Gioco “${template.name}” rimosso dal catalogo.`)
     }
+  }
+
+  async function closeTable(table: Table) {
+    if (!window.confirm(`Chiudere il tavolo “${table.name}”? Gli inviti ancora in attesa non potranno più essere accettati.`)) return
+    await mutate({ action: "close", table_id: table.id })
   }
 
   async function create(event: FormEvent<HTMLFormElement>) {
@@ -537,7 +547,7 @@ export default function GameTablesAdminPage() {
                         <button
                           type="button"
                           disabled={busy}
-                          onClick={() => void mutate({ action: "close", table_id: table.id })}
+                          onClick={() => void closeTable(table)}
                           className="relative mt-5 rounded-full border border-white/10 px-4 py-2.5 text-[10px] font-black uppercase tracking-wider text-white/45 transition hover:bg-white/[.06] hover:text-white"
                         >
                           Chiudi tavolo

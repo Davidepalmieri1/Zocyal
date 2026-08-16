@@ -6,6 +6,7 @@ import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
+import { EventBackButton } from "@/app/components/EventUi"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { calculateCompatibility, type CompatibilityAnswers } from "@/app/lib/compatibility"
 
@@ -176,14 +177,7 @@ export default function SocialPage() {
 
       <div className="relative mx-auto w-full max-w-5xl">
         <header className="flex items-center justify-between gap-4">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Torna indietro"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl transition hover:border-pink-400/40 hover:bg-pink-500/10"
-          >
-            ‹
-          </button>
+          <EventBackButton href={`/evento/${eventCode}`} label="Torna all’evento" />
 
           <Logo size="small" />
         </header>

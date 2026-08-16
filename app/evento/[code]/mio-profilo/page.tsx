@@ -1,6 +1,6 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import { publicSupabase, supabase } from "@/lib/supabase"
@@ -35,6 +35,7 @@ function avatarStoragePath(avatarUrl: string | null) {
 export default function MioProfiloPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
+  const deleteLockRef = useRef(false)
 
   const [profilo, setProfilo] = useState<Profilo | null>(null)
   const [inclusiveMode, setInclusiveMode] = useState(false)
@@ -101,10 +102,11 @@ export default function MioProfiloPage() {
   }, [params.code])
 
   async function eliminaProfilo() {
-    if (!profilo || confermaEliminazione.trim().toUpperCase() !== "ELIMINA") {
+    if (!profilo || confermaEliminazione.trim().toUpperCase() !== "ELIMINA" || deleteLockRef.current) {
       return
     }
 
+    deleteLockRef.current = true
     setEliminazioneInCorso(true)
     setErroreEliminazione("")
 
@@ -120,6 +122,7 @@ export default function MioProfiloPage() {
       setErroreEliminazione(
         "Non siamo riusciti a eliminare il profilo. Riprova o avvisa lo staff."
       )
+      deleteLockRef.current = false
       setEliminazioneInCorso(false)
       return
     }
@@ -321,12 +324,12 @@ export default function MioProfiloPage() {
 
       {eliminazioneAperta && profilo && (
         <div
-          className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center"
+          className="fixed inset-0 z-[120] flex items-end justify-center overflow-y-auto bg-black/80 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-sm sm:items-center sm:py-6"
           role="dialog"
           aria-modal="true"
           aria-labelledby="titolo-eliminazione-profilo"
         >
-          <section className="w-full max-w-md rounded-[2rem] border border-red-500/30 bg-zinc-950 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.75)]">
+          <section className="max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] border border-red-500/30 bg-zinc-950 p-6 shadow-[0_30px_100px_rgba(0,0,0,0.75)]">
             <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
               Azione definitiva
             </p>

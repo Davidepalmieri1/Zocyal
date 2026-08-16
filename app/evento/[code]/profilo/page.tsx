@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import Link from "next/link"
 import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
@@ -29,6 +29,7 @@ type RegistrationAvailability = {
 export default function ProfiloPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
+  const saveLockRef = useRef(false)
 
   const [nickname, setNickname] = useState("")
   const [age, setAge] = useState("")
@@ -212,6 +213,8 @@ export default function ProfiloPage() {
       return
     }
 
+    if (saveLockRef.current) return
+    saveLockRef.current = true
     setLoading(true)
     setErrore("")
 
@@ -223,6 +226,7 @@ export default function ProfiloPage() {
     } catch (sessionError) {
       console.error("Errore sessione partecipante:", sessionError)
       setErrore(participantErrorMessage(sessionError))
+      saveLockRef.current = false
       setLoading(false)
       return
     }
@@ -236,6 +240,7 @@ export default function ProfiloPage() {
 
       if (!userId) {
         setErrore("Sessione partecipante non disponibile.")
+        saveLockRef.current = false
         setLoading(false)
         return
       }
@@ -252,6 +257,7 @@ export default function ProfiloPage() {
       if (uploadError) {
         console.error("Errore caricamento foto:", uploadError)
         setErrore("Errore durante il caricamento della foto.")
+        saveLockRef.current = false
         setLoading(false)
         return
       }
@@ -293,6 +299,7 @@ export default function ProfiloPage() {
       }
 
       setErrore(participantErrorMessage(profileError))
+      saveLockRef.current = false
       setLoading(false)
       return
     }

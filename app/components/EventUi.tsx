@@ -1,5 +1,7 @@
 "use client"
 
+import { useRouter } from "next/navigation"
+
 type FeedbackTone = "success" | "error" | "info"
 
 const feedbackStyles: Record<FeedbackTone, string> = {
@@ -35,4 +37,26 @@ export function LiveSyncStatus({ updatedAt, label = "Aggiornamento live" }: { up
     <span aria-hidden="true" className={`h-2 w-2 rounded-full ${updatedAt ? "bg-emerald-300 shadow-[0_0_10px_rgba(110,231,183,.65)]" : "animate-pulse bg-white/30"}`} />
     {updatedAt ? `${label} · ${updatedAt.toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit", second: "2-digit" })}` : "Sincronizzazione…"}
   </p>
+}
+
+export function EventBackButton({ href, label = "Torna indietro" }: { href: string; label?: string }) {
+  const router = useRouter()
+  return <button type="button" onClick={() => router.replace(href)} aria-label={label} className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl text-white transition hover:border-pink-400/40 hover:bg-pink-500/10 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-pink-300/70">
+    ‹
+  </button>
+}
+
+export function ConfirmDialog({ open, title, description, confirmLabel, busy = false, tone = "danger", onConfirm, onCancel }: { open: boolean; title: string; description: string; confirmLabel: string; busy?: boolean; tone?: "danger" | "primary"; onConfirm: () => void; onCancel: () => void }) {
+  if (!open) return null
+  return <div className="fixed inset-0 z-[120] flex items-end justify-center overflow-y-auto bg-black/80 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-sm sm:items-center sm:py-6">
+    <section role="alertdialog" aria-modal="true" aria-labelledby="confirm-dialog-title" aria-describedby="confirm-dialog-description" className="premium-glass max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b070d]/95 p-6 text-center shadow-2xl">
+      <span aria-hidden="true" className={`mx-auto flex h-14 w-14 items-center justify-center rounded-2xl border text-2xl ${tone === "danger" ? "border-red-300/25 bg-red-400/10 text-red-200" : "border-pink-300/25 bg-pink-400/10 text-pink-100"}`}>{tone === "danger" ? "!" : "✓"}</span>
+      <h2 id="confirm-dialog-title" className="mt-4 text-2xl font-black">{title}</h2>
+      <p id="confirm-dialog-description" className="mt-3 text-sm leading-6 text-white/55">{description}</p>
+      <div className="mt-6 grid grid-cols-2 gap-3">
+        <button type="button" autoFocus disabled={busy} onClick={onCancel} className="min-h-12 rounded-xl border border-white/10 px-4 py-3 font-black text-white/70 disabled:opacity-50">ANNULLA</button>
+        <button type="button" disabled={busy} onClick={onConfirm} className={`min-h-12 rounded-xl px-4 py-3 font-black disabled:cursor-wait disabled:opacity-50 ${tone === "danger" ? "bg-red-500 text-white" : "bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 text-white"}`}>{busy ? "ATTENDI…" : confirmLabel}</button>
+      </div>
+    </section>
+  </div>
 }

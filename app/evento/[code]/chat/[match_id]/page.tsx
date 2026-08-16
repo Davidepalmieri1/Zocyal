@@ -15,6 +15,7 @@ import { QRCodeSVG } from "qrcode.react"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
+import { EventBackButton } from "@/app/components/EventUi"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type Messaggio = {
@@ -134,6 +135,9 @@ export default function ChatPage() {
   const audioContextRef = useRef<AudioContext | null>(null)
   const notificheAttiveRef = useRef(false)
   const personaRef = useRef<Persona | null>(null)
+  const drinkActionLockRef = useRef(false)
+  const safetyActionLockRef = useRef(false)
+  const messageActionLockRef = useRef(false)
 
   const typingTimeoutRef = useRef<ReturnType<
     typeof setTimeout
@@ -696,7 +700,8 @@ export default function ChatPage() {
   }, [matchId, mioId, mostraNotificaMessaggio, segnaMessaggiComeLetti])
 
   async function inviaDrink() {
-    if (drinkBusy || chatBloccata) return
+    if (drinkBusy || chatBloccata || drinkActionLockRef.current) return
+    drinkActionLockRef.current = true
     setDrinkBusy(true); setErrore("")
     try {
       const { data, error } = await supabase.rpc("send_drink_offer", { p_match_id: matchId })
@@ -706,11 +711,12 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Errore offerta drink", error)
       setErrore("Hai già inviato un'offerta drink a questa persona.")
-    } finally { setDrinkBusy(false) }
+    } finally { drinkActionLockRef.current = false; setDrinkBusy(false) }
   }
 
   async function rispondiDrink(accept: boolean) {
-    if (!drinkOffer || drinkBusy) return
+    if (!drinkOffer || drinkBusy || drinkActionLockRef.current) return
+    drinkActionLockRef.current = true
     setDrinkBusy(true); setErrore("")
     try {
       const { data, error } = await supabase.rpc("respond_drink_offer", { p_offer_id: drinkOffer.id, p_accept: accept })
@@ -722,13 +728,13 @@ export default function ChatPage() {
     } catch (error) {
       console.error("Errore risposta drink", error)
       setErrore("Non siamo riusciti a registrare la risposta.")
-    } finally { setDrinkBusy(false) }
+    } finally { drinkActionLockRef.current = false; setDrinkBusy(false) }
   }
 
   async function gestisciSicurezza(
     segnala: boolean
   ) {
-    if (!mioId || !persona?.id || invioSicurezza) {
+    if (!mioId || !persona?.id || invioSicurezza || safetyActionLockRef.current) {
       return
     }
 
@@ -737,6 +743,7 @@ export default function ChatPage() {
       return
     }
 
+    safetyActionLockRef.current = true
     setInvioSicurezza(true)
     setErrore("")
 
@@ -755,12 +762,14 @@ export default function ChatPage() {
     if (safetyError) {
       console.error("Errore sicurezza utente:", safetyError)
       setErrore("Non siamo riusciti a completare il blocco. Riprova.")
+      safetyActionLockRef.current = false
       setInvioSicurezza(false)
       return
     }
 
     setChatBloccata(true)
     setSicurezzaAperta(false)
+    safetyActionLockRef.current = false
     setInvioSicurezza(false)
     setText("")
   }
@@ -829,7 +838,7 @@ export default function ChatPage() {
 
     const messaggioPulito = text.trim()
 
-    if (!messaggioPulito || !mioId || sending || chatBloccata) {
+    if (!messaggioPulito || !mioId || sending || chatBloccata || messageActionLockRef.current) {
       return
     }
 
@@ -841,6 +850,7 @@ export default function ChatPage() {
       return
     }
 
+    messageActionLockRef.current = true
     setSending(true)
     setErrore("")
 
@@ -861,6 +871,7 @@ export default function ChatPage() {
         "Messaggio non inviato. Il testo è ancora qui: controlla la connessione e premi di nuovo invia."
       )
 
+      messageActionLockRef.current = false
       setSending(false)
       return
     }
@@ -871,6 +882,7 @@ export default function ChatPage() {
     }
 
     setText("")
+    messageActionLockRef.current = false
     setSending(false)
   }
 
@@ -945,14 +957,7 @@ export default function ChatPage() {
 
       <header className="relative z-20 border-b border-white/[.08] bg-[#08050a]/80 px-4 py-3 shadow-[0_16px_50px_rgba(0,0,0,.18)] backdrop-blur-2xl sm:py-4">
         <div className="mx-auto flex w-full max-w-3xl items-center gap-3">
-          <button
-            type="button"
-            onClick={() => router.back()}
-            aria-label="Torna indietro"
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-white/10 bg-white/[0.05] text-2xl text-white transition hover:border-pink-400/40 hover:bg-pink-500/10"
-          >
-            ‹
-          </button>
+          <EventBackButton href={`/evento/${params.code}/miei-match`} label="Torna alle chat" />
 
           <div className="relative shrink-0">
             <div className="absolute inset-0 rounded-full bg-pink-500/30 blur-lg" />
@@ -1289,8 +1294,8 @@ export default function ChatPage() {
       </footer>
 
       {drinkConfirmOpen && !drinkOffer && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
-          <div role="dialog" aria-modal="true" aria-label="Conferma offerta drink" className="premium-glass w-full max-w-md rounded-[2rem] bg-[#0b070d]/95 p-6 text-center">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center overflow-y-auto bg-black/80 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-sm sm:items-center sm:py-6">
+          <div role="dialog" aria-modal="true" aria-label="Conferma offerta drink" className="premium-glass max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b070d]/95 p-6 text-center">
             <button type="button" onClick={() => setDrinkConfirmOpen(false)} disabled={drinkBusy} className="float-right flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-xl disabled:opacity-50">×</button>
             <div className="text-6xl">🍹</div>
             <p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-pink-300">Offri drink</p>
@@ -1309,8 +1314,8 @@ export default function ChatPage() {
       )}
 
       {drinkOpen && drinkOffer && (
-        <div className="fixed inset-0 z-[110] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
-          <div role="dialog" aria-modal="true" aria-label="Offerta drink" className="premium-glass w-full max-w-md rounded-[2rem] bg-[#0b070d]/95 p-6 text-center">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center overflow-y-auto bg-black/80 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-sm sm:items-center sm:py-6">
+          <div role="dialog" aria-modal="true" aria-label="Offerta drink" className="premium-glass max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b070d]/95 p-6 text-center">
             <button type="button" onClick={()=>setDrinkOpen(false)} className="float-right flex h-10 w-10 items-center justify-center rounded-full border border-white/10 text-xl">×</button>
             <div className="text-6xl">🍹</div>
             {drinkOffer.status==="pending"&&drinkOffer.receiver_id===mioId&&<><p className="mt-4 text-xs font-black uppercase tracking-[.18em] text-pink-300">Offerta drink</p><h2 className="mt-2 text-2xl font-black">{persona?.nickname||"Il tuo match"} vuole offrirti un drink</h2><p className="mt-3 text-sm leading-6 text-gray-400">Se accetti, potete incontrarvi al bancone. Chi ha inviato l&apos;offerta riceverà 2 € di sconto sul secondo drink.</p><div className="mt-6 grid grid-cols-2 gap-3"><button disabled={drinkBusy} onClick={()=>void rispondiDrink(false)} className="rounded-xl border border-white/10 px-4 py-3 font-black">RIFIUTA</button><button disabled={drinkBusy} onClick={()=>void rispondiDrink(true)} className="rounded-xl bg-green-400 px-4 py-3 font-black text-black">ACCETTA</button></div></>}
@@ -1324,8 +1329,8 @@ export default function ChatPage() {
       )}
 
       {sicurezzaAperta && (
-        <div className="fixed inset-0 z-[100] flex items-end justify-center bg-black/80 p-4 backdrop-blur-sm sm:items-center">
-          <div role="dialog" aria-modal="true" aria-labelledby="safety-dialog-title" className="premium-glass w-full max-w-md rounded-[2rem] bg-[#0b070d]/95 p-6">
+        <div className="fixed inset-0 z-[110] flex items-end justify-center overflow-y-auto bg-black/80 px-4 pb-[calc(env(safe-area-inset-bottom)+1rem)] pt-4 backdrop-blur-sm sm:items-center sm:py-6">
+          <div role="dialog" aria-modal="true" aria-labelledby="safety-dialog-title" className="premium-glass max-h-[calc(100dvh-2rem)] w-full max-w-md overflow-y-auto rounded-[2rem] bg-[#0b070d]/95 p-6">
             <div className="flex items-start justify-between gap-4">
               <div>
                 <p className="text-xs font-black uppercase tracking-[0.18em] text-red-300">
