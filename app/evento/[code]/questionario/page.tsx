@@ -1,6 +1,6 @@
 "use client"
 
-import { useState } from "react"
+import { useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
@@ -65,6 +65,7 @@ const questions = [
 export default function QuestionarioPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
+  const saveLockRef = useRef(false)
 
   const [answers, setAnswers] = useState<string[]>(
     Array(questions.length).fill("")
@@ -108,6 +109,8 @@ export default function QuestionarioPage() {
       return
     }
 
+    if (saveLockRef.current) return
+    saveLockRef.current = true
     setLoading(true)
     setErrore("")
 
@@ -250,6 +253,7 @@ export default function QuestionarioPage() {
         "Si è verificato un errore imprevisto. Riprova."
       )
     } finally {
+      saveLockRef.current = false
       setLoading(false)
     }
   }

@@ -1,6 +1,6 @@
 "use client"
 
-import { FormEvent, useEffect, useState } from "react"
+import { FormEvent, useEffect, useRef, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -26,6 +26,7 @@ type Settings = {
 export default function InclusivePreferencesPage() {
   const params = useParams<{ code: string }>()
   const router = useRouter()
+  const saveLockRef = useRef(false)
   const eventCode = params.code.trim().toLowerCase()
   const [identityCategory, setIdentityCategory] = useState("")
   const [pronouns, setPronouns] = useState("")
@@ -80,6 +81,8 @@ export default function InclusivePreferencesPage() {
       return
     }
 
+    if (saveLockRef.current) return
+    saveLockRef.current = true
     setSaving(true)
     setError("")
     const { error: saveError } = await supabase.rpc(
@@ -92,6 +95,7 @@ export default function InclusivePreferencesPage() {
         p_consent: consent,
       }
     )
+    saveLockRef.current = false
     setSaving(false)
 
     if (saveError) {
