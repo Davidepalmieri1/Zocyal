@@ -2,6 +2,7 @@
 
 import { FormEvent, useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import Image from "next/image"
 import Sidebar from "@/app/admin/components/Sidebar"
 import EventQR from "@/app/admin/components/EventQR"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -85,8 +86,8 @@ export default function Page() {
         <PremiumBackdrop orbs={false} />
         <div className="relative mx-auto max-w-[1500px]">
           <header className="premium-enter relative flex flex-col justify-between gap-6 overflow-hidden rounded-[2rem] border border-white/[.07] p-6 sm:flex-row sm:items-end sm:p-8">
-            {data.event.venue_poster_url && <><img src={data.event.venue_poster_url} alt="" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-35" /><div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-black/35" /></>}
-            <div className="relative flex items-center gap-5">{data.event.venue_logo_url && <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] border border-white/25 bg-gradient-to-br from-zinc-700 to-black p-3 shadow-[0_0_35px_rgba(236,72,153,.2)]"><img src={data.event.venue_logo_url} alt={`Logo ${data.event.venue || "locale"}`} className="max-h-full max-w-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,.8)]" /></div>}<div><div className="flex items-center gap-3"><span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(74,222,128,.7)]" /><p className="premium-eyebrow !text-emerald-300">Evento in tempo reale</p></div><h1 className="premium-title mt-4 text-4xl font-black sm:text-6xl">{data.event.name || "Evento"}</h1><p className="mt-3 text-sm text-white/45">⌖ {data.event.venue || "Luogo non indicato"} · Codice <strong className="text-pink-300">{code}</strong></p></div></div>
+            {data.event.venue_poster_url && <><Image src={data.event.venue_poster_url} alt="" width={1200} height={800} sizes="(max-width: 1024px) 100vw, 1200px" className="absolute inset-0 h-full w-full scale-105 object-cover opacity-35" /><div className="absolute inset-0 bg-gradient-to-r from-black/95 via-black/75 to-black/35" /></>}
+            <div className="relative flex items-center gap-5">{data.event.venue_logo_url && <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[1.5rem] border border-white/25 bg-gradient-to-br from-zinc-700 to-black p-3 shadow-[0_0_35px_rgba(236,72,153,.2)]"><Image src={data.event.venue_logo_url} alt={`Logo ${data.event.venue || "locale"}`} width={56} height={56} className="max-h-full max-w-full object-contain drop-shadow-[0_2px_8px_rgba(0,0,0,.8)]" /></div>}<div><div className="flex items-center gap-3"><span className="h-2 w-2 rounded-full bg-emerald-400 shadow-[0_0_14px_rgba(74,222,128,.7)]" /><p className="premium-eyebrow !text-emerald-300">Evento in tempo reale</p></div><h1 className="premium-title mt-4 text-4xl font-black sm:text-6xl">{data.event.name || "Evento"}</h1><p className="mt-3 text-sm text-white/45">⌖ {data.event.venue || "Luogo non indicato"} · Codice <strong className="text-pink-300">{code}</strong></p></div></div>
             <div className="relative flex flex-wrap gap-2"><a href={`/admin/banco/${code}`} className="rounded-xl bg-emerald-400 px-4 py-3 text-xs font-black text-black">◇ APRI MODALITÀ BANCO</a><button onClick={() => void load(true)} className="rounded-xl border border-white/10 bg-white/[.04] px-4 py-3 text-xs font-black text-white/60 hover:bg-white/[.08] hover:text-white">↻ AGGIORNA</button><a href={`/admin/impostazioni/${code}`} className="rounded-xl bg-white px-4 py-3 text-xs font-black text-black">IMPOSTAZIONI</a></div>
           </header>
 

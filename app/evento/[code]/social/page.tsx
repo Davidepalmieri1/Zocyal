@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react"
 import { motion } from "framer-motion"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
@@ -275,12 +276,14 @@ export default function SocialPage() {
 
                       <div className="relative flex h-full w-full items-center justify-center overflow-hidden rounded-full border border-white/20 bg-zinc-900">
                         {persona.avatar_url ? (
-                          <img
+                          <Image
                             src={persona.avatar_url}
                             alt={
                               persona.nickname ||
                               "Partecipante"
                             }
+                            width={80}
+                            height={80}
                             className="h-full w-full object-cover"
                           />
                         ) : (

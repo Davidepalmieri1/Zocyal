@@ -3,11 +3,13 @@
 import {
   FormEvent,
   KeyboardEvent,
+  useCallback,
   useEffect,
   useRef,
   useState,
 } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { RealtimeChannel } from "@supabase/supabase-js"
 import { QRCodeSVG } from "qrcode.react"
 import { supabase } from "@/lib/supabase"
@@ -223,7 +225,7 @@ export default function ChatPage() {
     })
   }, [messages, typing])
 
-  function riproduciSuonoNotifica() {
+  const riproduciSuonoNotifica = useCallback(() => {
     try {
       const AudioContextClass =
         window.AudioContext ||
@@ -288,11 +290,11 @@ export default function ChatPage() {
         error
       )
     }
-  }
+  }, [])
 
-  function mostraNotificaMessaggio(
+  const mostraNotificaMessaggio = useCallback((
     nuovoMessaggio: Messaggio
-  ) {
+  ) => {
     if (!notificheAttiveRef.current) {
       return
     }
@@ -332,7 +334,7 @@ export default function ChatPage() {
         notifica.close()
       }
     }
-  }
+  }, [matchId, riproduciSuonoNotifica])
 
   async function cambiaStatoNotifiche() {
     setErrore("")
@@ -393,7 +395,7 @@ export default function ChatPage() {
     riproduciSuonoNotifica()
   }
 
-  async function segnaMessaggiComeLetti() {
+  const segnaMessaggiComeLetti = useCallback(async () => {
     if (!matchId || !mioId) {
       return
     }
@@ -413,7 +415,7 @@ export default function ChatPage() {
         error
       )
     }
-  }
+  }, [matchId, mioId])
 
   useEffect(() => {
     if (!matchId || !mioId) {
@@ -691,7 +693,7 @@ export default function ChatPage() {
       channelRef.current = null
       supabase.removeChannel(channel)
     }
-  }, [matchId, mioId])
+  }, [matchId, mioId, mostraNotificaMessaggio, segnaMessaggiComeLetti])
 
   async function inviaDrink() {
     if (drinkBusy || chatBloccata) return
@@ -782,7 +784,7 @@ export default function ChatPage() {
         handleVisibilityChange
       )
     }
-  }, [matchId, mioId])
+  }, [segnaMessaggiComeLetti])
 
   async function mandaTyping(status: boolean) {
     if (!mioId || !channelRef.current) {
@@ -957,12 +959,14 @@ export default function ChatPage() {
 
             <div className="relative flex h-14 w-14 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-zinc-900">
               {persona?.avatar_url ? (
-                <img
+                <Image
                   src={persona.avatar_url}
                   alt={
                     persona.nickname ||
                     "Partecipante"
                   }
+                  width={56}
+                  height={56}
                   className="h-full w-full object-cover"
                 />
               ) : (

@@ -1,4 +1,5 @@
 import Link from "next/link"
+import Image from "next/image"
 import Logo from "@/app/components/Logo"
 import ExistingProfileActions from "@/app/components/ExistingProfileActions"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -65,7 +66,7 @@ export default async function EventoPage({
         <Logo size="large" />
 
         <div className="premium-glass premium-enter relative mt-8 w-full overflow-hidden rounded-[2.25rem] p-8">
-          {event.venue_poster_url && <div className="absolute inset-0"><img src={event.venue_poster_url} alt="Locandina della serata" className="h-full w-full scale-105 object-cover opacity-35" /><div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/65 to-black/95" /></div>}
+          {event.venue_poster_url && <div className="absolute inset-0"><Image src={event.venue_poster_url} alt="Locandina della serata" width={900} height={1200} sizes="448px" className="h-full w-full scale-105 object-cover opacity-35" /><div className="absolute inset-0 bg-gradient-to-b from-black/25 via-black/65 to-black/95" /></div>}
           <div className="relative">
           {event.venue_logo_url && (
             <div className="relative mx-auto mb-8 w-full max-w-[17rem] pt-3">
@@ -73,9 +74,12 @@ export default async function EventoPage({
               <div className="relative overflow-hidden rounded-[2rem] border border-white/30 bg-black/75 p-[1px] shadow-[0_24px_70px_rgba(0,0,0,.7),0_0_45px_rgba(236,72,153,.22)] backdrop-blur-xl">
                 <div className="relative flex min-h-36 items-center justify-center overflow-hidden rounded-[1.95rem] bg-[radial-gradient(circle_at_50%_20%,rgba(255,255,255,.18),rgba(24,24,27,.92)_52%,rgba(0,0,0,.98))] px-7 py-6">
                   <div className="absolute inset-x-6 top-0 h-px bg-gradient-to-r from-transparent via-white/80 to-transparent" />
-                  <img
+                  <Image
                     src={event.venue_logo_url}
                     alt={`Logo ${event.venue || "locale"}`}
+                    width={544}
+                    height={192}
+                    sizes="272px"
                     className="relative max-h-24 w-full object-contain drop-shadow-[0_5px_16px_rgba(0,0,0,.95)]"
                   />
                 </div>
@@ -113,7 +117,7 @@ export default async function EventoPage({
           </div>
         </div>
 
-        {event.venue_poster_url && <div className="premium-enter mt-6 w-full overflow-hidden rounded-[2rem] border border-pink-400/35 bg-gradient-to-b from-pink-500/15 to-white/[.04] p-3 shadow-[0_25px_100px_rgba(236,72,153,.18)]"><p className="premium-eyebrow mb-3 text-pink-200">Locandina ufficiale</p><img src={event.venue_poster_url} alt={`Locandina ${event.name}`} className="aspect-[3/4] w-full rounded-[1.4rem] object-cover shadow-2xl" /></div>}
+        {event.venue_poster_url && <div className="premium-enter mt-6 w-full overflow-hidden rounded-[2rem] border border-pink-400/35 bg-gradient-to-b from-pink-500/15 to-white/[.04] p-3 shadow-[0_25px_100px_rgba(236,72,153,.18)]"><p className="premium-eyebrow mb-3 text-pink-200">Locandina ufficiale</p><Image src={event.venue_poster_url} alt={`Locandina ${event.name}`} width={900} height={1200} sizes="(max-width: 768px) 100vw, 448px" className="aspect-[3/4] w-full rounded-[1.4rem] object-cover shadow-2xl" /></div>}
 
         <p className="mt-6 text-sm text-gray-500">
           Entra, scegli cosa fare e vivi la serata.

@@ -1,7 +1,8 @@
 "use client"
 
-import { useEffect, useRef, useState } from "react"
+import { useCallback, useEffect, useRef, useState } from "react"
 import { useParams, useRouter, useSearchParams } from "next/navigation"
+import Image from "next/image"
 import { publicSupabase, supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -93,7 +94,7 @@ export default function CompatibilitaPage() {
     return "Potreste sorprendervi"
   }
 
-  function trovaStatoPersona(personId: string, participantId: string) {
+  const trovaStatoPersona = useCallback((personId: string, participantId: string) => {
     const mioLike = likesRef.current.find(
       (like) =>
         like.from_participant === participantId &&
@@ -122,14 +123,14 @@ export default function CompatibilitaPage() {
             ? ("received_like" as const)
             : ("none" as const),
     }
-  }
+  }, [])
 
-  async function caricaBloccoProfili(
+  const caricaBloccoProfili = useCallback(async (
     participantId: string,
     eventCode: string,
     indiceIniziale: number,
     reset = false
-  ) {
+  ) => {
     if (reset) {
       setLoading(true)
     } else {
@@ -267,7 +268,7 @@ export default function CompatibilitaPage() {
       setLoading(false)
       setLoadingAltri(false)
     }
-  }
+  }, [socialPersonId, trovaStatoPersona])
 
   async function caricaAltriProfili() {
     if (!mioId || loadingAltri || !haAltriProfili) return 0
@@ -607,7 +608,7 @@ export default function CompatibilitaPage() {
     return () => {
       supabase.removeChannel(channel)
     }
-  }, [mioId, params.code])
+  }, [caricaBloccoProfili, mioId, params.code, router])
 
   if (loading) {
     return (
@@ -728,9 +729,12 @@ export default function CompatibilitaPage() {
               >
                 <div className="relative h-72 overflow-hidden bg-zinc-900">
                   {person.avatar_url ? (
-                    <img
+                    <Image
                       src={person.avatar_url}
                       alt={person.nickname || "Partecipante"}
+                      width={720}
+                      height={576}
+                      sizes="(max-width: 768px) 100vw, 448px"
                       className="h-full w-full object-cover"
                     />
                   ) : (

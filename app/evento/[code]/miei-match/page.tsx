@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -421,12 +422,14 @@ export default function MieiMatchPage() {
                   <div className="relative shrink-0">
                     <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-full border border-white/15 bg-zinc-900">
                       {persona.avatar_url ? (
-                        <img
+                        <Image
                           src={persona.avatar_url}
                           alt={
                             persona.nickname ||
                             "Partecipante"
                           }
+                          width={64}
+                          height={64}
                           className="h-full w-full object-cover"
                         />
                       ) : (
