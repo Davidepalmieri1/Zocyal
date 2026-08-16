@@ -77,6 +77,7 @@ export default function ExperienceSidebar() {
 
   const [aperto, setAperto] = useState(false)
   const [caribbeanMode, setCaribbeanMode] = useState(false)
+  const [experienceModeLoaded, setExperienceModeLoaded] = useState(false)
   const [attivitaAttuale, setAttivitaAttuale] =
     useState<AttivitaId>("match")
   const [notificheAttive, setNotificheAttive] =
@@ -91,7 +92,7 @@ export default function ExperienceSidebar() {
 
   useEffect(() => {
     void publicSupabase.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
-      .then(({data}) => setCaribbeanMode(data?.experience_mode === "caribbean"))
+      .then(({data}) => { setCaribbeanMode(data?.experience_mode === "caribbean"); setExperienceModeLoaded(true) }, () => setExperienceModeLoaded(true))
   }, [eventCode])
 
   useEffect(() => {
@@ -415,7 +416,7 @@ export default function ExperienceSidebar() {
                 </button>
 
                 <div className="mt-7 border-t border-white/[.08] pt-5"><div className="mb-3 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[.2em] text-white/35">Esperienze</p><span className="text-[10px] font-bold text-white/25">Scegline una</span></div><div className="grid gap-2">
-                  {vociMenu.filter(voce => caribbeanMode ? voce.id !== "tavoli" : voce.id !== "balla").map((voce, index) => {
+                  {vociMenu.filter(voce => !experienceModeLoaded ? !["tavoli", "balla"].includes(voce.id) : caribbeanMode ? voce.id !== "tavoli" : voce.id !== "balla").map((voce, index) => {
                     const attiva = attivitaAttuale === voce.id
 
                     return (

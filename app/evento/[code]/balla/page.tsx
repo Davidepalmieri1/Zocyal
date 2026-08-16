@@ -21,6 +21,18 @@ type Dancer = { participant_id: string; role: Role; skills: Record<string, Level
 type Invite = { id: string; sender_id: string; receiver_id: string; style: string; status: string; created_at: string; sender: { nickname: string } | null; receiver: { nickname: string } | null }
 type DanceLobby = { profiles: Dancer[]; invitations: Invite[]; completed_test: boolean }
 
+function danceErrorMessage(error: unknown) {
+  const message = error instanceof Error ? error.message : String(error || "")
+  if (message.includes("Dancer already invited") || message.includes("Active invitation")) return "Uno dei due ballerini ha già un invito in attesa. Attendi la risposta oppure annulla il tuo invito."
+  if (message.includes("Dancer unavailable")) return "Questo ballerino non è più disponibile in questo momento."
+  if (message.includes("Dance profile required")) return "Prima di invitare, entrambi dovete avere un profilo di ballo completo."
+  if (message.includes("Dance style not shared")) return "Lo stile scelto non è più disponibile per entrambi."
+  if (message.includes("Dance roles not compatible")) return "I ruoli selezionati non sono compatibili per questo invito."
+  if (message.includes("Invitation unavailable")) return "Questo invito è scaduto, è stato annullato oppure ha già ricevuto una risposta."
+  if (message.includes("Caribbean participant not found")) return "Il profilo partecipante non è collegato a questa sessione."
+  return "Operazione non riuscita. Aggiorna la Pista e riprova."
+}
+
 export default function DancePage() {
   const { code: raw } = useParams<{ code: string }>()
   const code = raw.toLowerCase()
@@ -40,6 +52,7 @@ export default function DancePage() {
   const [matchProfileCompleted, setMatchProfileCompleted] = useState(false)
   const [showMatchPrompt, setShowMatchPrompt] = useState(false)
   const [liveNotice, setLiveNotice] = useState("")
+  const [selectedStyles, setSelectedStyles] = useState<Record<string, string>>({})
   const initialized = useRef(false)
   const labels = useMemo(() => new Map<string, string>(STYLES), [])
   const pendingInvites = useMemo(() => invites.filter(invite => invite.receiver_id === mine && invite.status === "pending"), [invites, mine])
@@ -60,7 +73,14 @@ export default function DancePage() {
       if (!initialized.current) setActiveTab("dance")
     }
     initialized.current = true
-    setDancers(profiles.filter(item => item.participant_id !== id))
+    const ownSkills = own?.skills || {}
+    setDancers(profiles.filter(item => item.participant_id !== id).sort((first, second) => {
+      const availability = Number(second.available) - Number(first.available)
+      if (availability) return availability
+      const firstShared = Object.keys(first.skills).filter(style => ownSkills[style]).length
+      const secondShared = Object.keys(second.skills).filter(style => ownSkills[style]).length
+      return secondShared - firstShared
+    }))
     setInvites(lobby.invitations || [])
   }, [code])
 
@@ -85,7 +105,6 @@ export default function DancePage() {
   useEffect(() => {
     if (!mine) return
     let active = true
-    let realtimeReady = false
     const refresh = () => { if (active) void load(mine).catch(() => undefined) }
     const incoming = (payload: { new: Record<string, unknown> }) => {
       const invite = payload.new
@@ -105,16 +124,20 @@ export default function DancePage() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `receiver_id=eq.${mine}` }, refresh)
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `sender_id=eq.${mine}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "participant_dance_profiles" }, refresh)
-      .subscribe(status => { realtimeReady = status === "SUBSCRIBED"; if (realtimeReady) refresh() })
+      .subscribe(status => { if (status === "SUBSCRIBED") refresh() })
     // Realtime remains the primary path; this also covers mobile browsers that
     // silently pause or drop websocket events while the page stays open.
-    const fallback = window.setInterval(() => { if (!document.hidden) refresh() }, realtimeReady ? 3000 : 2000)
+    const fallback = window.setInterval(() => { if (!document.hidden) refresh() }, 8000)
     const onVisible = () => { if (!document.hidden) refresh() }
     document.addEventListener("visibilitychange", onVisible)
+    window.addEventListener("focus", onVisible)
+    window.addEventListener("online", onVisible)
     return () => {
       active = false
       window.clearInterval(fallback)
       document.removeEventListener("visibilitychange", onVisible)
+      window.removeEventListener("focus", onVisible)
+      window.removeEventListener("online", onVisible)
       void supabase.removeChannel(channel)
     }
   }, [code, load, mine])
@@ -132,7 +155,7 @@ export default function DancePage() {
       await load(mine)
       setActiveTab("dance")
       if (wasNew && !matchProfileCompleted) setShowMatchPrompt(true)
-    } catch (error) { setProfileFeedback(error instanceof Error ? error.message : "Salvataggio non riuscito. Riprova.") }
+    } catch (error) { setProfileFeedback(danceErrorMessage(error)) }
     finally { setBusy("") }
   }
 
@@ -143,10 +166,31 @@ export default function DancePage() {
   async function invite(dancer: Dancer) {
     const shared = Object.keys(skills).filter(style => dancer.skills[style])
     if (!shared.length) { setMessage("Non avete ancora uno stile in comune."); return }
+    const selectedStyle = selectedStyles[dancer.participant_id] || shared[0]
     setBusy(dancer.participant_id); setMessage("")
-    const { error } = await supabase.rpc("send_dance_invitation", { p_event_code: code, p_receiver_id: dancer.participant_id, p_style: shared[0], p_message: null })
-    if (error) setMessage(error.message.includes("Active invitation") ? "Hai già un invito attivo." : error.message)
-    else { await load(mine); setMessage(`Invito inviato a ${dancer.participant?.nickname || "questo ballerino"} per ${labels.get(shared[0])}.`) }
+    const { error } = await supabase.rpc("send_dance_invitation", { p_event_code: code, p_receiver_id: dancer.participant_id, p_style: selectedStyle, p_message: null })
+    if (error) setMessage(danceErrorMessage(error))
+    else { await load(mine); setMessage(`Invito inviato a ${dancer.participant?.nickname || "questo ballerino"} per ${labels.get(selectedStyle)}.`) }
+    setBusy("")
+  }
+
+  async function cancelInvitation(id: string) {
+    setBusy(id); setMessage("")
+    const { error } = await supabase.rpc("cancel_dance_invitation", { p_invitation_id: id })
+    if (error) setMessage(danceErrorMessage(error))
+    else { await load(mine); setMessage("Invito annullato. Ora puoi invitare un altro ballerino.") }
+    setBusy("")
+  }
+
+  async function changeAvailability(next: boolean) {
+    setBusy("availability"); setMessage("")
+    const { error } = await supabase.rpc("set_dance_availability", { p_event_code: code, p_available: next })
+    if (error) setMessage(danceErrorMessage(error))
+    else {
+      setAvailable(next)
+      await load(mine)
+      setMessage(next ? "Sei di nuovo disponibile in pista." : "Profilo messo in pausa.")
+    }
     setBusy("")
   }
 
@@ -155,7 +199,7 @@ export default function DancePage() {
     const { error } = await supabase.rpc("respond_dance_invitation", { p_invitation_id: id, p_response: response })
     if (error) {
       await load(mine).catch(() => undefined)
-      setMessage(error.message.includes("Invitation unavailable") ? "Questo invito è scaduto o ha già ricevuto una risposta." : error.message)
+      setMessage(danceErrorMessage(error))
     }
     else {
       await load(mine)
@@ -201,15 +245,16 @@ export default function DancePage() {
 
       {activeTab === "dance" && <section className="premium-enter mt-6 space-y-7">
         {!hasProfile && <div className="premium-glass rounded-[2rem] p-8 text-center"><span className="text-4xl">✦</span><h2 className="mt-3 text-2xl font-black">Prima crea il tuo profilo</h2><p className="mt-2 text-white/50">Bastano ruolo e uno stile per entrare in pista.</p><button type="button" onClick={() => setActiveTab("profile")} className="premium-cta mt-5 rounded-full bg-gradient-to-r from-pink-500 to-orange-400 px-6 py-3 font-black">CREA PROFILO</button></div>}
+        {hasProfile && !available && <div className="rounded-[2rem] border border-amber-300/25 bg-amber-300/10 p-6 sm:flex sm:items-center sm:justify-between sm:gap-5"><div><p className="text-xs font-black uppercase tracking-wider text-amber-200">Profilo in pausa</p><h2 className="mt-2 text-xl font-black">Hai finito di ballare?</h2><p className="mt-2 text-sm text-white/50">Torna disponibile per ricevere e inviare nuovi inviti.</p></div><button type="button" disabled={busy === "availability"} onClick={() => void changeAvailability(true)} className="premium-cta mt-5 w-full rounded-full bg-gradient-to-r from-pink-500 to-orange-400 px-6 py-3 font-black disabled:opacity-50 sm:mt-0 sm:w-auto">{busy === "availability" ? "AGGIORNO…" : "TORNA DISPONIBILE"}</button></div>}
         {hasProfile && <>
           <div className="grid gap-4 lg:grid-cols-[1.2fr_.8fr]">
             <div className="premium-glass rounded-[2rem] p-6 sm:p-7"><div className="flex items-start justify-between gap-4"><div><p className="premium-eyebrow">Richieste in arrivo</p><h2 className="mt-2 text-2xl font-black">Inviti ricevuti</h2></div>{pendingInvites.length > 0 && <span className="rounded-full bg-pink-500 px-3 py-1 text-xs font-black">{pendingInvites.length} NUOV{pendingInvites.length === 1 ? "O" : "I"}</span>}</div>
               <div className="mt-5 space-y-3">{pendingInvites.map(invite => <article key={invite.id} className="rounded-2xl border border-orange-300/25 bg-gradient-to-br from-orange-300/10 to-pink-400/[.07] p-5"><div className="flex items-center gap-4"><span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-orange-300/15 text-2xl">♫</span><div><p className="text-xs font-black uppercase tracking-wider text-orange-200">{labels.get(invite.style)}</p><h3 className="mt-1 text-lg font-black">{invite.sender?.nickname || "Qualcuno"} ti invita a ballare</h3></div></div><div className="mt-5 grid grid-cols-2 gap-2"><button disabled={busy === invite.id} onClick={() => void respond(invite.id, "accepted")} className="premium-cta rounded-full bg-gradient-to-r from-pink-500 to-orange-400 px-4 py-3 font-black disabled:opacity-50">ACCETTA</button><button disabled={busy === invite.id} onClick={() => void respond(invite.id, "declined")} className="rounded-full border border-white/15 px-4 py-3 font-black text-white/65 disabled:opacity-50">RIFIUTA</button></div></article>)}{!pendingInvites.length && <div className="rounded-2xl border border-dashed border-white/15 p-7 text-center"><span className="text-3xl opacity-50">♫</span><p className="mt-2 font-bold text-white/50">Nessun invito in attesa</p><p className="mt-1 text-xs text-white/30">Quando arriva, lo vedrai qui in tempo reale.</p></div>}</div>
             </div>
-            <div className="premium-glass rounded-[2rem] p-6 sm:p-7"><p className="premium-eyebrow">Le tue richieste</p><h2 className="mt-2 text-2xl font-black">Inviti inviati</h2><div className="mt-5 space-y-3">{sentInvites.map(invite => <div key={invite.id} className="flex items-center justify-between gap-3 rounded-2xl border border-white/10 bg-white/[.025] p-4"><div><strong className="block">{invite.receiver?.nickname || "Ballerino"}</strong><span className="text-xs text-white/40">{labels.get(invite.style)}</span></div><span className={`rounded-full px-2.5 py-1 text-[.65rem] font-black uppercase ${invite.status === "accepted" ? "bg-emerald-300/10 text-emerald-200" : invite.status === "declined" ? "bg-white/[.06] text-white/35" : "bg-orange-300/10 text-orange-200"}`}>{invite.status === "accepted" ? "Accettato" : invite.status === "declined" ? "Rifiutato" : "In attesa"}</span></div>)}{!sentInvites.length && <p className="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-white/35">Non hai ancora inviato inviti.</p>}</div></div>
+            <div className="premium-glass rounded-[2rem] p-6 sm:p-7"><p className="premium-eyebrow">Le tue richieste</p><h2 className="mt-2 text-2xl font-black">Inviti inviati</h2><div className="mt-5 space-y-3">{sentInvites.map(invite => <div key={invite.id} className="rounded-2xl border border-white/10 bg-white/[.025] p-4"><div className="flex items-center justify-between gap-3"><div><strong className="block">{invite.receiver?.nickname || "Ballerino"}</strong><span className="text-xs text-white/40">{labels.get(invite.style)}</span></div><span className={`rounded-full px-2.5 py-1 text-[.65rem] font-black uppercase ${invite.status === "accepted" ? "bg-emerald-300/10 text-emerald-200" : invite.status === "declined" || invite.status === "cancelled" || invite.status === "expired" ? "bg-white/[.06] text-white/35" : "bg-orange-300/10 text-orange-200"}`}>{invite.status === "accepted" ? "Accettato" : invite.status === "declined" ? "Rifiutato" : invite.status === "cancelled" ? "Annullato" : invite.status === "expired" ? "Scaduto" : "In attesa"}</span></div>{invite.status === "pending" && <button type="button" disabled={busy === invite.id} onClick={() => void cancelInvitation(invite.id)} className="mt-3 w-full rounded-full border border-white/15 px-4 py-2 text-xs font-black text-white/60 disabled:opacity-50">{busy === invite.id ? "ANNULLAMENTO…" : "ANNULLA INVITO"}</button>}</div>)}{!sentInvites.length && <p className="rounded-2xl border border-dashed border-white/15 p-5 text-sm text-white/35">Non hai ancora inviato inviti.</p>}</div></div>
           </div>
           <div><div className="flex flex-col justify-between gap-3 sm:flex-row sm:items-end"><div><p className="premium-eyebrow">Community dell’evento</p><h2 className="mt-2 text-3xl font-black">Ballerini in pista</h2><p className="mt-2 text-sm text-white/45">Le compatibilità migliori sono subito invitabili.</p></div><span className="w-fit rounded-full border border-white/10 bg-white/[.04] px-3 py-1.5 text-xs font-bold text-white/50">{dancers.filter(dancer => dancer.available).length} disponibil{dancers.filter(dancer => dancer.available).length === 1 ? "e" : "i"}</span></div>
-            <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{loading ? <div className="h-56 animate-pulse rounded-3xl bg-white/[.04]" /> : dancers.map(dancer => { const issue = invitationIssue(dancer); const shared = Object.keys(dancer.skills).filter(style => skills[style]); return <article key={dancer.participant_id} className={`premium-card-lift overflow-hidden rounded-3xl border bg-white/[.035] ${issue ? "border-white/10" : "border-pink-300/25"}`}><div className="h-1 bg-gradient-to-r from-pink-500 via-orange-400 to-amber-300 opacity-70" /><div className="p-5"><div className="flex items-center gap-3">{dancer.participant?.avatar_url ? <img src={dancer.participant.avatar_url} alt="" className="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/15" /> : <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400/20 to-orange-300/15 text-2xl">♫</span>}<div className="min-w-0"><h3 className="truncate text-xl font-black">{dancer.participant?.nickname || "Ballerino"}</h3><p className="mt-1 text-xs font-bold uppercase tracking-wider text-orange-200">{ROLE_LABELS[dancer.role]}</p></div>{dancer.available && <span className="ml-auto h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,.8)]" />}</div><div className="mt-4 flex min-h-14 flex-wrap content-start gap-2">{Object.keys(dancer.skills).map(style => <span key={style} className={`rounded-full px-3 py-1 text-xs ${skills[style] ? "bg-pink-400/15 font-bold text-pink-100" : "bg-white/[.05] text-white/35"}`}>{labels.get(style)}</span>)}</div>{shared.length > 0 && <p className="mt-3 text-xs font-bold text-pink-200">{shared.length} {shared.length === 1 ? "stile condiviso" : "stili condivisi"}</p>}<button disabled={Boolean(busy) || Boolean(issue)} onClick={() => void invite(dancer)} className={`mt-4 w-full rounded-full px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed ${issue ? "border border-white/10 bg-white/[.025] text-white/30" : "premium-cta bg-gradient-to-r from-pink-500 to-orange-400 text-white"}`}>{busy === dancer.participant_id ? "INVIO…" : issue || "INVITA A BALLARE"}</button></div></article> })}{!loading && !dancers.length && <p className="rounded-3xl border border-dashed border-white/15 p-8 text-white/40">Non ci sono ancora altri profili di ballo in questo evento.</p>}</div>
+            <div className="mt-5 grid gap-4 md:grid-cols-2 lg:grid-cols-3">{loading ? <div className="h-56 animate-pulse rounded-3xl bg-white/[.04]" /> : dancers.map(dancer => { const issue = invitationIssue(dancer); const shared = Object.keys(dancer.skills).filter(style => skills[style]); const selectedStyle = selectedStyles[dancer.participant_id] || shared[0] || ""; return <article key={dancer.participant_id} className={`premium-card-lift overflow-hidden rounded-3xl border bg-white/[.035] ${issue ? "border-white/10" : "border-pink-300/25"}`}><div className="h-1 bg-gradient-to-r from-pink-500 via-orange-400 to-amber-300 opacity-70" /><div className="p-5"><div className="flex items-center gap-3">{dancer.participant?.avatar_url ? <img src={dancer.participant.avatar_url} alt="" className="h-14 w-14 rounded-2xl object-cover ring-1 ring-white/15" /> : <span className="flex h-14 w-14 items-center justify-center rounded-2xl bg-gradient-to-br from-pink-400/20 to-orange-300/15 text-2xl">♫</span>}<div className="min-w-0"><h3 className="truncate text-xl font-black">{dancer.participant?.nickname || "Ballerino"}</h3><p className="mt-1 text-xs font-bold uppercase tracking-wider text-orange-200">{ROLE_LABELS[dancer.role]}</p></div>{dancer.available && <span className="ml-auto h-2.5 w-2.5 rounded-full bg-emerald-300 shadow-[0_0_14px_rgba(110,231,183,.8)]" />}</div><div className="mt-4 flex min-h-14 flex-wrap content-start gap-2">{Object.keys(dancer.skills).map(style => <span key={style} className={`rounded-full px-3 py-1 text-xs ${skills[style] ? "bg-pink-400/15 font-bold text-pink-100" : "bg-white/[.05] text-white/35"}`}>{labels.get(style)}</span>)}</div>{shared.length > 0 && <><p className="mt-3 text-xs font-bold text-pink-200">{shared.length} {shared.length === 1 ? "stile condiviso" : "stili condivisi"}</p><select aria-label={`Scegli lo stile per ${dancer.participant?.nickname || "il ballerino"}`} value={selectedStyle} onChange={event => setSelectedStyles(current => ({ ...current, [dancer.participant_id]: event.target.value }))} className="mt-3 w-full rounded-xl border-0 bg-white px-3 py-2.5 text-sm font-bold text-black">{shared.map(style => <option key={style} value={style}>{labels.get(style)}</option>)}</select></>}<button disabled={Boolean(busy) || Boolean(issue)} onClick={() => void invite(dancer)} className={`mt-4 w-full rounded-full px-4 py-3 text-sm font-black transition disabled:cursor-not-allowed ${issue ? "border border-white/10 bg-white/[.025] text-white/30" : "premium-cta bg-gradient-to-r from-pink-500 to-orange-400 text-white"}`}>{busy === dancer.participant_id ? "INVIO…" : issue || "INVITA A BALLARE"}</button></div></article> })}{!loading && !dancers.length && <p className="rounded-3xl border border-dashed border-white/15 p-8 text-white/40">Non ci sono ancora altri profili di ballo in questo evento.</p>}</div>
           </div>
         </>}
       </section>}
