@@ -74,7 +74,7 @@ export default function NotificationCenter() {
         supabase.from("participant_mission_completions").select("id,points_awarded,mission:missions(title,event_code)").eq("participant_id",participantId).order("completed_at",{ascending:false}).limit(100),
         supabase.from("participant_notification_reads").select("notification_id").eq("participant_id",participantId),
         supabase.from("drink_offers").select("id,match_id,sender_id,status").eq("receiver_id",participantId).eq("status","pending").order("created_at",{ascending:false}),
-        supabase.from("dance_invitations").select("id,style,sender:participants!dance_invitations_sender_id_fkey(nickname)").eq("receiver_id",participantId).eq("status","pending").order("created_at",{ascending:false}),
+        supabase.rpc("get_dance_lobby",{p_event_code:code}),
       ])
 
       if (interestsResult.error) throw interestsResult.error
@@ -114,7 +114,16 @@ export default function NotificationCenter() {
         return {id:`drink-${offer.id}`,kind:"drink",title:"Ti hanno offerto un drink",detail:nickname ? `${nickname} ti ha inviato una proposta. Rispondi ora.` : "Hai ricevuto una nuova proposta drink.",href:`/evento/${code}/chat/${offer.match_id}`}
       })
       const inviteNotices:Notice[] = (invitesResult.data || []).map(invite => { const table=invite.table as unknown as {name?:string;game?:string}|null; return {id:`table-${invite.id}`,kind:"table",title:"Invito al tavolo",detail:table?.name || table?.game || "Hai un nuovo invito.",href:`/evento/${code}/tavoli`} })
-      const danceNotices:Notice[] = (danceInvitesResult.data || []).map(invite => { const sender=invite.sender as unknown as {nickname?:string}|null; return {id:`dance-${invite.id}`,kind:"dance",title:"Ti invitano a ballare",detail:sender?.nickname ? `${sender.nickname} ti aspetta in pista.` : "Hai ricevuto un nuovo invito.",href:`/evento/${code}/balla`} })
+      const danceLobby = danceInvitesResult.error ? null : danceInvitesResult.data as {invitations?:Array<{id:string;sender_id:string;receiver_id:string;status:string;sender?:{nickname?:string}}>}|null
+      const danceNotices:Notice[] = (danceLobby?.invitations || []).flatMap(invite => {
+        if (invite.receiver_id === participantId && invite.status === "pending") {
+          return [{id:`dance-invite-${invite.id}`,kind:"dance" as const,title:"Ti invitano a ballare",detail:invite.sender?.nickname ? `${invite.sender.nickname} ti aspetta in pista.` : "Hai ricevuto un nuovo invito.",href:`/evento/${code}/balla`}]
+        }
+        if (invite.sender_id === participantId && invite.status === "accepted") {
+          return [{id:`dance-accepted-${invite.id}`,kind:"dance" as const,title:"Invito accettato!",detail:"Il tuo partner ha accettato. Ci vediamo in pista!",href:`/evento/${code}/balla`}]
+        }
+        return []
+      })
       const rewardNotices:Notice[] = ((rewardsResult.data as {rewards?:Array<{id:string;name:string;redeemed:boolean;redemption_status?:string}>}|null)?.rewards || []).filter(reward => reward.redeemed && reward.redemption_status === "redeemed").map(reward => ({id:`reward-${reward.id}`,kind:"reward",title:"Premio da ritirare",detail:reward.name || "Mostra il codice allo staff.",href:`/evento/${code}/missioni`}))
       const alreadyRead = readIds()
       if (!serverReadsResult.error) {
@@ -172,9 +181,10 @@ export default function NotificationCenter() {
         .on("postgres_changes",{event:"*",schema:"public",table:"drink_offers",filter:`receiver_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations",filter:`participant_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`receiver_id=eq.${participantId}`},refresh)
+        .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`sender_id=eq.${participantId}`},refresh)
         .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions",filter:`participant_id=eq.${participantId}`},refresh)
         .subscribe(status => { if(status === "SUBSCRIBED") refresh() })
-      poll = window.setInterval(() => { if(!document.hidden) refresh() },30000)
+      poll = window.setInterval(() => { if(!document.hidden) refresh() },5000)
     }
     void start()
     const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); refresh() })

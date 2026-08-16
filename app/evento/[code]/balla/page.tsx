@@ -106,7 +106,9 @@ export default function DancePage() {
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `sender_id=eq.${mine}` }, refresh)
       .on("postgres_changes", { event: "*", schema: "public", table: "participant_dance_profiles" }, refresh)
       .subscribe(status => { realtimeReady = status === "SUBSCRIBED"; if (realtimeReady) refresh() })
-    const fallback = window.setInterval(() => { if (!realtimeReady && !document.hidden) refresh() }, 8000)
+    // Realtime remains the primary path; this also covers mobile browsers that
+    // silently pause or drop websocket events while the page stays open.
+    const fallback = window.setInterval(() => { if (!document.hidden) refresh() }, realtimeReady ? 3000 : 2000)
     const onVisible = () => { if (!document.hidden) refresh() }
     document.addEventListener("visibilitychange", onVisible)
     return () => {
