@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react"
 import { useParams } from "next/navigation"
+import Image from "next/image"
 import Sidebar from "@/app/admin/components/Sidebar"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 
@@ -165,7 +166,7 @@ export default function ReportsPage() {
                   <div className="flex flex-col gap-5 sm:flex-row sm:items-start sm:justify-between">
                     <div className="flex min-w-0 items-center gap-4">
                       <div className="flex h-16 w-16 shrink-0 items-center justify-center overflow-hidden rounded-2xl border border-red-300/20 bg-red-400/10 text-2xl font-black text-red-200">
-                        {report.reported?.avatar_url ? <img src={report.reported.avatar_url} alt="" className="h-full w-full object-cover" /> : (report.reported?.nickname || "?").slice(0, 1).toUpperCase()}
+                        {report.reported?.avatar_url ? <Image src={report.reported.avatar_url} alt="" width={48} height={48} className="h-full w-full object-cover" /> : (report.reported?.nickname || "?").slice(0, 1).toUpperCase()}
                       </div>
                       <div className="min-w-0">
                         <div className="flex flex-wrap items-center gap-2">

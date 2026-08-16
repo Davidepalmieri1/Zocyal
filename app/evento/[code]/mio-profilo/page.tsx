@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { publicSupabase, supabase } from "@/lib/supabase"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
@@ -207,9 +208,12 @@ export default function MioProfiloPage() {
               <section className="mt-8 overflow-hidden rounded-[2rem] border border-white/10 bg-white/[0.05] shadow-[0_24px_80px_rgba(0,0,0,0.45)] backdrop-blur-xl">
                 <div className="relative h-96 overflow-hidden bg-zinc-900">
                   {profilo.avatar_url ? (
-                    <img
+                    <Image
                       src={profilo.avatar_url}
                       alt={profilo.nickname || "Foto profilo"}
+                      width={768}
+                      height={768}
+                      sizes="(max-width: 768px) 100vw, 448px"
                       className="h-full w-full object-cover"
                     />
                   ) : (

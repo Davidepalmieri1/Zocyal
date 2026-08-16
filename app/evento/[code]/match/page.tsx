@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import { useParams, useRouter } from "next/navigation"
+import Image from "next/image"
 import { motion } from "framer-motion"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
@@ -123,7 +124,7 @@ export default function MatchPage() {
           <div className="absolute -inset-5 rounded-[3.5rem] bg-gradient-to-br from-fuchsia-500/25 via-pink-500/10 to-orange-400/20 blur-2xl" />
           <div className="premium-glass relative overflow-hidden rounded-[3rem] p-3">
             <div className="relative aspect-[4/5] overflow-hidden rounded-[2.4rem] bg-[#171119]">
-              {person.avatar_url ? <img src={person.avatar_url} alt={`Foto profilo di ${person.nickname}`} className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-fuchsia-500/20 to-orange-400/10 text-8xl font-black text-white/65">{person.nickname.slice(0, 1).toUpperCase()}</div>}
+              {person.avatar_url ? <Image src={person.avatar_url} alt={`Foto profilo di ${person.nickname}`} width={768} height={768} sizes="(max-width: 768px) 100vw, 448px" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-fuchsia-500/20 to-orange-400/10 text-8xl font-black text-white/65">{person.nickname.slice(0, 1).toUpperCase()}</div>}
               <div className="absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-black via-black/25 to-transparent" />
               <div className="absolute inset-x-0 bottom-0 p-7"><p className="premium-eyebrow">It’s a match</p><h1 className="mt-2 text-4xl font-black tracking-tight sm:text-5xl">{person.nickname}</h1><p className="mt-2 text-sm font-semibold text-white/55">{person.age ? `${person.age} anni` : "Nuova connessione"}{person.goal ? ` · ${person.goal}` : ""}</p></div>
             </div>

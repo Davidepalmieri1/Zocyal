@@ -2,6 +2,7 @@
 
 import { FormEvent, useEffect, useState } from "react"
 import Link from "next/link"
+import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { publicSupabase, supabase } from "@/lib/supabase"
 import {
@@ -360,9 +361,12 @@ export default function ProfiloPage() {
 
               <div className="relative flex h-28 w-28 items-center justify-center overflow-hidden rounded-full border border-white/20 bg-zinc-950 shadow-2xl">
                 {photoPreview ? (
-                  <img
+                  <Image
                     src={photoPreview}
                     alt="Anteprima foto profilo"
+                    width={112}
+                    height={112}
+                    unoptimized
                     className="h-full w-full object-cover"
                   />
                 ) : (

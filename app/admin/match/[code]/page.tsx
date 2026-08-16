@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from "react"
 import { useParams } from "next/navigation"
+import Image from "next/image"
 import Sidebar from "@/app/admin/components/Sidebar"
 import { fetchAdminData } from "@/app/admin/data-client"
 
@@ -42,4 +43,4 @@ function Stat({label,value,tone}:{label:string;value:number;tone:"pink"|"green"|
 
 function MatchCard({match,number}:{match:Match;number:number}) { const state=statusInfo(match.status); return <article className="overflow-hidden rounded-2xl border border-white/10 bg-black/25"><div className="flex items-center justify-between border-b border-white/[.07] px-5 py-3"><span className="text-xs font-black text-white/35">MATCH #{String(number).padStart(2,"0")}</span><span className={`rounded-full border px-3 py-1 text-[10px] font-black ${state.style}`}>{state.label}</span></div><div className="grid grid-cols-[1fr_auto_1fr] items-center gap-3 p-5"><Person person={match.persona1}/><div className="flex h-11 w-11 items-center justify-center rounded-full border border-pink-400/25 bg-pink-500/10 text-lg text-pink-300">♥</div><Person person={match.persona2}/></div><div className="flex items-center justify-between border-t border-white/[.07] px-5 py-3 text-[11px] text-white/30"><span>{match.created_at?new Date(match.created_at).toLocaleString("it-IT",{dateStyle:"short",timeStyle:"short"}):"Data non disponibile"}</span><span className="font-mono">ID {match.id.slice(0,8)}</span></div></article> }
 
-function Person({person}:{person:Person|null}) { return <div className="min-w-0 text-center"><div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-white/10 bg-gradient-to-br from-fuchsia-600/30 to-orange-400/20 text-xl font-black">{person?.avatar_url?<img src={person.avatar_url} alt={`Avatar di ${person.nickname||"partecipante"}`} className="h-full w-full object-cover"/>:initials(person?.nickname)}</div><p className="mt-3 truncate font-black">{person?.nickname||"Partecipante"}</p></div> }
+function Person({person}:{person:Person|null}) { return <div className="min-w-0 text-center"><div className="mx-auto flex h-20 w-20 items-center justify-center overflow-hidden rounded-full border-2 border-white/10 bg-gradient-to-br from-fuchsia-600/30 to-orange-400/20 text-xl font-black">{person?.avatar_url?<Image src={person.avatar_url} alt={`Avatar di ${person.nickname||"partecipante"}`} width={80} height={80} className="h-full w-full object-cover"/>:initials(person?.nickname)}</div><p className="mt-3 truncate font-black">{person?.nickname||"Partecipante"}</p></div> }
