@@ -5,6 +5,7 @@ import {
   verifyAdminSessionToken,
 } from "@/app/lib/admin-auth"
 import { getSupabaseAdmin } from "@/app/lib/supabase-admin"
+import { buildDanceAnalytics } from "@/app/admin/lib/dance-analytics"
 
 export const dynamic = "force-dynamic"
 
@@ -87,7 +88,7 @@ export async function GET(request: Request) {
     stage = "evento"
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("name, venue, code, experience_mode, venue_logo_url, venue_poster_url")
+      .select("name, venue, code, experience_mode, timezone, venue_logo_url, venue_poster_url")
       .eq("code", code)
       .maybeSingle()
 
@@ -275,7 +276,38 @@ export async function GET(request: Request) {
     const couponByOffer = new Map(couponRows.map((coupon) => [coupon.offer_id, coupon.coupon_code]))
 
     if (view === "analytics") {
+      let dance = null
+
+      if ((event as { experience_mode?: string }).experience_mode === "caribbean") {
+        stage = "analytics pista caraibica"
+        const [danceProfilesResult, danceInvitationsResult] = await Promise.all([
+          participantIds.length
+            ? supabase
+                .from("participant_dance_profiles")
+                .select("participant_id,role,skills,available,updated_at")
+                .in("participant_id", participantIds)
+                .limit(5000)
+            : Promise.resolve({ data: [], error: null }),
+          supabase
+            .from("dance_invitations")
+            .select("id,sender_id,receiver_id,style,status,created_at,responded_at,expires_at")
+            .eq("event_code", code)
+            .order("created_at", { ascending: false })
+            .limit(5000),
+        ])
+
+        if (danceProfilesResult.error) throw danceProfilesResult.error
+        if (danceInvitationsResult.error) throw danceInvitationsResult.error
+
+        dance = buildDanceAnalytics(
+          (danceProfilesResult.data || []) as unknown as DanceProfileRow[],
+          (danceInvitationsResult.data || []) as unknown as DanceInvitationRow[],
+          (event as { timezone?: string | null }).timezone || "Europe/Rome"
+        )
+      }
+
       return json({
+        experienceMode: (event as { experience_mode?: string }).experience_mode || "standard",
         participants: people.length,
         completedTests: people.filter((person) => person.completed_test).length,
         matches: matches.length,
@@ -283,6 +315,7 @@ export async function GET(request: Request) {
         drinkOffers: drinkOffers.length,
         drinkAccepted: drinkOffers.filter((offer) => offer.status === "accepted" || offer.status === "redeemed").length,
         drinkRedeemed: drinkOffers.filter((offer) => offer.status === "redeemed").length,
+        dance,
       })
     }
 
