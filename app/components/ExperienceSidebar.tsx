@@ -87,6 +87,7 @@ export default function ExperienceSidebar() {
     )
 
   const eventCode = params.code
+  const paginaConQr = pathname.includes("/chat/") || pathname.endsWith("/missioni")
 
   useEffect(() => {
     void publicSupabase.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
@@ -274,7 +275,7 @@ export default function ExperienceSidebar() {
 
   return (
     <>
-      <motion.button
+      {!paginaConQr && <motion.button
         type="button"
         onClick={() => setAperto(true)}
         aria-label="Apri menu attività"
@@ -293,7 +294,7 @@ export default function ExperienceSidebar() {
         <div className="text-left"><span className="block text-[9px] font-bold uppercase tracking-[.2em] text-pink-200/55">Menu</span><span className="mt-0.5 block text-xs font-black uppercase tracking-[.12em]">Attivit&agrave;</span></div>
         <span aria-hidden="true" className="text-lg">☰</span>
         <span className="text-[11px] font-black uppercase tracking-[.12em]">Attività</span>
-      </motion.button>
+      </motion.button>}
 
       <AnimatePresence>
         {aperto && (
