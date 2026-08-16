@@ -174,8 +174,37 @@ export async function resolveCurrentParticipant(eventCode: string) {
 
   if (error) throw error
 
-  const participantId = typeof data === "string" ? data : null
-  if (!participantId) return null
+  let participantId = typeof data === "string" ? data : null
+
+  if (!participantId) {
+    const savedEventCode = localStorage
+      .getItem("event_code")
+      ?.trim()
+      .toLowerCase()
+    const recoveryCode = localStorage.getItem("recovery_code")?.trim()
+
+    if (savedEventCode !== normalizedEventCode || !recoveryCode) return null
+
+    const { data: recoveredData, error: recoveryError } = await supabase.rpc(
+      "claim_participant",
+      {
+        p_event_code: normalizedEventCode,
+        p_recovery_code: recoveryCode,
+      }
+    )
+
+    if (recoveryError) throw recoveryError
+
+    const recovered = firstRow(recoveredData)
+    if (recovered?.error) return null
+
+    participantId = recovered?.participant_id ?? recovered?.id ?? null
+    if (!participantId) return null
+
+    if (recovered?.recovery_code) {
+      localStorage.setItem("recovery_code", recovered.recovery_code)
+    }
+  }
 
   const { data: participant, error: participantError } = await supabase
     .from("participants")
