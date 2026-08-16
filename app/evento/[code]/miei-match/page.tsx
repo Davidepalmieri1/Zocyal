@@ -6,6 +6,7 @@ import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
+import { ActionFeedback, EmptyState, LiveSyncStatus } from "@/app/components/EventUi"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type PersonaMatch = {
@@ -56,6 +57,7 @@ export default function MieiMatchPage() {
   const [errore, setErrore] = useState("")
   const [filtro, setFiltro] = useState<"tutte" | "non-lette">("tutte")
   const [participantId, setParticipantId] = useState("")
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   useEffect(() => {
     let active = true
@@ -103,6 +105,7 @@ export default function MieiMatchPage() {
 
       if (matchRecords.length === 0) {
         setMatches([])
+        setUpdatedAt(new Date())
         setLoading(false)
         return
       }
@@ -220,6 +223,7 @@ export default function MieiMatchPage() {
 
       if (active) {
         setMatches(lista)
+        setUpdatedAt(new Date())
         setLoading(false)
       }
     }
@@ -357,25 +361,14 @@ export default function MieiMatchPage() {
             Tutti i match e le conversazioni della serata,
             ordinati dall’ultimo messaggio.
           </p>
+          <div className="mt-3"><LiveSyncStatus updatedAt={updatedAt} label="Chat aggiornate"/></div>
         </div>
 
-        {errore && (
-          <p className="mt-6 rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
-            {errore}
-          </p>
-        )}
+        <ActionFeedback message={errore} tone="error" className="mt-6"/>
 
         {matches.length === 0 ? (
-          <section className="premium-glass premium-enter mt-8 rounded-[2rem] p-8 text-center">
-            <span className="text-5xl">💬</span>
-
-            <h2 className="mt-5 text-2xl font-black">
-              Nessuna chat ancora
-            </h2>
-
-            <p className="mt-3 leading-7 text-gray-400">
-              Quando nasce un match, la conversazione comparirà qui.
-            </p>
+          <section className="premium-glass premium-enter mt-8 rounded-[2rem] p-4">
+            <EmptyState icon="💬" title="Nessuna chat ancora" description="Quando nasce un match, la conversazione comparirà qui in tempo reale."/>
 
             <button
               type="button"

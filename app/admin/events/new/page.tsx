@@ -33,7 +33,7 @@ async function optimizeImage(file: File, maxBytes: number, maxDimension: number)
   } finally {
     bitmap.close()
   }
-  throw new Error("Non siamo riusciti a ottimizzare l'immagine. Prova con un file piÃ¹ leggero.")
+  throw new Error("Non siamo riusciti a ottimizzare l'immagine. Prova con un file più leggero.")
 }
 
 function iso(value: string) {
@@ -60,12 +60,12 @@ export default function NewEventPage() {
     const logo = form.get("venue_logo")
     const poster = form.get("venue_poster")
     if (logo instanceof File && logo.size > LOGO_MAX_SIZE) {
-      setError("Il logo supera 3 MB. Scegli un'immagine piÃ¹ leggera.")
+      setError("Il logo supera 3 MB. Scegli un'immagine più leggera.")
       setBusy(false)
       return
     }
     if (poster instanceof File && poster.size > POSTER_MAX_SIZE) {
-      setError("La locandina supera 8 MB. Scegli un'immagine piÃ¹ leggera.")
+      setError("La locandina supera 8 MB. Scegli un'immagine più leggera.")
       setBusy(false)
       return
     }

@@ -59,7 +59,7 @@ const questions = [
   { q: "Quando conosci qualcuno, cosa noti per prima cosa?", a: ["Il sorriso", "Il modo di parlare", "L'energia", "Lo stile"] },
   { q: "La conversazione ideale parla di:", a: ["Viaggi ed esperienze", "Passioni e progetti", "Storie divertenti", "Emozioni e vita personale"] },
   { q: "In un gruppo nuovo tendi a:", a: ["Coinvolgere tutti", "Osservare prima di aprirmi", "Legare con poche persone", "Seguire chi propone qualcosa"] },
-  { q: "Cosa rende memorabile un incontro?", a: ["La complicitÃ ", "Una risata spontanea", "Una sorpresa", "Sentirsi ascoltati"] },
+  { q: "Cosa rende memorabile un incontro?", a: ["La complicità", "Una risata spontanea", "Una sorpresa", "Sentirsi ascoltati"] },
 ]
 
 export default function QuestionarioPage() {
