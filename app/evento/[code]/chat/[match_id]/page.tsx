@@ -16,7 +16,10 @@ import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
 import { EventBackButton } from "@/app/components/EventUi"
-import { resolveCurrentParticipant } from "@/app/lib/participant-session"
+import {
+  blockAndReport,
+  resolveCurrentParticipant,
+} from "@/app/lib/participant-session"
 
 type Messaggio = {
   id: string
@@ -747,31 +750,28 @@ export default function ChatPage() {
     setInvioSicurezza(true)
     setErrore("")
 
-    const { error: safetyError } = await supabase.rpc(
-      "block_report",
-      {
-        p_match_id: matchId,
-        p_reason: segnala
+    try {
+      await blockAndReport({
+        matchId,
+        reason: segnala
           ? motivoSegnalazione
           : "Blocco senza segnalazione",
-        p_details: dettagliSegnalazione.trim() || null,
-        p_create_report: segnala,
-      }
-    )
+        details: dettagliSegnalazione,
+        createReport: segnala,
+      })
 
-    if (safetyError) {
-      console.error("Errore sicurezza utente:", safetyError)
-      setErrore("Non siamo riusciti a completare il blocco. Riprova.")
+      setChatBloccata(true)
+      setSicurezzaAperta(false)
+      setText("")
+    } catch (error) {
+      console.error("Errore sicurezza utente:", error)
+      setErrore(
+        "Non siamo riusciti a completare il blocco. Riprova tra qualche secondo."
+      )
+    } finally {
       safetyActionLockRef.current = false
       setInvioSicurezza(false)
-      return
     }
-
-    setChatBloccata(true)
-    setSicurezzaAperta(false)
-    safetyActionLockRef.current = false
-    setInvioSicurezza(false)
-    setText("")
   }
 
 
