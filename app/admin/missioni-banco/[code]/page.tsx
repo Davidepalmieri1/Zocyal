@@ -60,12 +60,16 @@ export default function MissioniBancoPage() {
     initialized.current = true
   }, [code])
   useEffect(() => {
-    setData(null)
-    setPerson(null)
-    setMission(null)
-    setQuery("")
+    knownRequests.current = new Set()
+    initialized.current = false
     const refresh = () => void load().catch((cause) => setError(cause instanceof Error ? cause.message : "Caricamento non riuscito."))
-    const initial = window.setTimeout(refresh,0)
+    const initial = window.setTimeout(() => {
+      setData(null)
+      setPerson(null)
+      setMission(null)
+      setQuery("")
+      refresh()
+    },0)
     const timer = window.setInterval(() => { if(!document.hidden) refresh() },3000)
     const visible = () => { if(!document.hidden) refresh() }
     document.addEventListener("visibilitychange",visible)
