@@ -8,7 +8,8 @@
     "start": "next start",
     "lint": "eslint",
     "test:inclusive-matching": "node scripts/verify-inclusive-matching.mjs",
-    "test:dance-analytics": "node --no-warnings --experimental-strip-types scripts/verify-dance-analytics.mjs"
+    "test:dance-analytics": "node --no-warnings --experimental-strip-types scripts/verify-dance-analytics.mjs",
+    "test:notification-scaling": "node scripts/verify-notification-scaling.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",

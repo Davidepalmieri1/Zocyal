@@ -9,6 +9,17 @@ import { supabase } from "@/lib/supabase"
 type NoticeKind = "interest" | "match" | "message" | "mission" | "drink" | "table" | "dance" | "reward"
 type Notice = { id:string; kind:NoticeKind; title:string; detail:string; href:string }
 type MatchRow = { id:string; user_one:string; user_two:string; created_at:string|null }
+type NotificationSnapshot = {
+  matches?:MatchRow[]
+  messages?:Array<{id:string;match_id:string;message:string|null}>
+  table_invites?:Array<{id:string;table?:{name?:string;game?:string}|null}>
+  interests?:Array<{id:string;from_participant:string;to_participant:string;sender_nickname?:string|null}>
+  mission_completions?:Array<{id:string;points_awarded:number;mission?:{title?:string;event_code?:string}|null}>
+  reads?:Array<{notification_id:string}>
+  drink_offers?:Array<{id:string;match_id:string;sender_id:string;status:string;sender_nickname?:string|null}>
+  dance_invitations?:Array<{id:string;sender_id:string;receiver_id:string;status:string;sender?:{nickname?:string}}>
+  rewards?:Array<{id:string;name:string;redeemed:boolean;redemption_status?:string}>
+}
 
 const appearance:Record<NoticeKind,{icon:string;label:string;classes:string}> = {
   dance: { icon:"💃", label:"Invito a ballare", classes:"border-orange-400/25 bg-orange-500/15 text-orange-100" },
@@ -37,6 +48,7 @@ export default function NotificationCenter() {
   const participantIdRef = useRef("")
   const matchIdsRef = useRef(new Set<string>())
   const loadingRef = useRef(false)
+  const pendingLoadRef = useRef(false)
 
   const readIds = useCallback(() => {
     try { return new Set(JSON.parse(localStorage.getItem(readKey) || "[]") as string[]) }
@@ -50,7 +62,7 @@ export default function NotificationCenter() {
     }
   },[])
 
-  const load = useCallback(async () => {
+  const loadLegacy = useCallback(async () => {
     if (loadingRef.current) return
     loadingRef.current = true
     try {
@@ -148,8 +160,80 @@ export default function NotificationCenter() {
     }
   },[announce,code,readIds])
 
+  const load = useCallback(async () => {
+    if (loadingRef.current) {
+      pendingLoadRef.current = true
+      return
+    }
+
+    loadingRef.current = true
+    try {
+      do {
+        pendingLoadRef.current = false
+        const participantId = participantIdRef.current || await resolveCurrentParticipant(code)
+        if (!participantId) {
+          setNotices([])
+          break
+        }
+        participantIdRef.current = participantId
+
+        const {data,error} = await supabase.rpc("get_notification_center_snapshot",{p_event_code:code})
+        if (error) {
+          console.warn("Snapshot notifiche non disponibile, uso il recupero compatibile:",error)
+          loadingRef.current = false
+          await loadLegacy()
+          return
+        }
+
+        const snapshot = (data || {}) as NotificationSnapshot
+        const matches = snapshot.matches || []
+        const matchedPeople = new Set(matches.map(match => match.user_one === participantId ? match.user_two : match.user_one))
+        const pendingInterests = (snapshot.interests || []).filter(interest => !matchedPeople.has(interest.from_participant))
+
+        const seenAt = Number(localStorage.getItem(`zocyal_matches_seen_${code}`) || 0)
+        const matchNotices:Notice[] = matches
+          .filter(match => new Date(match.created_at || 0).getTime() > seenAt)
+          .map(match => ({id:`match-${match.id}`,kind:"match",title:"È un match!",detail:"L’interesse è reciproco. Apri la nuova connessione.",href:`/evento/${code}/miei-match`}))
+        const interestNotices:Notice[] = pendingInterests.map(interest => ({id:`interest-${interest.id}`,kind:"interest",title:"Qualcuno è interessato a te",detail:interest.sender_nickname ? `${interest.sender_nickname} vorrebbe conoscerti.` : "Apri il profilo e scopri se l’interesse è reciproco.",href:`/evento/${code}/compatibilita?persona=${interest.from_participant}&mode=social`}))
+        const messageNotices:Notice[] = (snapshot.messages || []).map(message => ({id:`message-${message.id}`,kind:"message",title:"Nuovo messaggio",detail:String(message.message || "Apri la chat per leggerlo."),href:`/evento/${code}/chat/${message.match_id}`}))
+        const missionNotices:Notice[] = (snapshot.mission_completions || []).map(completion => ({id:`mission-${completion.id}`,kind:"mission",title:"Missione completata!",detail:`${completion.mission?.title || "Missione"} · +${completion.points_awarded} punti`,href:`/evento/${code}/missioni`}))
+        const drinkNotices:Notice[] = (snapshot.drink_offers || []).map(offer => ({id:`drink-${offer.id}`,kind:"drink",title:"Ti hanno offerto un drink",detail:offer.sender_nickname ? `${offer.sender_nickname} ti ha inviato una proposta. Rispondi ora.` : "Hai ricevuto una nuova proposta drink.",href:`/evento/${code}/chat/${offer.match_id}`}))
+        const inviteNotices:Notice[] = (snapshot.table_invites || []).map(invite => ({id:`table-${invite.id}`,kind:"table",title:"Invito al tavolo",detail:invite.table?.name || invite.table?.game || "Hai un nuovo invito.",href:`/evento/${code}/tavoli`}))
+        const danceNotices:Notice[] = (snapshot.dance_invitations || []).flatMap(invite => {
+          if (invite.receiver_id === participantId && invite.status === "pending") {
+            return [{id:`dance-invite-${invite.id}`,kind:"dance" as const,title:"Ti invitano a ballare",detail:invite.sender?.nickname ? `${invite.sender.nickname} ti aspetta in pista.` : "Hai ricevuto un nuovo invito.",href:`/evento/${code}/balla`}]
+          }
+          if (invite.sender_id === participantId && invite.status === "accepted") {
+            return [{id:`dance-accepted-${invite.id}`,kind:"dance" as const,title:"Invito accettato!",detail:"Il tuo partner ha accettato. Ci vediamo in pista!",href:`/evento/${code}/balla`}]
+          }
+          return []
+        })
+        const rewardNotices:Notice[] = (snapshot.rewards || []).filter(reward => reward.redeemed && reward.redemption_status === "redeemed").map(reward => ({id:`reward-${reward.id}`,kind:"reward",title:"Premio da ritirare",detail:reward.name || "Mostra il codice allo staff.",href:`/evento/${code}/missioni`}))
+        const alreadyRead = readIds()
+        ;(snapshot.reads || []).forEach(row => alreadyRead.add(row.notification_id))
+        const next = [...danceNotices,...drinkNotices,...interestNotices,...messageNotices,...matchNotices,...missionNotices,...inviteNotices,...rewardNotices].filter(item => !alreadyRead.has(item.id))
+        const fresh = initialized.current ? next.filter(item => !knownIds.current.has(item.id)) : next
+        if (fresh[0]) announce(fresh[0])
+        knownIds.current = new Set(next.map(item => item.id))
+        initialized.current = true
+        setNotices(next)
+        setUpdatedAt(new Date())
+      } while (pendingLoadRef.current)
+    } finally {
+      loadingRef.current = false
+    }
+  },[announce,code,loadLegacy,readIds])
+
+  const receiveNotice = useCallback((notice:Notice) => {
+    if (!notice.id || readIds().has(notice.id) || knownIds.current.has(notice.id)) return
+    knownIds.current.add(notice.id)
+    setNotices(current => current.some(item => item.id === notice.id) ? current : [notice,...current])
+    announce(notice)
+  },[announce,readIds])
+
   useEffect(() => {
     let active = true
+    let realtimeReady = false
     let poll:number|null = null
     let refreshTimeout:number|null = null
     let channel:ReturnType<typeof supabase.channel>|null = null
@@ -162,10 +246,13 @@ export default function NotificationCenter() {
     }
     const receiveLocal = (event:Event) => {
       const notice = (event as CustomEvent<Notice>).detail
-      if (!notice?.id || readIds().has(notice.id)) return
-      knownIds.current.add(notice.id)
-      setNotices(current => current.some(item => item.id === notice.id) ? current : [notice,...current])
-      announce(notice)
+      if (notice) receiveNotice(notice)
+    }
+    const realtimeRow = (payload:unknown) => ((payload as {new?:Record<string,unknown>}).new || {})
+    const rowText = (row:Record<string,unknown>,key:string) => typeof row[key] === "string" ? row[key] as string : ""
+    const receiveRealtime = (notice:Notice|null) => {
+      if (notice) receiveNotice(notice)
+      refresh()
     }
     const start = async () => {
       setPermission("Notification" in window ? Notification.permission : "unsupported")
@@ -176,18 +263,52 @@ export default function NotificationCenter() {
       const participantId = participantIdRef.current
       if (!participantId) return
       channel = supabase.channel(`participant-notifications-${participantId}`)
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"likes",filter:`to_participant=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_one=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_two=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`receiver_id=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"INSERT",schema:"public",table:"participant_mission_completions",filter:`participant_id=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"*",schema:"public",table:"drink_offers",filter:`receiver_id=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations",filter:`participant_id=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`receiver_id=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`sender_id=eq.${participantId}`},refresh)
-        .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions",filter:`participant_id=eq.${participantId}`},refresh)
-        .subscribe(status => { if(status === "SUBSCRIBED") refresh() })
-      poll = window.setInterval(() => { if(!document.hidden) refresh() },5000)
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"likes",filter:`to_participant=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const sender = rowText(row,"from_participant")
+          receiveRealtime(id && sender ? {id:`interest-${id}`,kind:"interest",title:"Qualcuno è interessato a te",detail:"Apri il profilo e scopri chi vuole conoscerti.",href:`/evento/${code}/compatibilita?persona=${sender}&mode=social`} : null)
+        })
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_one=eq.${participantId}`},payload => {
+          const id = rowText(realtimeRow(payload),"id")
+          receiveRealtime(id ? {id:`match-${id}`,kind:"match",title:"È un match!",detail:"L’interesse è reciproco. Apri la nuova connessione.",href:`/evento/${code}/miei-match`} : null)
+        })
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"matches",filter:`user_two=eq.${participantId}`},payload => {
+          const id = rowText(realtimeRow(payload),"id")
+          receiveRealtime(id ? {id:`match-${id}`,kind:"match",title:"È un match!",detail:"L’interesse è reciproco. Apri la nuova connessione.",href:`/evento/${code}/miei-match`} : null)
+        })
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"messages",filter:`receiver_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const matchId = rowText(row,"match_id")
+          receiveRealtime(id && matchId ? {id:`message-${id}`,kind:"message",title:"Nuovo messaggio",detail:rowText(row,"message") || "Apri la chat per leggerlo.",href:`/evento/${code}/chat/${matchId}`} : null)
+        })
+        .on("postgres_changes",{event:"INSERT",schema:"public",table:"participant_mission_completions",filter:`participant_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const points = Number(row.points_awarded || 0)
+          receiveRealtime(id ? {id:`mission-${id}`,kind:"mission",title:"Missione completata!",detail:`Hai ottenuto +${points} punti.`,href:`/evento/${code}/missioni`} : null)
+        })
+        .on("postgres_changes",{event:"*",schema:"public",table:"drink_offers",filter:`receiver_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const matchId = rowText(row,"match_id"); const status = rowText(row,"status")
+          receiveRealtime(id && matchId && status === "pending" ? {id:`drink-${id}`,kind:"drink",title:"Ti hanno offerto un drink",detail:"Hai ricevuto una nuova proposta drink.",href:`/evento/${code}/chat/${matchId}`} : null)
+        })
+        .on("postgres_changes",{event:"*",schema:"public",table:"game_table_invitations",filter:`participant_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const status = rowText(row,"status")
+          receiveRealtime(id && status === "pending" ? {id:`table-${id}`,kind:"table",title:"Invito al tavolo",detail:"Hai un nuovo invito.",href:`/evento/${code}/tavoli`} : null)
+        })
+        .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`receiver_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const status = rowText(row,"status")
+          receiveRealtime(id && status === "pending" ? {id:`dance-invite-${id}`,kind:"dance",title:"Ti invitano a ballare",detail:"Hai ricevuto un nuovo invito.",href:`/evento/${code}/balla`} : null)
+        })
+        .on("postgres_changes",{event:"*",schema:"public",table:"dance_invitations",filter:`sender_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const id = rowText(row,"id"); const status = rowText(row,"status")
+          receiveRealtime(id && status === "accepted" ? {id:`dance-accepted-${id}`,kind:"dance",title:"Invito accettato!",detail:"Il tuo partner ha accettato. Ci vediamo in pista!",href:`/evento/${code}/balla`} : null)
+        })
+        .on("postgres_changes",{event:"*",schema:"public",table:"reward_redemptions",filter:`participant_id=eq.${participantId}`},payload => {
+          const row = realtimeRow(payload); const rewardId = rowText(row,"reward_id"); const status = rowText(row,"status")
+          receiveRealtime(rewardId && status === "redeemed" ? {id:`reward-${rewardId}`,kind:"reward",title:"Premio da ritirare",detail:"Mostra il codice allo staff.",href:`/evento/${code}/missioni`} : null)
+        })
+        .subscribe(status => {
+          realtimeReady = status === "SUBSCRIBED"
+          if (realtimeReady) refresh()
+        })
+      const fallbackInterval = 20_000 + Math.floor(Math.random() * 10_000)
+      poll = window.setInterval(() => { if(!realtimeReady && !document.hidden) refresh() },fallbackInterval)
     }
     void start()
     const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); refresh() })
@@ -207,7 +328,7 @@ export default function NotificationCenter() {
       authListener.subscription.unsubscribe()
       if(channel)void supabase.removeChannel(channel)
     }
-  },[announce,load,readIds])
+  },[code,load,receiveNotice])
 
   useEffect(() => {
     if (!toast) return
