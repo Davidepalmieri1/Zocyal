@@ -34,7 +34,7 @@ const INTERESTS = [
   "Osservare prima di aprirmi",
   "Legare con poche persone",
   "Seguire chi propone qualcosa",
-  "La complicitÃ ",
+  "La complicità",
   "Una risata spontanea",
   "Una sorpresa",
   "Sentirsi ascoltati",

@@ -6,6 +6,7 @@ import Image from "next/image"
 import { useParams, useRouter } from "next/navigation"
 import { QRCodeSVG } from "qrcode.react"
 import Logo from "@/app/components/Logo"
+import { ActionFeedback, EmptyState, LiveSyncStatus } from "@/app/components/EventUi"
 import { ensureAnonymousSession, resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { supabase } from "@/lib/supabase"
 
@@ -198,6 +199,7 @@ export default function MissioniPage() {
   const [missioneNonCompletata, setMissioneNonCompletata] = useState<string | null>(null)
   const [richiesteManuali, setRichiesteManuali] = useState<Set<string>>(new Set())
   const [premioInCorso, setPremioInCorso] = useState<string | null>(null)
+  const [updatedAt, setUpdatedAt] = useState<Date | null>(null)
 
   const caricaDashboard = useCallback(async () => {
     await ensureAnonymousSession()
@@ -249,6 +251,7 @@ export default function MissioniPage() {
           if (!active) return
           setDashboard(data)
           setErrore("")
+          setUpdatedAt(new Date())
         })
         .catch((error: unknown) => {
           console.error("Errore caricamento missioni:", error)
@@ -452,14 +455,11 @@ export default function MissioniPage() {
             <p className="mx-auto mt-4 max-w-xl text-sm leading-7 text-gray-400 sm:text-base">
               Completa le sfide, guadagna punti e sblocca i premi disponibili.
             </p>
+            <div className="mt-3"><LiveSyncStatus updatedAt={updatedAt} label="Missioni aggiornate"/></div>
           </motion.div>
         </section>
 
-        {errore && (
-          <div role="alert" className="mx-auto mt-7 max-w-xl rounded-2xl border border-red-500/30 bg-red-500/10 p-4 text-center text-sm text-red-300">
-            {errore}
-          </div>
-        )}
+        <ActionFeedback message={errore} tone="error" className="mx-auto mt-7 max-w-xl"/>
 
         <motion.section initial={{ opacity: 0, scale: 0.96 }} animate={{ opacity: 1, scale: 1 }} className="mx-auto mt-8 max-w-xl overflow-hidden rounded-[30px] border border-pink-400/20 bg-gradient-to-r from-fuchsia-600/15 via-pink-500/10 to-orange-400/10 p-6 backdrop-blur-xl">
           <div className="flex items-center justify-between gap-5">
@@ -576,9 +576,7 @@ export default function MissioniPage() {
         </div>
 
         {dashboard && dashboard.missions.length === 0 && (
-          <section className="mt-10 rounded-[30px] border border-white/10 bg-white/[0.04] p-7 text-center text-gray-400">
-            Nessuna missione disponibile per questo evento.
-          </section>
+          <EmptyState icon="🎯" title="Nessuna missione disponibile" description="Lo staff non ha ancora pubblicato sfide per questo evento. Compariranno qui appena saranno disponibili." className="mt-10"/>
         )}
 
         <section className="mt-10 rounded-[30px] border border-white/10 bg-white/[0.04] p-6 backdrop-blur-xl">
@@ -609,7 +607,7 @@ export default function MissioniPage() {
                       <QRCodeSVG value={premio.claimCode} size={180} level="H" marginSize={1} aria-label={`QR premio ${premio.claimCode}`} />
                       <p className="mt-3 font-mono text-lg font-black tracking-[0.14em] text-black">{premio.claimCode}</p>
                     </div>
-                    <p className="mt-3 text-xs text-gray-400">{premio.deliveryStatus === "fulfilled" ? "Premio giÃ  ritirato." : "Mostra il QR allo staff per ritirare il premio."}</p>
+                    <p className="mt-3 text-xs text-gray-400">{premio.deliveryStatus === "fulfilled" ? "Premio già ritirato." : "Mostra il QR allo staff per ritirare il premio."}</p>
                   </div>
                 )}
                 {premio.available && !premio.claimed && (
@@ -620,7 +618,7 @@ export default function MissioniPage() {
               </article>
             ))}
           </div>
-          {premiSoglia.length === 0 && <p className="mt-5 text-center text-sm text-gray-400">Nessun premio a punti configurato per questo evento.</p>}
+          {premiSoglia.length === 0 && <EmptyState icon="🎁" title="Premi in arrivo" description="Non ci sono ancora premi a punti configurati per questo evento." className="mt-5"/>}
         </section>
       </div>
     </main>

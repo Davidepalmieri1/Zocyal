@@ -78,6 +78,7 @@ export default function ExperienceSidebar() {
   const [aperto, setAperto] = useState(false)
   const [caribbeanMode, setCaribbeanMode] = useState(false)
   const [experienceModeLoaded, setExperienceModeLoaded] = useState(false)
+  const [unreadCount, setUnreadCount] = useState(0)
   const [attivitaAttuale, setAttivitaAttuale] =
     useState<AttivitaId>("match")
   const [notificheAttive, setNotificheAttive] =
@@ -89,6 +90,15 @@ export default function ExperienceSidebar() {
 
   const eventCode = params.code
   const paginaConQr = pathname.includes("/chat/") || pathname.endsWith("/missioni")
+
+  useEffect(() => {
+    const updateCount = (event: Event) => {
+      const count = Number((event as CustomEvent<{ count?: number }>).detail?.count || 0)
+      setUnreadCount(Number.isFinite(count) ? Math.max(0, count) : 0)
+    }
+    window.addEventListener("zocyal:notification-count", updateCount)
+    return () => window.removeEventListener("zocyal:notification-count", updateCount)
+  }, [])
 
   useEffect(() => {
     void publicSupabase.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
@@ -289,8 +299,9 @@ export default function ExperienceSidebar() {
         }`}
       >
         <div aria-hidden="true" className="absolute inset-x-4 top-0 h-px bg-gradient-to-r from-transparent via-pink-200/70 to-transparent" />
-        <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400 shadow-[0_6px_20px_rgba(236,72,153,.3)]">
+        <div className="relative flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-fuchsia-500 via-pink-500 to-orange-400 shadow-[0_6px_20px_rgba(236,72,153,.3)]">
           <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 7h14M5 12h14M5 17h9" /></svg>
+          {unreadCount > 0 && <span className="absolute -right-2.5 -top-2.5 flex min-h-5 min-w-5 items-center justify-center rounded-full border-2 border-[#130b16] bg-white px-1 text-[9px] font-black text-pink-600">{unreadCount > 99 ? "99+" : unreadCount}</span>}
         </div>
         <div className="text-left"><span className="block text-[9px] font-bold uppercase tracking-[.2em] text-pink-200/55">Menu</span><span className="mt-0.5 block text-xs font-black uppercase tracking-[.12em]">Attivit&agrave;</span></div>
         <span aria-hidden="true" className="text-lg">☰</span>
@@ -343,9 +354,7 @@ export default function ExperienceSidebar() {
                   Vivi la serata
                 </p>
 
-                <h2 className="mt-2 text-2xl font-black sm:text-3xl">
-                  Scegli la tua esperienza
-                </h2>
+                <div className="mt-2 flex items-center gap-3"><h2 className="text-2xl font-black sm:text-3xl">Scegli la tua esperienza</h2>{unreadCount > 0 && <span className="rounded-full bg-gradient-to-r from-fuchsia-500 to-orange-400 px-2.5 py-1 text-[10px] font-black">{unreadCount} NOVITÀ</span>}</div>
 
                 <p className="mt-2 text-sm leading-6 text-gray-400">
                   Tutto ci&ograve; che puoi fare durante la serata, in un solo posto.
