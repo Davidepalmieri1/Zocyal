@@ -151,7 +151,10 @@ export default function DancePage() {
   async function respond(id: string, response: "accepted" | "declined") {
     setBusy(id); setMessage("")
     const { error } = await supabase.rpc("respond_dance_invitation", { p_invitation_id: id, p_response: response })
-    if (error) setMessage(error.message)
+    if (error) {
+      await load(mine).catch(() => undefined)
+      setMessage(error.message.includes("Invitation unavailable") ? "Questo invito è scaduto o ha già ricevuto una risposta." : error.message)
+    }
     else {
       await load(mine)
       setMessage(response === "accepted" ? "Invito accettato. Buon ballo!" : "Invito rifiutato.")
