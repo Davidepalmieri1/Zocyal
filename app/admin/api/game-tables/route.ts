@@ -30,6 +30,9 @@ export async function GET(request: Request) {
   const eventCode = code(new URL(request.url).searchParams.get("code"))
   if (!eventCode) return json({ error: "Evento non valido." }, 400)
   const db = getSupabaseAdmin()
+  const eventResult = await db.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
+  if (eventResult.error) return json({ error: "Impossibile verificare l'evento." }, 500)
+  if ((eventResult.data as { experience_mode?:string } | null)?.experience_mode === "caribbean") return json({ error: "I tavoli non sono disponibili negli eventi caraibici." }, 409)
   const [tablesResult, templatesResult] = await Promise.all([
     db.from("game_tables").select("*, invitations:game_table_invitations(*, participant:participants(id,nickname,avatar_url))").eq("event_code", eventCode).order("created_at", { ascending: false }),
     db.from("game_table_templates").select("id,name,interest_tags,points_reward,created_at,updated_at").order("updated_at", { ascending: false }),
@@ -45,6 +48,9 @@ export async function POST(request: Request) {
   const eventCode = code(body?.event_code), action = text(body?.action, 30)
   if (!body || !eventCode) return json({ error: "Dati non validi." }, 400)
   const db = getSupabaseAdmin()
+  const eventResult = await db.from("events").select("experience_mode").eq("code", eventCode).maybeSingle()
+  if (eventResult.error) return json({ error: "Impossibile verificare l'evento." }, 500)
+  if ((eventResult.data as { experience_mode?:string } | null)?.experience_mode === "caribbean") return json({ error: "I tavoli non sono disponibili negli eventi caraibici." }, 409)
 
   if (action === "save_template") {
     const name = text(body.game, 120), interestTags = tags(body.interest_tags)

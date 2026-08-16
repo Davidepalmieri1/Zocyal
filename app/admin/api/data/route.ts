@@ -15,6 +15,7 @@ const VIEWS = new Set([
   "chat",
   "analytics",
   "rewards",
+  "dance",
 ])
 
 type ParticipantRow = {
@@ -41,6 +42,9 @@ type DrinkOfferRow = {
   id:string; sender_id:string; receiver_id:string; status:string;
   discount_cents:number; created_at:string;
 }
+
+type DanceProfileRow = { participant_id:string; role:string; skills:Record<string,string>; available:boolean; updated_at:string }
+type DanceInvitationRow = { id:string; sender_id:string; receiver_id:string; style:string; status:string; created_at:string; responded_at:string|null; expires_at:string }
 
 function json(body: unknown, status = 200) {
   return NextResponse.json(body, {
@@ -83,7 +87,7 @@ export async function GET(request: Request) {
     stage = "evento"
     const { data: event, error: eventError } = await supabase
       .from("events")
-      .select("name, venue, code, venue_logo_url, venue_poster_url")
+      .select("name, venue, code, experience_mode, venue_logo_url, venue_poster_url")
       .eq("code", code)
       .maybeSingle()
 
@@ -160,6 +164,45 @@ export async function GET(request: Request) {
 
     if (view === "participants") {
       return json({ participants: people })
+    }
+
+    if (view === "dance") {
+      if ((event as { experience_mode?: string }).experience_mode !== "caribbean") {
+        return json({ error: "La Pista è disponibile soltanto negli eventi caraibici." }, 409)
+      }
+
+      stage = "pista caraibica"
+      const [profilesResult, invitationsResult] = await Promise.all([
+        people.length
+          ? supabase
+              .from("participant_dance_profiles")
+              .select("participant_id,role,skills,available,updated_at")
+              .in("participant_id", people.map((person) => person.id))
+          : Promise.resolve({ data: [], error: null }),
+        supabase
+          .from("dance_invitations")
+          .select("id,sender_id,receiver_id,style,status,created_at,responded_at,expires_at")
+          .eq("event_code", code)
+          .order("created_at", { ascending: false })
+          .limit(200),
+      ])
+
+      if (profilesResult.error) throw profilesResult.error
+      if (invitationsResult.error) throw invitationsResult.error
+
+      const peopleById = new Map(people.map((person) => [person.id, person]))
+      return json({
+        event,
+        profiles: ((profilesResult.data || []) as unknown as DanceProfileRow[]).map((profile) => ({
+          ...profile,
+          participant: peopleById.get(profile.participant_id) || null,
+        })),
+        invitations: ((invitationsResult.data || []) as unknown as DanceInvitationRow[]).map((invitation) => ({
+          ...invitation,
+          sender: peopleById.get(invitation.sender_id) || null,
+          receiver: peopleById.get(invitation.receiver_id) || null,
+        })),
+      })
     }
 
     const participantIds = people.map((person) => person.id)

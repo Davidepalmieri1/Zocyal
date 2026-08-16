@@ -3,7 +3,7 @@
 import Link from "next/link"
 import { motion } from "framer-motion"
 import { useParams, usePathname } from "next/navigation"
-import { useState } from "react"
+import { useEffect, useMemo, useState } from "react"
 import Logo from "@/app/components/Logo"
 
 type MenuItem = {
@@ -11,6 +11,8 @@ type MenuItem = {
   icon: string
   path: string
   description: string
+  onlyCaribbean?: boolean
+  hideInCaribbean?: boolean
 }
 
 const menu: MenuItem[] = [
@@ -57,10 +59,18 @@ const menu: MenuItem[] = [
     description: "Assegna punti rapidamente",
   },
   {
+    name: "Pista caraibica",
+    icon: "💃",
+    path: "ballo",
+    description: "Ballerini e inviti live",
+    onlyCaribbean: true,
+  },
+  {
     name: "Tavoli gioco",
     icon: "🎲",
     path: "tavoli",
     description: "Inviti e posti al tavolo",
+    hideInCaribbean: true,
   },
   {
     name: "Banco",
@@ -86,8 +96,25 @@ export default function Sidebar() {
   const params = useParams<{ code: string }>()
   const pathname = usePathname()
   const [mobileOpen, setMobileOpen] = useState(false)
+  const [experienceMode, setExperienceMode] = useState<string | null>(null)
 
   const code = params.code
+  const visibleMenu = useMemo(() => menu.filter((item) => {
+    if (experienceMode === null) return !item.onlyCaribbean && !item.hideInCaribbean
+    if (item.onlyCaribbean) return experienceMode === "caribbean"
+    if (item.hideInCaribbean) return experienceMode !== "caribbean"
+    return true
+  }), [experienceMode])
+
+  useEffect(() => {
+    if (!code) return
+    let active = true
+    void fetch(`/admin/api/settings?code=${encodeURIComponent(code)}`, { credentials: "same-origin", cache: "no-store" })
+      .then(async response => response.ok ? response.json() : null)
+      .then(payload => { if (active) setExperienceMode(payload?.event?.experience_mode || "standard") })
+      .catch(() => { if (active) setExperienceMode("standard") })
+    return () => { active = false }
+  }, [code])
 
   function itemLink(item: MenuItem) {
     return item.path === "dashboard"
@@ -158,7 +185,7 @@ export default function Sidebar() {
             </div>
 
             <nav className="mt-7 flex flex-1 flex-col gap-2">
-              {menu.map((item) => {
+              {visibleMenu.map((item) => {
                 const active = isActive(item)
                 return (
                   <Link
@@ -231,7 +258,7 @@ export default function Sidebar() {
       </div>
 
       <nav className="relative mt-5 flex flex-1 flex-col gap-2">
-        {menu.map((item, index) => {
+        {visibleMenu.map((item, index) => {
           const link = itemLink(item)
           const active = isActive(item)
 
