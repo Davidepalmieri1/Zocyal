@@ -195,6 +195,7 @@ export default function MissioniPage() {
   const [loading, setLoading] = useState(true)
   const [errore, setErrore] = useState("")
   const [missioneInCorso, setMissioneInCorso] = useState<string | null>(null)
+  const [missioneNonCompletata, setMissioneNonCompletata] = useState<string | null>(null)
   const [richiesteManuali, setRichiesteManuali] = useState<Set<string>>(new Set())
   const [premioInCorso, setPremioInCorso] = useState<string | null>(null)
 
@@ -317,6 +318,7 @@ export default function MissioniPage() {
 
     setMissioneInCorso(missionId)
     setErrore("")
+    setMissioneNonCompletata(null)
 
     try {
       await ensureAnonymousSession()
@@ -328,6 +330,14 @@ export default function MissioniPage() {
       setDashboard(await caricaDashboard())
     } catch (error) {
       console.error("Errore completamento missione:", error)
+      const message = error && typeof error === "object" && "message" in error
+        ? String(error.message)
+        : ""
+      if (message.includes("Mission requirements not met")) {
+        const mission = dashboard?.missions.find((item) => item.id === missionId)
+        setMissioneNonCompletata(mission?.title || "Questa missione")
+        return
+      }
       setErrore("Missione non completata. Riprova tra poco.")
     } finally {
       setMissioneInCorso(null)
@@ -395,6 +405,33 @@ export default function MissioniPage() {
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-black px-4 pb-28 pt-6 text-white">
+      {missioneNonCompletata && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/75 px-4 backdrop-blur-sm" role="presentation">
+          <motion.section
+            initial={{ opacity: 0, scale: 0.92, y: 18 }}
+            animate={{ opacity: 1, scale: 1, y: 0 }}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="missione-non-completata-titolo"
+            className="w-full max-w-md rounded-[30px] border border-amber-300/25 bg-zinc-950 p-7 text-center shadow-[0_30px_100px_rgba(0,0,0,0.7)]"
+          >
+            <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-amber-300/20 bg-amber-300/10 text-3xl" aria-hidden="true">⏳</div>
+            <p className="mt-5 text-xs font-black uppercase tracking-[0.18em] text-amber-300">Missione non ancora completata</p>
+            <h2 id="missione-non-completata-titolo" className="mt-3 text-2xl font-black">{missioneNonCompletata}</h2>
+            <p className="mt-4 text-sm leading-7 text-white/65">
+              Ci dispiace, non possiamo ancora assegnarti questi punti perché al momento non ci risulta che tu abbia completato la missione. Completala e prova nuovamente.
+            </p>
+            <button
+              type="button"
+              autoFocus
+              onClick={() => setMissioneNonCompletata(null)}
+              className="mt-7 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-5 py-3.5 text-sm font-black text-white transition active:scale-95"
+            >
+              HO CAPITO
+            </button>
+          </motion.section>
+        </div>
+      )}
       <div className="pointer-events-none absolute left-1/2 top-[-220px] h-[500px] w-[500px] -translate-x-1/2 rounded-full bg-fuchsia-600/20 blur-[140px]" />
       <div className="pointer-events-none absolute bottom-[-180px] right-[-120px] h-[380px] w-[380px] rounded-full bg-orange-500/10 blur-[120px]" />
 
