@@ -128,6 +128,7 @@ export default function ChatPage() {
   const bottomRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
   const channelRef = useRef<RealtimeChannel | null>(null)
+  const drinkOfferRef = useRef<DrinkOffer | null>(null)
   const audioContextRef = useRef<AudioContext | null>(null)
   const notificheAttiveRef = useRef(false)
   const personaRef = useRef<Persona | null>(null)
@@ -145,6 +146,10 @@ export default function ChatPage() {
   useEffect(() => {
     notificheAttiveRef.current = notificheAttive
   }, [notificheAttive])
+
+  useEffect(() => {
+    drinkOfferRef.current = drinkOffer
+  }, [drinkOffer])
 
   useEffect(() => {
     if (!drinkOffer || drinkOffer.sender_id !== mioId || !["accepted","redeemed"].includes(drinkOffer.status) || drinkOffer.coupon_code) return
@@ -537,21 +542,42 @@ export default function ChatPage() {
 
     let realtimeReady = false
     const fallbackRealtime = window.setInterval(async () => {
-      if (realtimeReady || document.hidden) return
-      const { data, error } = await supabase.rpc("get_messages_for_match", { p_match_id: matchId })
-      if (error) {
-        console.error("Sincronizzazione chat non disponibile:", error)
-        return
+      if (document.hidden) return
+
+      if (!realtimeReady) {
+        const { data, error } = await supabase.rpc("get_messages_for_match", { p_match_id: matchId })
+        if (error) console.error("Sincronizzazione chat non disponibile:", error)
+        else if (data) {
+          const syncedMessages = data as Messaggio[]
+          setMessages((current) => {
+            const changed = syncedMessages.length !== current.length || syncedMessages.some((message, index) => message.id !== current[index]?.id || message.read_at !== current[index]?.read_at)
+            return changed ? syncedMessages : current
+          })
+          void segnaMessaggiComeLetti()
+        }
       }
-      if (data) {
-        const syncedMessages = data as Messaggio[]
-        setMessages((current) => {
-          const changed = syncedMessages.length !== current.length || syncedMessages.some((message, index) => message.id !== current[index]?.id || message.read_at !== current[index]?.read_at)
-          return changed ? syncedMessages : current
-        })
-        if (!document.hidden) void segnaMessaggiComeLetti()
+
+      const { data: offers, error: offerError } = await supabase
+        .from("drink_offers")
+        .select("id,match_id,sender_id,receiver_id,status,discount_cents")
+        .eq("match_id", matchId)
+        .or(`sender_id.eq.${mioId},receiver_id.eq.${mioId}`)
+        .order("created_at", { ascending: false })
+        .limit(1)
+      if (offerError || !offers?.[0]) return
+
+      const offer = offers[0] as DrinkOffer
+      if (offer.sender_id === mioId && ["accepted","redeemed"].includes(offer.status)) {
+        const { data: coupon } = await supabase.from("drink_coupons").select("coupon_code").eq("offer_id", offer.id).maybeSingle()
+        offer.coupon_code = coupon?.coupon_code
       }
-    }, 10000)
+      const previous = drinkOfferRef.current
+      const changed = !previous || previous.id !== offer.id || previous.status !== offer.status || previous.coupon_code !== offer.coupon_code
+      if (!changed) return
+      drinkOfferRef.current = offer
+      setDrinkOffer(offer)
+      if (offer.receiver_id === mioId && offer.status === "pending") setDrinkOpen(true)
+    }, 3000)
 
     const channel = supabase
       .channel(`chat-${matchId}`)
@@ -624,6 +650,7 @@ export default function ChatPage() {
             const {data:coupon}=await supabase.from("drink_coupons").select("coupon_code").eq("offer_id",offer.id).maybeSingle()
             offer.coupon_code=coupon?.coupon_code
           }
+          drinkOfferRef.current = offer
           setDrinkOffer(offer)
           setDrinkOpen(true)
           if (offer.receiver_id === mioId && offer.status === "pending" && notificheAttiveRef.current && "Notification" in window && Notification.permission === "granted") {
