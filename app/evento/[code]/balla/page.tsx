@@ -116,9 +116,6 @@ export default function DancePage() {
       const invite = payload.new
       if (invite.receiver_id === mine && invite.status === "pending") {
         setLiveNotice("Hai ricevuto un nuovo invito a ballare")
-        if ("Notification" in window && Notification.permission === "granted") {
-          new Notification("Nuovo invito ZOCYAL", { body: "Qualcuno vuole ballare con te. Apri la Pista per rispondere." })
-        }
       }
       refresh()
     }

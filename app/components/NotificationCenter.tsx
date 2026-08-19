@@ -254,6 +254,17 @@ export default function NotificationCenter() {
       if (notice) receiveNotice(notice)
       refresh()
     }
+    const schedulePoll = () => {
+      if (!active) return
+      if (poll !== null) window.clearTimeout(poll)
+      const base = realtimeReady ? 30_000 : 10_000
+      const jitter = realtimeReady ? 15_000 : 5_000
+      poll = window.setTimeout(() => {
+        poll = null
+        if (!document.hidden) refresh()
+        schedulePoll()
+      }, base + Math.floor(Math.random() * jitter))
+    }
     const start = async () => {
       setPermission("Notification" in window ? Notification.permission : "unsupported")
       try { await load() } catch(error) { console.error("Avvio notifiche non riuscito:",error) }
@@ -304,15 +315,12 @@ export default function NotificationCenter() {
           receiveRealtime(rewardId && status === "redeemed" ? {id:`reward-${rewardId}`,kind:"reward",title:"Premio da ritirare",detail:"Mostra il codice allo staff.",href:`/evento/${code}/missioni`} : null)
         })
         .subscribe(status => {
+          const wasReady = realtimeReady
           realtimeReady = status === "SUBSCRIBED"
           if (realtimeReady) refresh()
+          if (wasReady !== realtimeReady) schedulePoll()
         })
-      const fallbackInterval = 20_000 + Math.floor(Math.random() * 10_000)
-      // A subscribed channel can still miss an individual database event (for
-      // example while a phone changes network). The snapshot is a single,
-      // event-scoped RPC, so keep it as a low-cost safety net even when
-      // Realtime reports a healthy connection.
-      poll = window.setInterval(() => { if(!document.hidden) refresh() },fallbackInterval)
+      schedulePoll()
     }
     void start()
     const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); refresh() })
@@ -324,7 +332,7 @@ export default function NotificationCenter() {
     return () => {
       active=false
       if(refreshTimeout!==null)window.clearTimeout(refreshTimeout)
-      if(poll!==null)window.clearInterval(poll)
+      if(poll!==null)window.clearTimeout(poll)
       window.removeEventListener("zocyal:notification",receiveLocal)
       document.removeEventListener("visibilitychange",visible)
       window.removeEventListener("focus",refresh)

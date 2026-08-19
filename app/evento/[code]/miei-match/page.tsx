@@ -76,7 +76,6 @@ export default function MieiMatchPage() {
   useEffect(() => {
     if (!participantId) return
     let active = true
-    let realtimeReady = false
     let refreshTimeout: number | null = null
     const mioId = participantId
 
@@ -239,7 +238,7 @@ export default function MieiMatchPage() {
     }
 
     const fallback = window.setInterval(() => {
-      if (!realtimeReady && !document.hidden) void caricaChat(true)
+      if (!document.hidden) void caricaChat(true)
     }, 60000)
 
     const channel = supabase
@@ -274,9 +273,7 @@ export default function MieiMatchPage() {
         { event: "INSERT", schema: "public", table: "matches", filter: `user_two=eq.${mioId}` },
         scheduleChatRefresh
       )
-      .subscribe((status) => {
-        realtimeReady = status === "SUBSCRIBED"
-      })
+      .subscribe()
 
     const refreshWhenVisible = () => {
       if (!document.hidden) void caricaChat(true)

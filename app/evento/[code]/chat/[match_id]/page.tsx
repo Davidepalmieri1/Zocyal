@@ -299,9 +299,7 @@ export default function ChatPage() {
     }
   }, [])
 
-  const mostraNotificaMessaggio = useCallback((
-    nuovoMessaggio: Messaggio
-  ) => {
+  const mostraNotificaMessaggio = useCallback(() => {
     if (!notificheAttiveRef.current) {
       return
     }
@@ -312,36 +310,7 @@ export default function ChatPage() {
       navigator.vibrate([120, 60, 120])
     }
 
-    if (
-      document.hidden &&
-      "Notification" in window &&
-      Notification.permission === "granted"
-    ) {
-      const mittente =
-        personaRef.current?.nickname || "Nuovo match"
-
-      const corpo =
-        nuovoMessaggio.message.length > 90
-          ? `${nuovoMessaggio.message.slice(0, 90)}…`
-          : nuovoMessaggio.message
-
-      const notifica = new Notification(
-        `Nuovo messaggio da ${mittente}`,
-        {
-          body: corpo,
-          icon:
-            personaRef.current?.avatar_url ||
-            "/logo-zocyal.svg",
-          tag: `zocyal-chat-${matchId}`,
-        }
-      )
-
-      notifica.onclick = () => {
-        window.focus()
-        notifica.close()
-      }
-    }
-  }, [matchId, riproduciSuonoNotifica])
+  }, [riproduciSuonoNotifica])
 
   async function cambiaStatoNotifiche() {
     setErrore("")
@@ -617,7 +586,7 @@ export default function ChatPage() {
           })
 
           if (nuovoMessaggio.sender_id !== mioId) {
-            mostraNotificaMessaggio(nuovoMessaggio)
+            mostraNotificaMessaggio()
 
             if (!document.hidden) {
               segnaMessaggiComeLetti()
@@ -662,9 +631,6 @@ export default function ChatPage() {
           drinkOfferRef.current = offer
           setDrinkOffer(offer)
           setDrinkOpen(true)
-          if (offer.receiver_id === mioId && offer.status === "pending" && notificheAttiveRef.current && "Notification" in window && Notification.permission === "granted") {
-            new Notification(`${personaRef.current?.nickname || "Il tuo match"} ti offre un drink 🍹`, { body: "Apri la chat per accettare o rifiutare." })
-          }
         }
       )
 
