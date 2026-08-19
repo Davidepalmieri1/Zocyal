@@ -236,6 +236,7 @@ export default function NotificationCenter() {
     let realtimeReady = false
     let poll:number|null = null
     let refreshTimeout:number|null = null
+    let reconnectTimeout:number|null = null
     let channel:ReturnType<typeof supabase.channel>|null = null
     let connecting = false
     const refresh = () => {
@@ -272,13 +273,23 @@ export default function NotificationCenter() {
       if (!active || channel || connecting) return
       connecting = true
       try {
-      const participantId = participantIdRef.current || await resolveCurrentParticipant(code)
-      if (!active || !participantId) return
-      participantIdRef.current = participantId
-      const {data:{session}} = await supabase.auth.getSession()
-      if (!active || channel) return
-      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
-      channel = supabase.channel(`participant-notifications-${participantId}`)
+        const participantId = participantIdRef.current || await resolveCurrentParticipant(code)
+        if (!active || !participantId) return
+        participantIdRef.current = participantId
+        const {data:{session},error:sessionError} = await supabase.auth.getSession()
+        if (sessionError) throw sessionError
+        if (!session?.access_token) throw new Error("Sessione Realtime partecipante non disponibile.")
+
+        // Realtime authorization is asynchronous in supabase-js. The channel
+        // must not join before the participant JWT is available to its RLS checks.
+        await supabase.realtime.setAuth(session.access_token)
+        if (!active || channel) return
+
+        const nextChannel = supabase.channel(
+          `participant-notifications-${participantId}-${Date.now()}`
+        )
+        channel = nextChannel
+        nextChannel
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"likes",filter:`to_participant=eq.${participantId}`},payload => {
           const row = realtimeRow(payload); const id = rowText(row,"id"); const sender = rowText(row,"from_participant")
           receiveRealtime(id && sender ? {id:`interest-${id}`,kind:"interest",title:"Qualcuno è interessato a te",detail:"Apri il profilo e scopri chi vuole conoscerti.",href:`/evento/${code}/compatibilita?persona=${sender}&mode=social`} : null)
@@ -319,12 +330,34 @@ export default function NotificationCenter() {
           const row = realtimeRow(payload); const rewardId = rowText(row,"reward_id"); const status = rowText(row,"status")
           receiveRealtime(rewardId && status === "redeemed" ? {id:`reward-${rewardId}`,kind:"reward",title:"Premio da ritirare",detail:"Mostra il codice allo staff.",href:`/evento/${code}/missioni`} : null)
         })
-        .subscribe(status => {
+        .subscribe((status,error) => {
           const wasReady = realtimeReady
           realtimeReady = status === "SUBSCRIBED"
           if (realtimeReady) refresh()
           if (wasReady !== realtimeReady) schedulePoll()
+          if (
+            active &&
+            (status === "CHANNEL_ERROR" || status === "TIMED_OUT" || status === "CLOSED") &&
+            channel === nextChannel
+          ) {
+            console.warn("Canale notifiche Realtime da riconnettere:",status,error)
+            channel = null
+            void supabase.removeChannel(nextChannel)
+            if (reconnectTimeout !== null) window.clearTimeout(reconnectTimeout)
+            reconnectTimeout = window.setTimeout(() => {
+              reconnectTimeout = null
+              void connect()
+            },1000)
+          }
         })
+      } catch(error) {
+        console.error("Connessione notifiche Realtime non riuscita:",error)
+        if (active && reconnectTimeout === null) {
+          reconnectTimeout = window.setTimeout(() => {
+            reconnectTimeout = null
+            void connect()
+          },2000)
+        }
       } finally {
         connecting = false
       }
@@ -337,7 +370,13 @@ export default function NotificationCenter() {
       schedulePoll()
     }
     void start()
-    const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); void connect(); refresh() })
+    const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => {
+      void (async () => {
+        if(session?.access_token) await supabase.realtime.setAuth(session.access_token)
+        await connect()
+        refresh()
+      })().catch(error => console.error("Aggiornamento sessione Realtime non riuscito:",error))
+    })
     const visible = () => { if(!document.hidden) { void connect(); refresh() } }
     window.addEventListener("zocyal:notification",receiveLocal)
     document.addEventListener("visibilitychange",visible)
@@ -346,6 +385,7 @@ export default function NotificationCenter() {
     return () => {
       active=false
       if(refreshTimeout!==null)window.clearTimeout(refreshTimeout)
+      if(reconnectTimeout!==null)window.clearTimeout(reconnectTimeout)
       if(poll!==null)window.clearTimeout(poll)
       window.removeEventListener("zocyal:notification",receiveLocal)
       document.removeEventListener("visibilitychange",visible)

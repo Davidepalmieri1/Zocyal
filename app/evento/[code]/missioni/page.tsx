@@ -269,7 +269,7 @@ export default function MissioniPage() {
       const participantId = await resolveCurrentParticipant(eventCode)
       if (!active || !participantId) return
       const { data: { session } } = await supabase.auth.getSession()
-      if (session?.access_token) supabase.realtime.setAuth(session.access_token)
+      if (session?.access_token) await supabase.realtime.setAuth(session.access_token)
       rewardChannel = supabase
         .channel(`mission-rewards-${participantId}`)
         .on(

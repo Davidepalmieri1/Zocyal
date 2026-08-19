@@ -111,6 +111,7 @@ export default function DancePage() {
   useEffect(() => {
     if (!mine) return
     let active = true
+    let channel: ReturnType<typeof supabase.channel> | null = null
     const refresh = () => { if (active) void load(mine).catch(() => undefined) }
     const incoming = (payload: { new: Record<string, unknown> }) => {
       const invite = payload.new
@@ -119,15 +120,19 @@ export default function DancePage() {
       }
       refresh()
     }
-    void supabase.auth.getSession().then(({ data }) => {
-      if (data.session?.access_token) supabase.realtime.setAuth(data.session.access_token)
-    })
-    const channel = supabase.channel(`dance-lobby-${code}-${mine}`)
-      .on("postgres_changes", { event: "INSERT", schema: "public", table: "dance_invitations", filter: `receiver_id=eq.${mine}` }, incoming)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `receiver_id=eq.${mine}` }, refresh)
-      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `sender_id=eq.${mine}` }, refresh)
-      .on("postgres_changes", { event: "*", schema: "public", table: "participant_dance_profiles" }, refresh)
-      .subscribe(status => { if (status === "SUBSCRIBED") refresh() })
+    void (async () => {
+      const { data, error } = await supabase.auth.getSession()
+      if (error) throw error
+      if (!data.session?.access_token) throw new Error("Sessione Realtime partecipante non disponibile.")
+      await supabase.realtime.setAuth(data.session.access_token)
+      if (!active) return
+      channel = supabase.channel(`dance-lobby-${code}-${mine}-${Date.now()}`)
+        .on("postgres_changes", { event: "INSERT", schema: "public", table: "dance_invitations", filter: `receiver_id=eq.${mine}` }, incoming)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `receiver_id=eq.${mine}` }, refresh)
+        .on("postgres_changes", { event: "UPDATE", schema: "public", table: "dance_invitations", filter: `sender_id=eq.${mine}` }, refresh)
+        .on("postgres_changes", { event: "*", schema: "public", table: "participant_dance_profiles" }, refresh)
+        .subscribe(status => { if (status === "SUBSCRIBED") refresh() })
+    })().catch(error => console.error("Realtime pista non disponibile:",error))
     // Realtime remains the primary path; this also covers mobile browsers that
     // silently pause or drop websocket events while the page stays open.
     const fallback = window.setInterval(() => { if (!document.hidden) refresh() }, 8000)
@@ -141,7 +146,7 @@ export default function DancePage() {
       document.removeEventListener("visibilitychange", onVisible)
       window.removeEventListener("focus", onVisible)
       window.removeEventListener("online", onVisible)
-      void supabase.removeChannel(channel)
+      if (channel) void supabase.removeChannel(channel)
     }
   }, [code, load, mine])
 

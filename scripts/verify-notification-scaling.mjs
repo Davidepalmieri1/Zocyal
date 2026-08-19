@@ -14,6 +14,9 @@ assert.match(center, /window\.clearTimeout\(poll\)/)
 assert.match(center, /await connect\(\)[\s\S]+await load\(\)/)
 assert.match(center, /if \(!channel\) void connect\(\)/)
 assert.match(center, /participantIdRef\.current \|\| await resolveCurrentParticipant\(code\)/)
+assert.match(center, /await supabase\.realtime\.setAuth\(session\.access_token\)/)
+assert.match(center, /status === "CHANNEL_ERROR" \|\| status === "TIMED_OUT" \|\| status === "CLOSED"/)
+assert.match(center, /channel = null[\s\S]+void supabase\.removeChannel\(nextChannel\)/)
 assert.doesNotMatch(center, /setInterval\([^\n]+,5000\)/)
 
 for (const source of [
