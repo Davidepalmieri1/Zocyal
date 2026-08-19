@@ -242,7 +242,7 @@ export default function QuestionarioPage() {
 
       localStorage.setItem("event_code", eventCode)
 
-      router.push(`/evento/${eventCode}/scegli`)
+    router.push(`/evento/${eventCode}/home`)
     } catch (error) {
       console.error(
         "Errore imprevisto nel questionario:",

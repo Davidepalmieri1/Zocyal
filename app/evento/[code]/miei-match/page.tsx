@@ -6,7 +6,7 @@ import Image from "next/image"
 import { supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
-import { ActionFeedback, EmptyState, LiveSyncStatus } from "@/app/components/EventUi"
+import { ActionFeedback, EmptyState, EventBackButton, LiveSyncStatus } from "@/app/components/EventUi"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 
 type PersonaMatch = {
@@ -343,7 +343,7 @@ export default function MieiMatchPage() {
       <PremiumBackdrop orbs={false} />
 
       <div className="relative mx-auto w-full max-w-md">
-        <Logo size="medium" />
+        <header className="flex items-center justify-between gap-4"><EventBackButton href={`/evento/${params.code}/home`} label="Torna alla home"/><Logo size="medium"/></header>
 
         <div className="mt-7 text-center">
           <p className="premium-eyebrow">

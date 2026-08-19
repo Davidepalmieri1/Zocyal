@@ -134,9 +134,7 @@ export default function SocialPage() {
 
             <button
               type="button"
-              onClick={() =>
-                router.push(`/evento/${eventCode}`)
-              }
+              onClick={() => router.push(`/evento/${eventCode}/home`)}
               className="mt-7 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white transition hover:scale-[1.02]"
             >
               TORNA ALL’EVENTO
@@ -177,7 +175,7 @@ export default function SocialPage() {
 
       <div className="relative mx-auto w-full max-w-5xl">
         <header className="flex items-center justify-between gap-4">
-          <EventBackButton href={`/evento/${eventCode}`} label="Torna all’evento" />
+          <EventBackButton href={`/evento/${eventCode}/home`} label="Torna alla home" />
 
           <Logo size="small" />
         </header>

@@ -6,6 +6,7 @@ import Image from "next/image"
 import { publicSupabase, supabase } from "@/lib/supabase"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import Logo from "@/app/components/Logo"
+import { EventBackButton } from "@/app/components/EventUi"
 
 type Profilo = {
   id: string
@@ -174,7 +175,7 @@ export default function MioProfiloPage() {
       <div className="absolute bottom-[-180px] right-[-140px] h-[360px] w-[360px] rounded-full bg-orange-500/10 blur-[110px]" />
 
       <div className="relative mx-auto w-full max-w-md">
-        <Logo size="medium" />
+        <header className="flex items-center justify-between gap-4"><EventBackButton href={`/evento/${params.code}/home`} label="Torna alla home"/><Logo size="medium"/></header>
 
         <div className="mt-7 text-center">
           <p className="text-sm font-bold uppercase tracking-[0.2em] text-pink-400">
@@ -282,7 +283,7 @@ export default function MioProfiloPage() {
               <button
                 type="button"
                 onClick={() =>
-                  router.push(`/evento/${params.code}/scegli`)
+                  router.push(`/evento/${params.code}/home`)
                 }
                 className="mt-5 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white shadow-[0_0_35px_rgba(236,72,153,0.22)]"
               >

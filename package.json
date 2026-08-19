@@ -10,7 +10,8 @@
     "test:inclusive-matching": "node scripts/verify-inclusive-matching.mjs",
     "test:dance-analytics": "node --no-warnings --experimental-strip-types scripts/verify-dance-analytics.mjs",
     "test:notification-scaling": "node scripts/verify-notification-scaling.mjs",
-    "test:no-implicit-profile-mission": "node scripts/verify-no-implicit-profile-mission.mjs"
+    "test:no-implicit-profile-mission": "node scripts/verify-no-implicit-profile-mission.mjs",
+    "test:participant-home": "node scripts/verify-participant-home.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.110.2",

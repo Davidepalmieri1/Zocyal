@@ -139,7 +139,7 @@ export default function CodiceAccessoPage() {
             <button
               type="button"
               onClick={() =>
-                router.push(`/evento/${params.code}/${caribbeanMode ? "balla" : "questionario"}`)
+      router.push(`/evento/${params.code}/${caribbeanMode ? "home" : "questionario"}`)
               }
               className="mt-6 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 text-lg font-black text-white shadow-[0_0_35px_rgba(236,72,153,0.22)] transition hover:scale-[1.02]"
             >

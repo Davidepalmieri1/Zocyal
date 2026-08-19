@@ -487,7 +487,7 @@ export default function MissioniPage() {
 
       <div className="relative mx-auto w-full max-w-5xl">
         <header className="flex items-center justify-between gap-4">
-          <EventBackButton href={`/evento/${eventCode}`} label="Torna all’evento" />
+          <EventBackButton href={`/evento/${eventCode}/home`} label="Torna alla home" />
           <Logo size="small" />
         </header>
 

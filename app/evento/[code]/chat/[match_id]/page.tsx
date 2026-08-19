@@ -883,7 +883,7 @@ export default function ChatPage() {
             <button
               type="button"
               onClick={() =>
-                router.push(`/evento/${eventCode}`)
+              router.push(`/evento/${eventCode}/home`)
               }
               className="mt-7 w-full rounded-full bg-gradient-to-r from-fuchsia-600 via-pink-500 to-orange-400 px-6 py-4 font-black text-white"
             >

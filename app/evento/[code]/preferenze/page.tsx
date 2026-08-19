@@ -50,7 +50,7 @@ export default function InclusivePreferencesPage() {
 
         const settings = (data || {}) as Settings
         if (!settings.inclusive) {
-          router.replace(`/evento/${eventCode}/scegli`)
+      router.replace(`/evento/${eventCode}/home`)
           return
         }
         setIdentityCategory(settings.identity_category || "")

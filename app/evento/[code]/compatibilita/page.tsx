@@ -6,6 +6,7 @@ import Image from "next/image"
 import { publicSupabase, supabase } from "@/lib/supabase"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
+import { EventBackButton } from "@/app/components/EventUi"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { calculateCompatibility } from "@/app/lib/compatibility"
 
@@ -647,7 +648,7 @@ export default function CompatibilitaPage() {
       <PremiumBackdrop orbs={false} />
 
       <div className="relative mx-auto w-full max-w-md">
-        <Logo size="medium" />
+        <header className="flex items-center justify-between gap-4"><EventBackButton href={`/evento/${params.code}/home`} label="Torna alla home"/><Logo size="medium"/></header>
 
         <div className="mt-7 text-center">
           <p className="premium-eyebrow">

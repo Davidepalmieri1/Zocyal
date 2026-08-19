@@ -89,7 +89,7 @@ export default function ExperienceSidebar() {
     )
 
   const eventCode = params.code
-  const paginaConQr = pathname.includes("/chat/") || pathname.endsWith("/missioni")
+  const paginaConQr = pathname.includes("/chat/")
 
   useEffect(() => {
     const updateCount = (event: Event) => {
@@ -360,6 +360,25 @@ export default function ExperienceSidebar() {
                   Tutto ci&ograve; che puoi fare durante la serata, in un solo posto.
                 </p>
 
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAperto(false)
+                    router.push(`/evento/${eventCode}/home`)
+                  }}
+                  className={`mt-5 flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                    pathname.endsWith("/home")
+                      ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10"
+                      : "border-white/10 bg-white/[0.04] hover:border-pink-400/30 hover:bg-white/[0.07]"
+                  }`}
+                >
+                  <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl bg-pink-500/10 text-2xl">⌂</div>
+                  <div className="min-w-0 flex-1">
+                    <p className="font-black text-white">La mia home</p>
+                    <p className="mt-1 text-xs leading-5 text-gray-400">Profilo, match, coupon e tutte le attività.</p>
+                  </div>
+                  <span className="text-xl text-white/30">›</span>
+                </button>
 
                 <button
                   type="button"
@@ -367,7 +386,7 @@ export default function ExperienceSidebar() {
                     setAperto(false)
                     router.push(`/evento/${eventCode}/mio-profilo`)
                   }}
-                  className={`mt-5 flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
+                  className={`mt-2 flex w-full items-center gap-3 rounded-2xl border p-3 text-left transition ${
                     pathname.includes("/mio-profilo")
                       ? "border-pink-400/50 bg-gradient-to-r from-fuchsia-600/20 via-pink-500/15 to-orange-400/10"
                       : "border-white/10 bg-white/[0.04] hover:border-pink-400/30 hover:bg-white/[0.07]"
@@ -426,7 +445,7 @@ export default function ExperienceSidebar() {
 
                 <div className="mt-7 border-t border-white/[.08] pt-5"><div className="mb-3 flex items-center justify-between"><p className="text-[10px] font-black uppercase tracking-[.2em] text-white/35">Esperienze</p><span className="text-[10px] font-bold text-white/25">Scegline una</span></div><div className="grid gap-2">
                   {vociMenu.filter(voce => !experienceModeLoaded ? !["tavoli", "balla"].includes(voce.id) : caribbeanMode ? voce.id !== "tavoli" : voce.id !== "balla").map((voce, index) => {
-                    const attiva = attivitaAttuale === voce.id
+                    const attiva = !pathname.endsWith("/home") && attivitaAttuale === voce.id
 
                     return (
                       <motion.button

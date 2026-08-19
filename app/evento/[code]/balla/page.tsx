@@ -5,7 +5,7 @@ import { useParams, useRouter } from "next/navigation"
 import Image from "next/image"
 import Logo from "@/app/components/Logo"
 import PremiumBackdrop from "@/app/components/PremiumBackdrop"
-import { ActionFeedback, ConfirmDialog, EmptyState, LiveSyncStatus } from "@/app/components/EventUi"
+import { ActionFeedback, ConfirmDialog, EmptyState, EventBackButton, LiveSyncStatus } from "@/app/components/EventUi"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { publicSupabase, supabase } from "@/lib/supabase"
 
@@ -249,7 +249,7 @@ export default function DancePage() {
     <ConfirmDialog open={Boolean(inviteToCancel)} title="Annullare l’invito?" description="Il ballerino non potrà più accettare questa richiesta. Potrai comunque inviarne una nuova." confirmLabel="ANNULLA INVITO" busy={busy === inviteToCancel} onCancel={() => setInviteToCancel("")} onConfirm={() => void cancelInvitation(inviteToCancel).then(() => setInviteToCancel(""))}/>
     <PremiumBackdrop />
     <div className="relative mx-auto max-w-6xl">
-      <Logo size="small" />
+      <div className="flex items-center justify-between gap-4"><EventBackButton href={`/evento/${code}/home`} label="Torna alla home"/><Logo size="small"/></div>
       <header className="premium-enter mt-9 flex flex-col justify-between gap-6 sm:flex-row sm:items-end">
         <div><p className="premium-eyebrow">Modalità caraibica</p><h1 className="premium-title premium-gradient-text mt-3 text-4xl font-black sm:text-6xl">La tua pista, il tuo ritmo.</h1><p className="mt-4 max-w-2xl text-white/50">Cura il tuo profilo oppure entra in pista per scoprire chi vuole ballare.</p><div className="mt-3"><LiveSyncStatus updatedAt={updatedAt} label="Pista aggiornata"/></div></div>
         {hasProfile && <div className={`flex w-fit items-center gap-2 rounded-full border px-4 py-2 text-xs font-black uppercase tracking-wider ${available ? "border-emerald-300/25 bg-emerald-300/10 text-emerald-200" : "border-white/10 bg-white/[.04] text-white/45"}`}><span className={`h-2 w-2 rounded-full ${available ? "animate-pulse bg-emerald-300" : "bg-white/30"}`} />{available ? "Disponibile" : "In pausa"}</div>}
