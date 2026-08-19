@@ -601,6 +601,16 @@ export default function CompatibilitaPage() {
                 : person
             )
           )
+
+          window.dispatchEvent(new CustomEvent("zocyal:notification", {
+            detail: {
+              id: `match-${nuovoMatch.id}`,
+              kind: "match",
+              title: "È un match!",
+              detail: "L’interesse è reciproco. Apri la nuova connessione.",
+              href: `/evento/${eventCode}/miei-match`,
+            },
+          }))
         }
       )
       .subscribe()

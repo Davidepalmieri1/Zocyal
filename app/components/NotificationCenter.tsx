@@ -308,7 +308,11 @@ export default function NotificationCenter() {
           if (realtimeReady) refresh()
         })
       const fallbackInterval = 20_000 + Math.floor(Math.random() * 10_000)
-      poll = window.setInterval(() => { if(!realtimeReady && !document.hidden) refresh() },fallbackInterval)
+      // A subscribed channel can still miss an individual database event (for
+      // example while a phone changes network). The snapshot is a single,
+      // event-scoped RPC, so keep it as a low-cost safety net even when
+      // Realtime reports a healthy connection.
+      poll = window.setInterval(() => { if(!document.hidden) refresh() },fallbackInterval)
     }
     void start()
     const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); refresh() })

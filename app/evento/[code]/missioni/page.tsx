@@ -316,6 +316,32 @@ export default function MissioniPage() {
     })).filter((group) => group.missions.length > 0),
     [dashboard]
   )
+  const haPremioInAttesa = dashboard?.rewards.some(
+    (premio) => premio.deliveryStatus === "redeemed"
+  ) ?? false
+
+  useEffect(() => {
+    if (!haPremioInAttesa) return
+
+    let active = true
+    const aggiornaPremioInAttesa = () => {
+      if (document.hidden) return
+      void caricaDashboard()
+        .then((data) => {
+          if (active) {
+            setDashboard(data)
+            setUpdatedAt(new Date())
+          }
+        })
+        .catch((error: unknown) => console.error("Aggiornamento premio in attesa non riuscito:", error))
+    }
+    const timer = window.setInterval(aggiornaPremioInAttesa, 15_000)
+
+    return () => {
+      active = false
+      window.clearInterval(timer)
+    }
+  }, [caricaDashboard, haPremioInAttesa])
 
   async function completaMissione(missionId: string) {
     if (missioneInCorso || actionLocks.current.has("mission")) return

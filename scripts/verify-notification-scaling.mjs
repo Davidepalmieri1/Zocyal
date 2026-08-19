@@ -7,7 +7,7 @@ const migration = readFileSync("supabase/migrations/20260922_notification_center
 assert.match(center, /get_notification_center_snapshot/)
 assert.match(center, /pendingLoadRef\.current = true/)
 assert.match(center, /while \(pendingLoadRef\.current\)/)
-assert.match(center, /!realtimeReady && !document\.hidden/)
+assert.match(center, /if\(!document\.hidden\) refresh\(\)/)
 assert.doesNotMatch(center, /setInterval\([^\n]+,5000\)/)
 
 for (const source of [
