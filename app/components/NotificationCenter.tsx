@@ -237,11 +237,14 @@ export default function NotificationCenter() {
     let poll:number|null = null
     let refreshTimeout:number|null = null
     let channel:ReturnType<typeof supabase.channel>|null = null
+    let connecting = false
     const refresh = () => {
       if (refreshTimeout !== null) window.clearTimeout(refreshTimeout)
       refreshTimeout = window.setTimeout(() => {
         refreshTimeout = null
-        void load().catch(error => console.error("Sincronizzazione notifiche non riuscita:",error))
+        void load()
+          .then(() => { if (!channel) void connect() })
+          .catch(error => console.error("Sincronizzazione notifiche non riuscita:",error))
       },150)
     }
     const receiveLocal = (event:Event) => {
@@ -265,14 +268,16 @@ export default function NotificationCenter() {
         schedulePoll()
       }, base + Math.floor(Math.random() * jitter))
     }
-    const start = async () => {
-      setPermission("Notification" in window ? Notification.permission : "unsupported")
-      try { await load() } catch(error) { console.error("Avvio notifiche non riuscito:",error) }
+    async function connect() {
+      if (!active || channel || connecting) return
+      connecting = true
+      try {
+      const participantId = participantIdRef.current || await resolveCurrentParticipant(code)
+      if (!active || !participantId) return
+      participantIdRef.current = participantId
       const {data:{session}} = await supabase.auth.getSession()
-      if (!active) return
+      if (!active || channel) return
       if (session?.access_token) supabase.realtime.setAuth(session.access_token)
-      const participantId = participantIdRef.current
-      if (!participantId) return
       channel = supabase.channel(`participant-notifications-${participantId}`)
         .on("postgres_changes",{event:"INSERT",schema:"public",table:"likes",filter:`to_participant=eq.${participantId}`},payload => {
           const row = realtimeRow(payload); const id = rowText(row,"id"); const sender = rowText(row,"from_participant")
@@ -320,23 +325,32 @@ export default function NotificationCenter() {
           if (realtimeReady) refresh()
           if (wasReady !== realtimeReady) schedulePoll()
         })
+      } finally {
+        connecting = false
+      }
+    }
+    const start = async () => {
+      setPermission("Notification" in window ? Notification.permission : "unsupported")
+      await connect()
+      try { await load() } catch(error) { console.error("Avvio notifiche non riuscito:",error) }
+      await connect()
       schedulePoll()
     }
     void start()
-    const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); refresh() })
-    const visible = () => { if(!document.hidden) refresh() }
+    const {data:authListener} = supabase.auth.onAuthStateChange((_event,session) => { if(session?.access_token)supabase.realtime.setAuth(session.access_token); void connect(); refresh() })
+    const visible = () => { if(!document.hidden) { void connect(); refresh() } }
     window.addEventListener("zocyal:notification",receiveLocal)
     document.addEventListener("visibilitychange",visible)
-    window.addEventListener("focus",refresh)
-    window.addEventListener("online",refresh)
+    window.addEventListener("focus",visible)
+    window.addEventListener("online",visible)
     return () => {
       active=false
       if(refreshTimeout!==null)window.clearTimeout(refreshTimeout)
       if(poll!==null)window.clearTimeout(poll)
       window.removeEventListener("zocyal:notification",receiveLocal)
       document.removeEventListener("visibilitychange",visible)
-      window.removeEventListener("focus",refresh)
-      window.removeEventListener("online",refresh)
+      window.removeEventListener("focus",visible)
+      window.removeEventListener("online",visible)
       authListener.subscription.unsubscribe()
       if(channel)void supabase.removeChannel(channel)
     }

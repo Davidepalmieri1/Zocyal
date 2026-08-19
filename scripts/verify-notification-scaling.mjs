@@ -11,6 +11,9 @@ assert.match(center, /while \(pendingLoadRef\.current\)/)
 assert.match(center, /const schedulePoll =/)
 assert.match(center, /realtimeReady \? 30_000 : 10_000/)
 assert.match(center, /window\.clearTimeout\(poll\)/)
+assert.match(center, /await connect\(\)[\s\S]+await load\(\)/)
+assert.match(center, /if \(!channel\) void connect\(\)/)
+assert.match(center, /participantIdRef\.current \|\| await resolveCurrentParticipant\(code\)/)
 assert.doesNotMatch(center, /setInterval\([^\n]+,5000\)/)
 
 for (const source of [
