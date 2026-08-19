@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react"
-import { useParams, useRouter } from "next/navigation"
+import { useParams, usePathname, useRouter } from "next/navigation"
 import { resolveCurrentParticipant } from "@/app/lib/participant-session"
 import { EmptyState, LiveSyncStatus } from "@/app/components/EventUi"
 import { supabase } from "@/lib/supabase"
@@ -34,6 +34,7 @@ const appearance:Record<NoticeKind,{icon:string;label:string;classes:string}> = 
 
 export default function NotificationCenter() {
   const { code:rawCode } = useParams<{code:string}>()
+  const pathname = usePathname()
   const router = useRouter()
   const code = rawCode.trim().toLowerCase()
   const readKey = `zocyal_notifications_read_${code}`
@@ -394,7 +395,7 @@ export default function NotificationCenter() {
       authListener.subscription.unsubscribe()
       if(channel)void supabase.removeChannel(channel)
     }
-  },[code,load,receiveNotice])
+  },[code,load,pathname,receiveNotice])
 
   useEffect(() => {
     if (!toast) return
